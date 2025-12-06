@@ -73,8 +73,9 @@
 //! - `fragment`: Fragment identifier without the '#' (null if not present)
 //! - `username`: Username for authentication (only if present)
 //! - `password`: Password for authentication (only if present)
+//! - `origin`: The origin (scheme + host + port) of the URL
 //!
-//! Returns an error if the URL is malformed.
+//! Returns null if the URL is malformed.
 //!
 //! ```text
 //! url_parse('https://example.com/path')
@@ -259,13 +260,14 @@ impl Function for UrlParseFn {
                     );
                 }
 
+                // Add origin field (scheme + host + port)
+                let origin = parsed.origin().ascii_serialization();
+                result.insert("origin".to_string(), Rc::new(Variable::String(origin)));
+
                 Ok(Rc::new(Variable::Object(result)))
             }
-            Err(_) => Err(JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Invalid URL".to_owned()),
-            )),
+            // Return null for invalid URLs instead of an error
+            Err(_) => Ok(Rc::new(Variable::Null)),
         }
     }
 }
@@ -310,5 +312,27 @@ mod tests {
         assert_eq!(obj.get("scheme").unwrap().as_string().unwrap(), "https");
         assert_eq!(obj.get("host").unwrap().as_string().unwrap(), "example.com");
         assert_eq!(obj.get("port").unwrap().as_number().unwrap() as u16, 8080);
+    }
+
+    #[test]
+    fn test_url_parse_origin() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("url_parse(@)").unwrap();
+        let data = Variable::String("https://example.com:8080/path".to_string());
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(
+            obj.get("origin").unwrap().as_string().unwrap(),
+            "https://example.com:8080"
+        );
+    }
+
+    #[test]
+    fn test_url_parse_invalid_returns_null() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("url_parse(@)").unwrap();
+        let data = Variable::String("not a valid url".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
     }
 }

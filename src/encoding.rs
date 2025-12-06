@@ -75,15 +75,15 @@
 //! ### `hex_decode(hex: string) -> string`
 //!
 //! Decodes a hexadecimal string back to its original form. Accepts both lowercase and
-//! uppercase hex digits. Returns an error if the input is not valid hexadecimal or if
+//! uppercase hex digits. Returns null if the input is not valid hexadecimal or if
 //! the decoded bytes are not valid UTF-8.
 //!
 //! ```text
 //! hex_decode('68656c6c6f')                 // "hello"
 //! hex_decode('48656C6C6F20576F726C64')     // "Hello World" (uppercase works)
 //! hex_decode('414243')                     // "ABC"
-//! hex_decode('invalid')                    // Error: Invalid hex input
-//! hex_decode('123')                        // Error: Odd length hex string
+//! hex_decode('invalid')                    // null (invalid hex input)
+//! hex_decode('123')                        // null (odd length hex string)
 //! ```
 
 use std::rc::Rc;
@@ -207,20 +207,14 @@ impl Function for HexDecodeFn {
 
         match hex::decode(input) {
             Ok(decoded) => {
-                let s = String::from_utf8(decoded).map_err(|_| {
-                    JmespathError::new(
-                        ctx.expression,
-                        0,
-                        ErrorReason::Parse("Decoded bytes are not valid UTF-8".to_owned()),
-                    )
-                })?;
-                Ok(Rc::new(Variable::String(s)))
+                // Return null if decoded bytes are not valid UTF-8
+                match String::from_utf8(decoded) {
+                    Ok(s) => Ok(Rc::new(Variable::String(s))),
+                    Err(_) => Ok(Rc::new(Variable::Null)),
+                }
             }
-            Err(_) => Err(JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Invalid hex input".to_owned()),
-            )),
+            // Return null for invalid hex input
+            Err(_) => Ok(Rc::new(Variable::Null)),
         }
     }
 }
@@ -262,5 +256,32 @@ mod tests {
         let data = Variable::String("hello".to_string());
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "68656c6c6f");
+    }
+
+    #[test]
+    fn test_hex_decode() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("hex_decode(@)").unwrap();
+        let data = Variable::String("68656c6c6f".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_hex_decode_invalid_returns_null() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("hex_decode(@)").unwrap();
+        let data = Variable::String("invalid".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_hex_decode_odd_length_returns_null() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("hex_decode(@)").unwrap();
+        let data = Variable::String("123".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
     }
 }

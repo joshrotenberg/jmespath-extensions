@@ -218,7 +218,12 @@ impl Function for RegexExtractFn {
             .map(|m| Rc::new(Variable::String(m.as_str().to_string())) as Rcvar)
             .collect();
 
-        Ok(Rc::new(Variable::Array(matches)))
+        // Return null if no matches found
+        if matches.is_empty() {
+            Ok(Rc::new(Variable::Null))
+        } else {
+            Ok(Rc::new(Variable::Array(matches)))
+        }
     }
 }
 
