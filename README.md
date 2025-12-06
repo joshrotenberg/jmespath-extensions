@@ -30,11 +30,16 @@ Extended functions for JMESPath queries in Rust.
 
 3. **Expression functions are unique**: `map_expr`, `filter_expr`, `sort_by_expr` etc. leverage Rust runtime access—these don't exist in any JMESPath spec or implementation.
 
-### When to Use This Library
+### Use Cases
 
-- You control the runtime environment (your Rust application, RedisJSON)
-- You need transformation capabilities beyond standard JMESPath
-- Portability to other JMESPath implementations is not required
+This library is ideal for:
+
+- **Backend data transformation**: Reshape API responses, filter datasets, compute derived fields
+- **Configuration processing**: Query and transform JSON/YAML configs with complex logic
+- **ETL pipelines**: Extract, transform, and validate data with expressive queries
+- **Log/event processing**: Filter and aggregate structured log data
+- **CLI tools**: Build jq-like tools with domain-specific functions
+- **Embedded queries**: Let users write safe, sandboxed data queries in your application
 
 ### For Portable Queries
 
