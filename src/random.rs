@@ -18,6 +18,8 @@
 //! # Examples
 //!
 //! ```rust
+//! # #[cfg(feature = "uuid")]
+//! # fn main() {
 //! use jmespath_extensions::Runtime;
 //!
 //! let mut runtime = Runtime::new();
@@ -28,6 +30,9 @@
 //! let expr = runtime.compile("uuid()").unwrap();
 //! let result = expr.search(&jmespath::Variable::Null).unwrap();
 //! // Result is a UUID string like "550e8400-e29b-41d4-a716-446655440000"
+//! # }
+//! # #[cfg(not(feature = "uuid"))]
+//! # fn main() {}
 //! ```
 //!
 //! # Function Details
@@ -130,9 +135,9 @@
 
 use std::rc::Rc;
 
-use crate::common::{
-    ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
-};
+#[cfg(feature = "rand")]
+use crate::common::{ArgumentType, ErrorReason};
+use crate::common::{Context, Function, JmespathError, Rcvar, Runtime, Variable};
 use crate::define_function;
 
 /// Register all random functions with the runtime.
