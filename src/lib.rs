@@ -23,6 +23,8 @@
 //! ## Quick Start
 //!
 //! ```rust
+//! # #[cfg(feature = "string")]
+//! # fn main() {
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::register_all;
 //!
@@ -36,6 +38,9 @@
 //! let data = Variable::String("hello".to_string());
 //! let result = expr.search(&data).unwrap();
 //! assert_eq!(result.as_string().unwrap(), "HELLO");
+//! # }
+//! # #[cfg(not(feature = "string"))]
+//! # fn main() {}
 //! ```
 //!
 //! ## Working with JSON Data
@@ -43,6 +48,8 @@
 //! Most real-world usage involves querying JSON data:
 //!
 //! ```rust
+//! # #[cfg(feature = "string")]
+//! # fn main() {
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::register_all;
 //!
@@ -64,6 +71,9 @@
 //! let result = expr.search(&data).unwrap();
 //!
 //! // Result: [{"name": "ALICE", "email": "alice@example.com"}, {"name": "BOB", "email": "bob@example.com"}]
+//! # }
+//! # #[cfg(not(feature = "string"))]
+//! # fn main() {}
 //! ```
 //!
 //! ## Feature Flags
