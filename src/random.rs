@@ -138,6 +138,8 @@ use std::rc::Rc;
 #[cfg(feature = "rand")]
 use crate::common::ErrorReason;
 use crate::common::{Context, Function, JmespathError, Rcvar, Runtime, Variable};
+
+#[cfg(feature = "uuid")]
 use crate::define_function;
 
 /// Register all random functions with the runtime.
