@@ -223,6 +223,67 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 | `shuffle(array)` | Randomly shuffle array |
 | `sample(array, n)` | Random sample of n elements |
 
+## JMESPath Community JEP Alignment
+
+This crate aligns with several [JMESPath Enhancement Proposals (JEPs)](https://github.com/jmespath-community/jmespath.spec) from the JMESPath community, while also providing additional functionality.
+
+### JEP-014: String Functions
+
+| JEP-014 Function | jmespath_extensions | Notes |
+|------------------|---------------------|-------|
+| `lower` | `lower` | |
+| `upper` | `upper` | |
+| `trim` | `trim` | |
+| `trim_left` | `trim_start` | Different name |
+| `trim_right` | `trim_end` | Different name |
+| `pad_left` | `pad_left` | |
+| `pad_right` | `pad_right` | |
+| `replace` | `replace` | |
+| `split` | `split` | |
+| `find_first` | `index_of` | Different name |
+| `find_last` | `last_index_of` | Different name |
+
+**Additional string functions**: `capitalize`, `title`, `title_case`, `camel_case`, `snake_case`, `kebab_case`, `substr`, `slice`, `concat`, `repeat`, `truncate`
+
+### JEP-013: Object Functions
+
+| JEP-013 Function | jmespath_extensions | Notes |
+|------------------|---------------------|-------|
+| `items` | `entries` | Different name (JS-style) |
+| `from_items` | `from_entries` | Different name (JS-style) |
+| `zip` | `zip` | In array module |
+
+**Additional object functions**: `pick`, `omit`, `deep_merge`, `rename_keys`, `invert`, `flatten_keys`, `unflatten_keys`
+
+### Language-Level JEPs (Not Applicable)
+
+Some JEPs propose grammar-level changes that cannot be implemented via extension functions:
+
+| JEP | Description | Status |
+|-----|-------------|--------|
+| JEP-016 | Arithmetic operators (`+`, `-`, `*`, `/`, `%`) | Requires parser changes |
+| JEP-011a | Lexical scoping (`let x = expr in expr`) | Requires parser changes |
+| JEP-017 | Root reference (`$`) | Requires parser changes |
+
+While these can't be implemented as functions, this crate provides related math functions: `abs_fn`, `ceil_fn`, `floor_fn`, `mod_fn`, `pow`, `sqrt`, `log`, `round`, `clamp`, `sign`, plus trigonometric functions.
+
+### Beyond JEPs
+
+This crate provides extensive functionality not yet addressed by the JEP process:
+
+| Category | Functions |
+|----------|-----------|
+| **Hash** | `md5`, `sha1`, `sha256`, `crc32` |
+| **Encoding** | `base64_encode`, `base64_decode`, `hex_encode`, `hex_decode` |
+| **URL** | `url_encode`, `url_decode`, `url_parse` |
+| **Regex** | `regex_match`, `regex_replace`, `regex_extract` |
+| **UUID** | `uuid`, `is_uuid` |
+| **Random** | `random`, `sample`, `shuffle` |
+| **Validation** | `is_email`, `is_url`, `is_ipv4`, `is_ipv6`, `is_blank` |
+| **Path** | `path_basename`, `path_dirname`, `path_ext`, `path_join` |
+| **Time** | `now`, `now_ms` |
+| **Statistics** | `median`, `percentile`, `variance`, `stddev` |
+
 ## Portability Warning
 
 These extension functions are designed for use cases where:
