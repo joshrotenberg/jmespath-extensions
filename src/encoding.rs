@@ -93,7 +93,7 @@ use crate::common::{
 };
 use crate::define_function;
 
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
 
 /// Register all encoding functions with the runtime.
 pub fn register(runtime: &mut Runtime) {

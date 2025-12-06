@@ -162,7 +162,8 @@ impl Function for RandomFn {
         self.signature.validate(args, ctx)?;
 
         use rand::Rng;
-        let value: f64 = rand::thread_rng().gen();
+        let mut rng = rand::rng();
+        let value: f64 = rng.random_range(0.0..1.0);
 
         Ok(Rc::new(Variable::Number(
             serde_json::Number::from_f64(value).unwrap_or_else(|| serde_json::Number::from(0)),
@@ -192,7 +193,7 @@ impl Function for ShuffleFn {
 
         use rand::seq::SliceRandom;
         let mut result: Vec<Rcvar> = arr.clone();
-        result.shuffle(&mut rand::thread_rng());
+        result.shuffle(&mut rand::rng());
 
         Ok(Rc::new(Variable::Array(result)))
     }
@@ -230,9 +231,9 @@ impl Function for SampleFn {
             )
         })? as usize;
 
-        use rand::seq::SliceRandom;
+        use rand::seq::IndexedRandom;
         let sample: Vec<Rcvar> = arr
-            .choose_multiple(&mut rand::thread_rng(), n.min(arr.len()))
+            .choose_multiple(&mut rand::rng(), n.min(arr.len()))
             .cloned()
             .collect();
 

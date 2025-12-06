@@ -107,7 +107,7 @@
 //! See each module's documentation for detailed function reference with examples:
 //!
 //! - [`string`] - String manipulation (`upper`, `lower`, `split`, `replace`, `camel_case`, etc.)
-//! - [`array`] - Array operations (`first`, `last`, `unique`, `chunk`, `zip`, `range`, etc.)
+//! - [`mod@array`] - Array operations (`first`, `last`, `unique`, `chunk`, `zip`, `range`, etc.)
 //! - [`object`] - Object utilities (`entries`, `pick`, `omit`, `deep_merge`, etc.)
 //! - [`math`] - Math operations (`round`, `sqrt`, `pow`, `median`, `sin`, `cos`, etc.)
 //! - [`type_conv`] - Type functions (`type_of`, `is_string`, `is_empty`, `to_number`, etc.)
@@ -138,12 +138,22 @@
 //! let expr = runtime.compile("upper(@)").unwrap();
 //! let data = Variable::Number(serde_json::Number::from(42));
 //! assert!(expr.search(&data).is_err());
+//! ```
 //!
-//! // Out of bounds - returns null
+//! ```rust
+//! # use jmespath::{Runtime, Variable};
+//! # use jmespath_extensions::register_all;
+//! # let mut runtime = Runtime::new();
+//! # runtime.register_builtin_functions();
+//! # register_all(&mut runtime);
+//! // Out of bounds - returns null (requires "array" feature)
+//! # #[cfg(feature = "array")]
+//! # {
 //! let expr = runtime.compile("index_at(@, `10`)").unwrap();
 //! let data = Variable::from_json("[1, 2, 3]").unwrap();
 //! let result = expr.search(&data).unwrap();
 //! assert!(result.is_null());
+//! # }
 //! ```
 
 // Re-export common types

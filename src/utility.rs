@@ -148,12 +148,12 @@ impl Function for NowFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        if let Some(fallback) = args.first() {
-            if let Some(n) = fallback.as_number() {
-                return Ok(Rc::new(Variable::Number(
-                    serde_json::Number::from_f64(n).unwrap_or_else(|| serde_json::Number::from(0)),
-                )));
-            }
+        if let Some(fallback) = args.first()
+            && let Some(n) = fallback.as_number()
+        {
+            return Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(n).unwrap_or_else(|| serde_json::Number::from(0)),
+            )));
         }
 
         let timestamp = std::time::SystemTime::now()
@@ -177,12 +177,12 @@ impl Function for NowMsFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        if let Some(fallback) = args.first() {
-            if let Some(n) = fallback.as_number() {
-                return Ok(Rc::new(Variable::Number(
-                    serde_json::Number::from_f64(n).unwrap_or_else(|| serde_json::Number::from(0)),
-                )));
-            }
+        if let Some(fallback) = args.first()
+            && let Some(n) = fallback.as_number()
+        {
+            return Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(n).unwrap_or_else(|| serde_json::Number::from(0)),
+            )));
         }
 
         let timestamp = std::time::SystemTime::now()
