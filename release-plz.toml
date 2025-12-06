@@ -1,0 +1,7 @@
+[workspace]
+# Changelog configuration
+changelog_update = true
+git_release_enable = true
+git_tag_enable = true
+# Validate semantic versioning
+semver_check = true
