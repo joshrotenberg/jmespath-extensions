@@ -214,11 +214,12 @@ impl Function for FromEntriesFn {
         let mut result = BTreeMap::new();
 
         for item in arr {
-            if let Some(obj) = item.as_object()
-                && let (Some(key), Some(value)) = (obj.get("key"), obj.get("value"))
-                && let Some(key_str) = key.as_string()
-            {
-                result.insert(key_str.to_string(), value.clone());
+            if let Some(obj) = item.as_object() {
+                if let (Some(key), Some(value)) = (obj.get("key"), obj.get("value")) {
+                    if let Some(key_str) = key.as_string() {
+                        result.insert(key_str.to_string(), value.clone());
+                    }
+                }
             }
         }
 

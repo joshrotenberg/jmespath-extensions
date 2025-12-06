@@ -645,7 +645,7 @@ impl Function for MedianFn {
         numbers.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let len = numbers.len();
-        let median = if len.is_multiple_of(2) {
+        let median = if len % 2 == 0 {
             (numbers[len / 2 - 1] + numbers[len / 2]) / 2.0
         } else {
             numbers[len / 2]

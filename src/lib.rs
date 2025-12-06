@@ -1,3 +1,7 @@
+// Allow patterns that clippy suggests replacing with unstable features
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::manual_is_multiple_of)]
+
 //! # JMESPath Extensions
 //!
 //! A comprehensive collection of 100+ extension functions for [JMESPath](https://jmespath.org/) queries.
