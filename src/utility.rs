@@ -304,10 +304,11 @@ impl Function for JsonDecodeFn {
             )
         })?;
 
-        let var = Variable::from_json(s)
-            .map_err(|e| JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e)))?;
-
-        Ok(Rc::new(var))
+        // Return null for invalid JSON instead of erroring
+        match Variable::from_json(s) {
+            Ok(var) => Ok(Rc::new(var)),
+            Err(_) => Ok(Rc::new(Variable::Null)),
+        }
     }
 }
 
@@ -378,5 +379,14 @@ mod tests {
         assert!(result.is_ok());
         let val = result.unwrap();
         assert!(val.is_object());
+    }
+
+    #[test]
+    fn test_json_decode_invalid_returns_null() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("json_decode(@)").unwrap();
+        let data = Variable::String("not valid json".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
     }
 }
