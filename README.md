@@ -7,16 +7,43 @@
 
 Extended functions for JMESPath queries in Rust.
 
-> **Warning: Non-Standard Extension**
+> **Non-Standard Extensions - Not Portable**
 >
-> This crate provides **custom extension functions** that are **NOT part of the JMESPath specification**.
-> Queries using these functions will **NOT work** in other JMESPath implementations (Python, JavaScript, Go, etc.).
->
-> For portable queries, use only the [26 standard JMESPath built-in functions](https://jmespath.org/specification.html#built-in-functions).
+> This crate provides **custom extension functions** that are **NOT part of the [JMESPath specification](https://jmespath.org/specification.html)**.
+> Queries using these functions will **NOT work** in other JMESPath implementations (Python, JavaScript, Go, AWS CLI, Ansible, etc.).
+
+## JMESPath Spec vs This Library
+
+| | **JMESPath Specification** | **jmespath_extensions** |
+|---|---|---|
+| **Functions** | 26 built-in functions | 150+ extension functions |
+| **Portability** | Works everywhere (Python, JS, Go, AWS CLI, Ansible) | Rust only |
+| **Design** | Minimal, query-focused | Transformation-heavy, practical |
+| **Governance** | JEP process, multi-year consensus | Opinionated, can change |
+| **Philosophy** | "Spec purity" | "Useful > Pure" |
+
+### What This Means
+
+1. **Not portable**: Queries using `upper()`, `map_expr()`, `haversine()`, etc. won't work in AWS CLI's `--query`, Ansible filters, or any other JMESPath implementation.
+
+2. **No spec backing**: Function names, signatures, and behaviors are our decisions. While we align with JEPs where possible (`items`, `find_first`), many functions are novel.
+
+3. **Expression functions are unique**: `map_expr`, `filter_expr`, `sort_by_expr` etc. leverage Rust runtime access—these don't exist in any JMESPath spec or implementation.
+
+### When to Use This Library
+
+- You control the runtime environment (your Rust application, RedisJSON)
+- You need transformation capabilities beyond standard JMESPath
+- Portability to other JMESPath implementations is not required
+
+### For Portable Queries
+
+Use only the [26 standard JMESPath built-in functions](https://jmespath.org/specification.html#built-in-functions):
+`abs`, `avg`, `ceil`, `contains`, `ends_with`, `floor`, `join`, `keys`, `length`, `map`, `max`, `max_by`, `merge`, `min`, `min_by`, `not_null`, `reverse`, `sort`, `sort_by`, `starts_with`, `sum`, `to_array`, `to_number`, `to_string`, `type`, `values`
 
 ## Overview
 
-This crate provides 150+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories. These extensions are useful when you need more powerful data transformation capabilities and portability across JMESPath implementations is not a concern.
+This crate provides 150+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -151,15 +178,6 @@ This crate aligns with several [JMESPath Enhancement Proposals](https://github.c
 - **JEP-013** (Object Functions): `items`, `from_items`, `zip`
 
 Additional functions extend well beyond these proposals. Some JEPs (like arithmetic operators) require parser changes and cannot be implemented as extension functions.
-
-## Portability Warning
-
-These extension functions are designed for use cases where:
-- You control both the query author and the runtime environment
-- You need functionality beyond standard JMESPath
-- Cross-implementation compatibility is not required
-
-For portable queries, use only the standard JMESPath built-in functions.
 
 ## Benchmarks
 
