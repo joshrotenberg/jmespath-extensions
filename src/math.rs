@@ -867,9 +867,15 @@ impl Function for AsinFn {
                 ErrorReason::Parse("Expected number".to_owned()),
             )
         })?;
-        Ok(Rc::new(Variable::Number(
-            serde_json::Number::from_f64(n.asin()).unwrap_or_else(|| serde_json::Number::from(0)),
-        )))
+        let result = n.asin();
+        // Return null for out-of-domain values (|n| > 1 produces NaN)
+        if result.is_nan() {
+            Ok(Rc::new(Variable::Null))
+        } else {
+            Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(result).unwrap_or_else(|| serde_json::Number::from(0)),
+            )))
+        }
     }
 }
 
@@ -885,9 +891,15 @@ impl Function for AcosFn {
                 ErrorReason::Parse("Expected number".to_owned()),
             )
         })?;
-        Ok(Rc::new(Variable::Number(
-            serde_json::Number::from_f64(n.acos()).unwrap_or_else(|| serde_json::Number::from(0)),
-        )))
+        let result = n.acos();
+        // Return null for out-of-domain values (|n| > 1 produces NaN)
+        if result.is_nan() {
+            Ok(Rc::new(Variable::Null))
+        } else {
+            Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(result).unwrap_or_else(|| serde_json::Number::from(0)),
+            )))
+        }
     }
 }
 

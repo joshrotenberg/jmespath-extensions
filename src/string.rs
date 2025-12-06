@@ -1307,22 +1307,39 @@ impl Function for WrapFn {
         }
 
         let mut lines: Vec<Rcvar> = Vec::new();
-        let mut current_line = String::new();
 
-        for word in s.split_whitespace() {
-            if current_line.is_empty() {
-                current_line = word.to_string();
-            } else if current_line.len() + 1 + word.len() <= width {
-                current_line.push(' ');
-                current_line.push_str(word);
-            } else {
-                lines.push(Rc::new(Variable::String(current_line)));
-                current_line = word.to_string();
+        // Process each paragraph (separated by newlines) separately
+        for paragraph in s.split('\n') {
+            let mut current_line = String::new();
+
+            for word in paragraph.split_whitespace() {
+                if current_line.is_empty() {
+                    current_line = word.to_string();
+                } else if current_line.len() + 1 + word.len() <= width {
+                    current_line.push(' ');
+                    current_line.push_str(word);
+                } else {
+                    lines.push(Rc::new(Variable::String(current_line)));
+                    current_line = word.to_string();
+                }
             }
+
+            // Push the last line of this paragraph (even if empty to preserve blank lines)
+            lines.push(Rc::new(Variable::String(current_line)));
         }
 
-        if !current_line.is_empty() {
-            lines.push(Rc::new(Variable::String(current_line)));
+        // Remove trailing empty line if the input didn't end with a newline
+        if !s.ends_with('\n')
+            && lines
+                .last()
+                .map_or(false, |l| l.as_string().map_or(false, |s| s.is_empty()))
+        {
+            lines.pop();
+        }
+
+        // If we have no lines but had input, return the original
+        if lines.is_empty() && !s.is_empty() {
+            lines.push(Rc::new(Variable::String(s.to_string())));
         }
 
         Ok(Rc::new(Variable::Array(lines)))
@@ -1435,5 +1452,40 @@ mod tests {
         let data = Variable::String("helloWorld".to_string());
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello_world");
+    }
+
+    #[test]
+    fn test_wrap_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("wrap(@, `5`)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "hello");
+        assert_eq!(arr[1].as_string().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_wrap_preserves_newlines() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("wrap(@, `100`)").unwrap();
+        let data = Variable::String("hello\nworld".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "hello");
+        assert_eq!(arr[1].as_string().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_wrap_wide_width() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("wrap(@, `100`)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_string().unwrap(), "hello world");
     }
 }
