@@ -1,7 +1,121 @@
 //! Regular expression functions.
 //!
-//! These functions provide regex matching and manipulation.
-//! Requires the `regex` feature.
+//! This module provides regular expression pattern matching and text manipulation capabilities
+//! for JMESPath expressions. It includes functions for testing patterns, extracting matches,
+//! and replacing matched text with new values.
+//!
+//! **Note:** This module requires the `regex` feature to be enabled.
+//!
+//! # Function Reference
+//!
+//! | Function | Arguments | Returns | Description |
+//! |----------|-----------|---------|-------------|
+//! | `regex_match` | `(text: string, pattern: string)` | `boolean` | Test if pattern matches text |
+//! | `regex_extract` | `(text: string, pattern: string)` | `array` | Extract all pattern matches |
+//! | `regex_replace` | `(text: string, pattern: string, replacement: string)` | `string` | Replace matches with text |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath_extensions::Runtime;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! jmespath_extensions::register_all(&mut runtime);
+//!
+//! let expr = runtime.compile("regex_match(@, '^[0-9]+$')").unwrap();
+//! let data = jmespath::Variable::String("12345".to_string());
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_boolean().unwrap(), true);
+//! ```
+//!
+//! # Function Details
+//!
+//! ## Pattern Matching
+//!
+//! ### `regex_match(text: string, pattern: string) -> boolean`
+//!
+//! Tests whether a regular expression pattern matches anywhere in the input text.
+//! Returns true if the pattern is found, false otherwise.
+//!
+//! ```text
+//! regex_match('hello world', '^hello')     // true (starts with "hello")
+//! regex_match('hello world', 'world$')     // true (ends with "world")
+//! regex_match('test123', '[0-9]+')         // true (contains digits)
+//! regex_match('hello', '^[a-z]+$')         // true (all lowercase letters)
+//! regex_match('Hello', '^[a-z]+$')         // false (contains uppercase)
+//! regex_match('email@example.com', '@')    // true (contains @)
+//! ```
+//!
+//! ## Text Extraction
+//!
+//! ### `regex_extract(text: string, pattern: string) -> array`
+//!
+//! Extracts all non-overlapping matches of a pattern from the input text and returns them
+//! as an array of strings. If no matches are found, returns an empty array.
+//!
+//! ```text
+//! regex_extract('abc123def456', '[0-9]+')
+//! // ["123", "456"]
+//!
+//! regex_extract('hello world', '\w+')
+//! // ["hello", "world"]
+//!
+//! regex_extract('test@example.com', '[a-z]+')
+//! // ["test", "example", "com"]
+//!
+//! regex_extract('no numbers here', '[0-9]+')
+//! // []
+//!
+//! regex_extract('one1two2three3', '[a-z]+')
+//! // ["one", "two", "three"]
+//! ```
+//!
+//! ## Text Replacement
+//!
+//! ### `regex_replace(text: string, pattern: string, replacement: string) -> string`
+//!
+//! Replaces all occurrences of a pattern in the input text with the replacement string.
+//! The replacement can include capture group references using `$1`, `$2`, etc.
+//!
+//! ```text
+//! regex_replace('hello world', 'world', 'universe')
+//! // "hello universe"
+//!
+//! regex_replace('abc123def456', '[0-9]+', 'X')
+//! // "abcXdefX"
+//!
+//! regex_replace('  extra   spaces  ', '\s+', ' ')
+//! // " extra spaces "
+//!
+//! regex_replace('name@example.com', '@.*', '@redacted.com')
+//! // "name@redacted.com"
+//!
+//! regex_replace('test-2024-01-15', '([0-9]{4})-([0-9]{2})-([0-9]{2})', '$3/$2/$1')
+//! // "test-15/01/2024" (reorder date parts)
+//!
+//! regex_replace('CamelCase', '([A-Z])', '_$1')
+//! // "_Camel_Case"
+//! ```
+//!
+//! ## Pattern Syntax
+//!
+//! The regex functions support standard Rust regex syntax, which is similar to Perl-style
+//! regular expressions. Common patterns include:
+//!
+//! - `.` - Any character except newline
+//! - `^` - Start of string
+//! - `$` - End of string
+//! - `*` - Zero or more repetitions
+//! - `+` - One or more repetitions
+//! - `?` - Zero or one repetition
+//! - `[abc]` - Character class (a, b, or c)
+//! - `[^abc]` - Negated character class (not a, b, or c)
+//! - `\d` - Digit (same as `[0-9]`)
+//! - `\w` - Word character (alphanumeric + underscore)
+//! - `\s` - Whitespace character
+//! - `(...)` - Capture group
+//! - `|` - Alternation (or)
 
 use std::rc::Rc;
 

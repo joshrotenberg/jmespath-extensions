@@ -1,6 +1,89 @@
 //! File path manipulation functions.
 //!
-//! These functions provide operations for working with file paths.
+//! This module provides cross-platform file path manipulation capabilities for JMESPath expressions.
+//! It includes functions to extract path components (basename, dirname, extension) and construct
+//! new paths by joining components together.
+//!
+//! # Function Reference
+//!
+//! | Function | Arguments | Returns | Description |
+//! |----------|-----------|---------|-------------|
+//! | `path_basename` | `(path: string)` | `string` | Extract filename from path |
+//! | `path_dirname` | `(path: string)` | `string` | Extract directory from path |
+//! | `path_ext` | `(path: string)` | `string` | Extract file extension (with dot) |
+//! | `path_join` | `(parts: array)` | `string` | Join path components |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath_extensions::Runtime;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! jmespath_extensions::register_all(&mut runtime);
+//!
+//! let expr = runtime.compile("path_basename(@)").unwrap();
+//! let data = jmespath::Variable::String("/path/to/file.txt".to_string());
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_string().unwrap(), "file.txt");
+//! ```
+//!
+//! # Function Details
+//!
+//! ## Path Component Extraction
+//!
+//! ### `path_basename(path: string) -> string`
+//!
+//! Extracts the filename (last component) from a file path.
+//!
+//! ```text
+//! path_basename('/path/to/file.txt')       // "file.txt"
+//! path_basename('/path/to/dir/')           // "dir"
+//! path_basename('file.txt')                // "file.txt"
+//! path_basename('/path/to/')               // "to"
+//! path_basename('/')                       // ""
+//! ```
+//!
+//! ### `path_dirname(path: string) -> string`
+//!
+//! Extracts the directory portion (parent) from a file path.
+//!
+//! ```text
+//! path_dirname('/path/to/file.txt')        // "/path/to"
+//! path_dirname('/path/to/dir/')            // "/path/to"
+//! path_dirname('file.txt')                 // ""
+//! path_dirname('/file.txt')                // "/"
+//! path_dirname('/')                        // ""
+//! ```
+//!
+//! ### `path_ext(path: string) -> string`
+//!
+//! Extracts the file extension from a path, including the leading dot. Returns an empty string
+//! if there is no extension.
+//!
+//! ```text
+//! path_ext('/path/to/file.txt')            // ".txt"
+//! path_ext('/path/to/archive.tar.gz')      // ".gz"
+//! path_ext('/path/to/file')                // ""
+//! path_ext('/path/to/.hidden')             // ""
+//! path_ext('document.PDF')                 // ".PDF"
+//! ```
+//!
+//! ## Path Construction
+//!
+//! ### `path_join(parts: array) -> string`
+//!
+//! Joins an array of path components into a single path string using the platform-appropriate
+//! path separator. Non-string elements in the array are ignored.
+//!
+//! ```text
+//! path_join(`['path', 'to', 'file.txt']`)           // "path/to/file.txt" (Unix)
+//!                                                   // "path\\to\\file.txt" (Windows)
+//! path_join(`['/home', 'user', 'docs']`)            // "/home/user/docs"
+//! path_join(`['a', 'b', 'c']`)                      // "a/b/c"
+//! path_join(`['path', null, 'file']`)               // "path/file" (null ignored)
+//! path_join(`[]`)                                   // ""
+//! ```
 
 use std::rc::Rc;
 

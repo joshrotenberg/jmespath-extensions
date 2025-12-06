@@ -1,8 +1,8 @@
 [package]
 name = "jmespath_extensions"
 version = "0.1.0"
-edition = "2021"
-authors = ["Josh Rotenberg <josh.rotenberg@redis.com>"]
+edition = "2024"
+authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
 description = "Extended functions for JMESPath"
 license = "MIT OR Apache-2.0"
 
@@ -14,14 +14,14 @@ serde_json = "1.0"
 md-5 = { version = "0.10", optional = true }
 sha1 = { version = "0.10", optional = true }
 sha2 = { version = "0.10", optional = true }
-crc32fast = { version = "1.4", optional = true }
+crc32fast = { version = "1.5", optional = true }
 base64 = { version = "0.22", optional = true }
 urlencoding = { version = "2.1", optional = true }
-regex = { version = "1.10", optional = true }
+regex = { version = "1.12", optional = true }
 url = { version = "2.5", optional = true }
-uuid = { version = "1.11", features = ["v4"], optional = true }
+uuid = { version = "1.19", features = ["v4"], optional = true }
 hex = { version = "0.4", optional = true }
-rand = { version = "0.8", optional = true }
+rand = { version = "0.9", optional = true }
 
 [features]
 default = ["full"]

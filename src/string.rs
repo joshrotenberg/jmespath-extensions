@@ -1,7 +1,341 @@
 //! String manipulation functions.
 //!
-//! These functions provide extended string operations beyond the standard
-//! JMESPath built-ins.
+//! This module provides extended string operations beyond the standard JMESPath built-ins.
+//!
+//! # Function Reference
+//!
+//! | Function | Signature | Description |
+//! |----------|-----------|-------------|
+//! | [`lower`](#lower) | `lower(string) → string` | Convert to lowercase |
+//! | [`upper`](#upper) | `upper(string) → string` | Convert to uppercase |
+//! | [`trim`](#trim) | `trim(string) → string` | Remove leading/trailing whitespace |
+//! | [`trim_start`](#trim_start) | `trim_start(string) → string` | Remove leading whitespace |
+//! | [`trim_end`](#trim_end) | `trim_end(string) → string` | Remove trailing whitespace |
+//! | [`split`](#split) | `split(string, delimiter) → array` | Split string into array |
+//! | [`replace`](#replace) | `replace(string, old, new) → string` | Replace all occurrences |
+//! | [`pad_left`](#pad_left) | `pad_left(string, width, char) → string` | Left-pad to width |
+//! | [`pad_right`](#pad_right) | `pad_right(string, width, char) → string` | Right-pad to width |
+//! | [`substr`](#substr) | `substr(string, start, length?) → string` | Extract substring |
+//! | [`capitalize`](#capitalize) | `capitalize(string) → string` | Capitalize first letter |
+//! | [`title`](#title) | `title(string) → string` | Title Case Each Word |
+//! | [`repeat`](#repeat) | `repeat(string, count) → string` | Repeat string N times |
+//! | [`index_of`](#index_of) | `index_of(string, search) → number` | Find first occurrence |
+//! | [`last_index_of`](#last_index_of) | `last_index_of(string, search) → number` | Find last occurrence |
+//! | [`slice`](#slice) | `slice(string, start, end?) → string` | Extract slice |
+//! | [`concat`](#concat) | `concat(array, separator?) → string` | Join array of strings |
+//! | [`camel_case`](#camel_case) | `camel_case(string) → string` | Convert to camelCase |
+//! | [`snake_case`](#snake_case) | `snake_case(string) → string` | Convert to snake_case |
+//! | [`kebab_case`](#kebab_case) | `kebab_case(string) → string` | Convert to kebab-case |
+//! | [`truncate`](#truncate) | `truncate(string, length, suffix?) → string` | Truncate with suffix |
+//! | [`wrap`](#wrap) | `wrap(string, width) → array` | Word-wrap to width |
+//! | [`format`](#format) | `format(template, ...args) → string` | Format with placeholders |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::string;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! string::register(&mut runtime);
+//!
+//! // Case conversion
+//! let expr = runtime.compile("upper(@)").unwrap();
+//! let result = expr.search(&Variable::String("hello".into())).unwrap();
+//! assert_eq!(result.as_string().unwrap(), "HELLO");
+//!
+//! // Split and join
+//! let expr = runtime.compile("split(@, ',')").unwrap();
+//! let result = expr.search(&Variable::String("a,b,c".into())).unwrap();
+//! assert_eq!(result.as_array().unwrap().len(), 3);
+//! ```
+//!
+//! # Function Details
+//!
+//! ## lower
+//!
+//! Converts a string to lowercase.
+//!
+//! ```text
+//! lower(string) → string
+//!
+//! lower('HELLO')      → "hello"
+//! lower('Hello World') → "hello world"
+//! lower('123ABC')     → "123abc"
+//! ```
+//!
+//! ## upper
+//!
+//! Converts a string to uppercase.
+//!
+//! ```text
+//! upper(string) → string
+//!
+//! upper('hello')      → "HELLO"
+//! upper('Hello World') → "HELLO WORLD"
+//! upper('abc123')     → "ABC123"
+//! ```
+//!
+//! ## trim
+//!
+//! Removes leading and trailing whitespace from a string.
+//!
+//! ```text
+//! trim(string) → string
+//!
+//! trim('  hello  ')   → "hello"
+//! trim('\t\nhello\n') → "hello"
+//! trim('hello')       → "hello"
+//! ```
+//!
+//! ## trim_start
+//!
+//! Removes leading whitespace from a string.
+//!
+//! ```text
+//! trim_start(string) → string
+//!
+//! trim_start('  hello  ') → "hello  "
+//! trim_start('\nhello')   → "hello"
+//! ```
+//!
+//! ## trim_end
+//!
+//! Removes trailing whitespace from a string.
+//!
+//! ```text
+//! trim_end(string) → string
+//!
+//! trim_end('  hello  ') → "  hello"
+//! trim_end('hello\n')   → "hello"
+//! ```
+//!
+//! ## split
+//!
+//! Splits a string into an array using a delimiter.
+//!
+//! ```text
+//! split(string, delimiter) → array
+//!
+//! split('a,b,c', ',')       → ["a", "b", "c"]
+//! split('hello world', ' ') → ["hello", "world"]
+//! split('a::b::c', '::')    → ["a", "b", "c"]
+//! split('hello', ',')       → ["hello"]
+//! ```
+//!
+//! ## replace
+//!
+//! Replaces all occurrences of a substring with another string.
+//!
+//! ```text
+//! replace(string, old, new) → string
+//!
+//! replace('hello world', 'world', 'rust')  → "hello rust"
+//! replace('aaa', 'a', 'b')                 → "bbb"
+//! replace('hello', 'x', 'y')               → "hello"
+//! ```
+//!
+//! ## pad_left
+//!
+//! Left-pads a string to a specified width with a character.
+//!
+//! ```text
+//! pad_left(string, width, char) → string
+//!
+//! pad_left('42', 5, '0')    → "00042"
+//! pad_left('hello', 10, ' ') → "     hello"
+//! pad_left('hello', 3, 'x')  → "hello"  // No padding if already >= width
+//! ```
+//!
+//! ## pad_right
+//!
+//! Right-pads a string to a specified width with a character.
+//!
+//! ```text
+//! pad_right(string, width, char) → string
+//!
+//! pad_right('42', 5, '0')    → "42000"
+//! pad_right('hello', 10, '.') → "hello....."
+//! pad_right('hello', 3, 'x')  → "hello"  // No padding if already >= width
+//! ```
+//!
+//! ## substr
+//!
+//! Extracts a substring starting at an index with optional length.
+//! Supports negative indices (from end of string).
+//!
+//! ```text
+//! substr(string, start, length?) → string
+//!
+//! substr('hello', 0, 2)   → "he"
+//! substr('hello', 2)      → "llo"
+//! substr('hello', -2)     → "lo"       // Last 2 characters
+//! substr('hello', -3, 2)  → "ll"       // 2 chars starting 3 from end
+//! ```
+//!
+//! ## capitalize
+//!
+//! Capitalizes the first letter of a string.
+//!
+//! ```text
+//! capitalize(string) → string
+//!
+//! capitalize('hello')       → "Hello"
+//! capitalize('HELLO')       → "HELLO"
+//! capitalize('hello world') → "Hello world"
+//! ```
+//!
+//! ## title
+//!
+//! Converts a string to title case (capitalizes each word).
+//!
+//! ```text
+//! title(string) → string
+//!
+//! title('hello world')      → "Hello World"
+//! title('the quick brown fox') → "The Quick Brown Fox"
+//! title('HELLO WORLD')      → "Hello World"
+//! ```
+//!
+//! ## repeat
+//!
+//! Repeats a string a specified number of times.
+//!
+//! ```text
+//! repeat(string, count) → string
+//!
+//! repeat('ab', 3)   → "ababab"
+//! repeat('-', 10)   → "----------"
+//! repeat('hello', 0) → ""
+//! ```
+//!
+//! ## index_of
+//!
+//! Finds the first occurrence of a substring. Returns -1 if not found.
+//!
+//! ```text
+//! index_of(string, search) → number
+//!
+//! index_of('hello world', 'world') → 6
+//! index_of('hello world', 'o')     → 4
+//! index_of('hello', 'x')           → -1
+//! ```
+//!
+//! ## last_index_of
+//!
+//! Finds the last occurrence of a substring. Returns -1 if not found.
+//!
+//! ```text
+//! last_index_of(string, search) → number
+//!
+//! last_index_of('hello world', 'o') → 7
+//! last_index_of('abcabc', 'abc')    → 3
+//! last_index_of('hello', 'x')       → -1
+//! ```
+//!
+//! ## slice
+//!
+//! Extracts a portion of a string. Supports negative indices.
+//!
+//! ```text
+//! slice(string, start, end?) → string
+//!
+//! slice('hello', 1, 4)   → "ell"
+//! slice('hello', 2)      → "llo"
+//! slice('hello', -3)     → "llo"      // From 3rd-to-last to end
+//! slice('hello', 0, -1)  → "hell"     // From start to 1 before end
+//! slice('hello', -3, -1) → "ll"       // From 3rd-to-last to 1 before end
+//! ```
+//!
+//! ## concat
+//!
+//! Joins an array of strings with an optional separator.
+//!
+//! ```text
+//! concat(array, separator?) → string
+//!
+//! concat(['a', 'b', 'c'], ',')  → "a,b,c"
+//! concat(['a', 'b', 'c'])       → "abc"
+//! concat(['hello', 'world'], ' ') → "hello world"
+//! ```
+//!
+//! ## camel_case
+//!
+//! Converts a string to camelCase.
+//!
+//! ```text
+//! camel_case(string) → string
+//!
+//! camel_case('hello_world')   → "helloWorld"
+//! camel_case('hello-world')   → "helloWorld"
+//! camel_case('Hello World')   → "helloWorld"
+//! camel_case('XMLHttpRequest') → "xmlhttprequest"
+//! ```
+//!
+//! ## snake_case
+//!
+//! Converts a string to snake_case.
+//!
+//! ```text
+//! snake_case(string) → string
+//!
+//! snake_case('helloWorld')    → "hello_world"
+//! snake_case('HelloWorld')    → "hello_world"
+//! snake_case('hello-world')   → "hello_world"
+//! snake_case('hello world')   → "hello_world"
+//! ```
+//!
+//! ## kebab_case
+//!
+//! Converts a string to kebab-case.
+//!
+//! ```text
+//! kebab_case(string) → string
+//!
+//! kebab_case('helloWorld')    → "hello-world"
+//! kebab_case('HelloWorld')    → "hello-world"
+//! kebab_case('hello_world')   → "hello-world"
+//! kebab_case('hello world')   → "hello-world"
+//! ```
+//!
+//! ## truncate
+//!
+//! Truncates a string to a maximum length, adding a suffix if truncated.
+//! Default suffix is "...".
+//!
+//! ```text
+//! truncate(string, length, suffix?) → string
+//!
+//! truncate('hello world', 8)        → "hello..."
+//! truncate('hello world', 8, '…')   → "hello w…"
+//! truncate('hello', 10)             → "hello"      // No truncation needed
+//! truncate('hello world', 5, '')    → "hello"      // No suffix
+//! ```
+//!
+//! ## wrap
+//!
+//! Word-wraps a string to a specified width, returning an array of lines.
+//!
+//! ```text
+//! wrap(string, width) → array
+//!
+//! wrap('hello world', 5)            → ["hello", "world"]
+//! wrap('the quick brown fox', 10)   → ["the quick", "brown fox"]
+//! wrap('hello', 100)                → ["hello"]
+//! ```
+//!
+//! ## format
+//!
+//! Formats a string by replacing `{0}`, `{1}`, etc. with arguments.
+//!
+//! ```text
+//! format(template, ...args) → string
+//!
+//! format('Hello, {0}!', 'World')           → "Hello, World!"
+//! format('{0} + {1} = {2}', 1, 2, 3)       → "1 + 2 = 3"
+//! format('Name: {0}, Age: {1}', 'Alice', 30) → "Name: Alice, Age: 30"
+//! ```
 
 use std::rc::Rc;
 

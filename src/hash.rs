@@ -1,7 +1,90 @@
 //! Hash and checksum functions.
 //!
-//! These functions provide cryptographic hashing capabilities.
-//! Requires the `hash` feature.
+//! This module provides cryptographic hash and checksum functions for JMESPath expressions.
+//! It includes support for MD5, SHA-1, SHA-256 cryptographic hashes, and CRC32 checksums.
+//! All hash functions return hexadecimal string representations except CRC32 which returns
+//! a numeric checksum.
+//!
+//! **Note:** This module requires the `hash` feature to be enabled.
+//!
+//! # Function Reference
+//!
+//! | Function | Arguments | Returns | Description |
+//! |----------|-----------|---------|-------------|
+//! | `md5` | `(text: string)` | `string` | Compute MD5 hash (hex-encoded) |
+//! | `sha1` | `(text: string)` | `string` | Compute SHA-1 hash (hex-encoded) |
+//! | `sha256` | `(text: string)` | `string` | Compute SHA-256 hash (hex-encoded) |
+//! | `crc32` | `(text: string)` | `number` | Compute CRC32 checksum |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath_extensions::Runtime;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! jmespath_extensions::register_all(&mut runtime);
+//!
+//! let expr = runtime.compile("sha256(@)").unwrap();
+//! let data = jmespath::Variable::String("hello".to_string());
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_string().unwrap(),
+//!            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+//! ```
+//!
+//! # Function Details
+//!
+//! ## Cryptographic Hash Functions
+//!
+//! ### `md5(text: string) -> string`
+//!
+//! Computes the MD5 hash of the input string and returns it as a lowercase hexadecimal string.
+//!
+//! **Warning:** MD5 is cryptographically broken and should not be used for security purposes.
+//! It's suitable for checksums and non-security applications.
+//!
+//! ```text
+//! md5('hello')                             // "5d41402abc4b2a76b9719d911017c592"
+//! md5('Hello World')                       // "b10a8db164e0754105b7a99be72e3fe5"
+//! md5('')                                  // "d41d8cd98f00b204e9800998ecf8427e"
+//! ```
+//!
+//! ### `sha1(text: string) -> string`
+//!
+//! Computes the SHA-1 hash of the input string and returns it as a lowercase hexadecimal string.
+//!
+//! **Warning:** SHA-1 is considered weak and should not be used for security-critical applications.
+//!
+//! ```text
+//! sha1('hello')                            // "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+//! sha1('Hello World')                      // "0a4d55a8d778e5022fab701977c5d840bbc486d0"
+//! sha1('')                                 // "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+//! ```
+//!
+//! ### `sha256(text: string) -> string`
+//!
+//! Computes the SHA-256 hash of the input string and returns it as a lowercase hexadecimal string.
+//! SHA-256 is part of the SHA-2 family and is suitable for security applications.
+//!
+//! ```text
+//! sha256('hello')                          // "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+//! sha256('Hello World')                    // "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
+//! sha256('')                               // "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+//! ```
+//!
+//! ## Checksum Functions
+//!
+//! ### `crc32(text: string) -> number`
+//!
+//! Computes the CRC32 checksum of the input string and returns it as an unsigned 32-bit integer.
+//! CRC32 is useful for error detection but not for cryptographic purposes.
+//!
+//! ```text
+//! crc32('hello')                           // 907060870
+//! crc32('Hello World')                     // 1243066710
+//! crc32('')                                // 0
+//! crc32('test')                            // 3632233996
+//! ```
 
 use std::rc::Rc;
 

@@ -1,10 +1,14 @@
+// Allow patterns that clippy suggests replacing with unstable features
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::manual_is_multiple_of)]
+
 //! # JMESPath Extensions
 //!
-//! Extended functions for JMESPath queries.
+//! A comprehensive collection of 100+ extension functions for [JMESPath](https://jmespath.org/) queries.
 //!
-//! # Non-Standard Extension Warning
+//! ## Non-Standard Extension Warning
 //!
-//! **These functions are NOT part of the [JMESPath specification](https://jmespath.org/specification.html).**
+//! > **These functions are NOT part of the [JMESPath specification](https://jmespath.org/specification.html).**
 //!
 //! Queries using these extension functions will **NOT work** in other JMESPath
 //! implementations (Python, JavaScript, Go, etc.). If you need portable queries,
@@ -20,93 +24,151 @@
 //! - You need functionality beyond standard JMESPath
 //! - Cross-implementation compatibility is not required
 //!
-//! # Quick Start
+//! ## Quick Start
 //!
 //! ```rust
-//! use jmespath::Runtime;
+//! # #[cfg(feature = "string")]
+//! # fn main() {
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::register_all;
+//!
+//! // Create a runtime and register all extension functions
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! register_all(&mut runtime);
+//!
+//! // Use string functions
+//! let expr = runtime.compile("upper(@)").unwrap();
+//! let data = Variable::String("hello".to_string());
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_string().unwrap(), "HELLO");
+//! # }
+//! # #[cfg(not(feature = "string"))]
+//! # fn main() {}
+//! ```
+//!
+//! ## Working with JSON Data
+//!
+//! Most real-world usage involves querying JSON data:
+//!
+//! ```rust
+//! # #[cfg(feature = "string")]
+//! # fn main() {
+//! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::register_all;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! register_all(&mut runtime);
 //!
-//! // Now you can use extended functions
-//! let expr = runtime.compile("upper(@)").unwrap();
-//! let data = jmespath::Variable::String("hello".to_string());
+//! // Parse JSON data
+//! let json = r#"{
+//!     "users": [
+//!         {"name": "alice", "email": "ALICE@EXAMPLE.COM"},
+//!         {"name": "bob", "email": "BOB@EXAMPLE.COM"}
+//!     ]
+//! }"#;
+//! let data = Variable::from_json(json).unwrap();
+//!
+//! // Query with extension functions
+//! let expr = runtime.compile("users[*].{name: upper(name), email: lower(email)}").unwrap();
 //! let result = expr.search(&data).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "HELLO");
+//!
+//! // Result: [{"name": "ALICE", "email": "alice@example.com"}, {"name": "BOB", "email": "bob@example.com"}]
+//! # }
+//! # #[cfg(not(feature = "string"))]
+//! # fn main() {}
 //! ```
 //!
-//! # Features
+//! ## Feature Flags
 //!
-//! - `full` (default) - All functions
-//! - `core` - No external dependencies (string, array, object, math, type, utility, path)
-//! - Individual features: `string`, `array`, `object`, `math`, `type`, `utility`, `validation`, `path`
-//! - With external deps: `hash`, `encoding`, `regex`, `url`, `uuid`, `rand`
+//! This crate uses feature flags to control which functions are included.
+//! This allows you to minimize dependencies and binary size.
 //!
-//! # Function Categories
+//! | Feature | Dependencies | Description |
+//! |---------|--------------|-------------|
+//! | `full` (default) | all | All functions |
+//! | `core` | none | String, array, object, math, type, utility, path |
+//! | `string` | none | [String manipulation](string/index.html) |
+//! | `array` | none | [Array operations](array/index.html) |
+//! | `object` | none | [Object utilities](object/index.html) |
+//! | `math` | none | [Mathematical operations](math/index.html) |
+//! | `type` | none | [Type conversion and checking](type_conv/index.html) |
+//! | `utility` | none | [Utility functions](utility/index.html) |
+//! | `path` | none | [Path manipulation](path/index.html) |
+//! | `validation` | none | [Validation functions](validation/index.html) |
+//! | `hash` | md-5, sha1, sha2, crc32fast | [Hash functions](hash/index.html) |
+//! | `encoding` | base64, hex | [Encoding functions](encoding/index.html) |
+//! | `url` | url | [URL functions](url_fns/index.html) |
+//! | `regex` | regex | [Regex functions](regex_fns/index.html) |
+//! | `uuid` | uuid | UUID generation |
+//! | `rand` | rand | [Random functions](random/index.html) |
 //!
-//! ## String Functions
+//! ### Using Specific Features
 //!
-//! `lower`, `upper`, `trim`, `trim_start`, `trim_end`, `split`, `replace`,
-//! `pad_left`, `pad_right`, `substr`, `capitalize`, `title`, `repeat`,
-//! `index_of`, `last_index_of`, `slice`, `concat`, `camel_case`, `snake_case`,
-//! `kebab_case`, `truncate`, `wrap`, `format`
+//! ```toml
+//! # Only include string and array functions (no external dependencies)
+//! [dependencies]
+//! jmespath_extensions = { version = "0.1", default-features = false, features = ["string", "array"] }
 //!
-//! ## Array Functions
+//! # Include core functions plus regex
+//! [dependencies]
+//! jmespath_extensions = { version = "0.1", default-features = false, features = ["core", "regex"] }
+//! ```
 //!
-//! `first`, `last`, `unique`, `take`, `drop`, `chunk`, `zip`, `flatten_deep`,
-//! `compact`, `range`, `index_at`, `includes`, `find_index`, `group_by`, `nth`,
-//! `interleave`, `rotate`, `partition`, `difference`, `intersection`, `union`,
-//! `frequencies`, `mode`, `cartesian`
+//! ## Module Overview
 //!
-//! ## Object Functions
+//! See each module's documentation for detailed function reference with examples:
 //!
-//! `entries`, `from_entries`, `pick`, `omit`, `invert`, `rename_keys`,
-//! `flatten_keys`, `unflatten_keys`, `deep_merge`
+//! - [`string`] - String manipulation (`upper`, `lower`, `split`, `replace`, `camel_case`, etc.)
+//! - [`mod@array`] - Array operations (`first`, `last`, `unique`, `chunk`, `zip`, `range`, etc.)
+//! - [`object`] - Object utilities (`entries`, `pick`, `omit`, `deep_merge`, etc.)
+//! - [`math`] - Math operations (`round`, `sqrt`, `pow`, `median`, `sin`, `cos`, etc.)
+//! - [`type_conv`] - Type functions (`type_of`, `is_string`, `is_empty`, `to_number`, etc.)
+//! - [`utility`] - Utilities (`now`, `default`, `if`, `coalesce`, `json_encode`, etc.)
+//! - [`path`] - Path functions (`path_basename`, `path_dirname`, `path_ext`, `path_join`)
+//! - [`validation`] - Validation (`is_email`, `is_url`, `is_uuid`, `is_ipv4`, `is_ipv6`)
+//! - [`hash`] - Hashing (`md5`, `sha1`, `sha256`, `crc32`)
+//! - [`encoding`] - Encoding (`base64_encode`, `base64_decode`, `hex_encode`, `hex_decode`)
+//! - [`url_fns`] - URL functions (`url_encode`, `url_decode`, `url_parse`)
+//! - [`regex_fns`] - Regex (`regex_match`, `regex_extract`, `regex_replace`)
+//! - [`random`] - Random (`random`, `shuffle`, `sample`, `uuid`)
 //!
-//! ## Math Functions
+//! ## Error Handling
 //!
-//! `round`, `floor_fn`, `ceil_fn`, `abs_fn`, `mod_fn`, `pow`, `sqrt`, `log`,
-//! `clamp`, `median`, `percentile`, `variance`, `stddev`, `sin`, `cos`, `tan`,
-//! `asin`, `acos`, `atan`, `atan2`, `deg_to_rad`, `rad_to_deg`, `sign`
+//! Extension functions follow JMESPath conventions:
+//! - Type errors return an error (e.g., passing a number to `upper`)
+//! - Invalid operations return null (e.g., `index_at` with out-of-bounds index)
 //!
-//! ## Type Functions
+//! ```rust
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::register_all;
 //!
-//! `to_string`, `to_number`, `to_boolean`, `type_of`, `is_string`, `is_number`,
-//! `is_boolean`, `is_array`, `is_object`, `is_null`, `is_empty`, `is_blank`, `is_json`
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! register_all(&mut runtime);
 //!
-//! ## Utility Functions
+//! // Type error - upper expects a string
+//! let expr = runtime.compile("upper(@)").unwrap();
+//! let data = Variable::Number(serde_json::Number::from(42));
+//! assert!(expr.search(&data).is_err());
+//! ```
 //!
-//! `now`, `now_ms`, `default`, `if`, `coalesce`, `json_encode`, `json_decode`
-//!
-//! ## Path Functions
-//!
-//! `path_basename`, `path_dirname`, `path_ext`, `path_join`
-//!
-//! ## Hash Functions (feature: `hash`)
-//!
-//! `md5`, `sha1`, `sha256`, `crc32`
-//!
-//! ## Encoding Functions (feature: `encoding`)
-//!
-//! `base64_encode`, `base64_decode`, `hex_encode`, `hex_decode`
-//!
-//! ## URL Functions (feature: `url`)
-//!
-//! `url_encode`, `url_decode`, `url_parse`
-//!
-//! ## Regex Functions (feature: `regex`)
-//!
-//! `regex_match`, `regex_extract`, `regex_replace`
-//!
-//! ## Validation Functions (feature: `regex` for some)
-//!
-//! `is_email`, `is_url`, `is_uuid`, `is_ipv4`, `is_ipv6`
-//!
-//! ## Random Functions (feature: `rand`, `uuid`)
-//!
-//! `random`, `shuffle`, `sample`, `uuid`
+//! ```rust
+//! # use jmespath::{Runtime, Variable};
+//! # use jmespath_extensions::register_all;
+//! # let mut runtime = Runtime::new();
+//! # runtime.register_builtin_functions();
+//! # register_all(&mut runtime);
+//! // Out of bounds - returns null (requires "array" feature)
+//! # #[cfg(feature = "array")]
+//! # {
+//! let expr = runtime.compile("index_at(@, `10`)").unwrap();
+//! let data = Variable::from_json("[1, 2, 3]").unwrap();
+//! let result = expr.search(&data).unwrap();
+//! assert!(result.is_null());
+//! # }
+//! ```
 
 // Re-export common types
 pub mod common;
@@ -159,6 +221,7 @@ pub mod random;
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
+/// Call this after creating a new runtime and registering the built-in functions.
 ///
 /// # Example
 ///
@@ -169,6 +232,21 @@ pub mod random;
 /// let mut runtime = Runtime::new();
 /// runtime.register_builtin_functions();
 /// register_all(&mut runtime);
+///
+/// // Now use any extension function
+/// let expr = runtime.compile("upper(@)").unwrap();
+/// ```
+///
+/// # Feature Flags
+///
+/// Only functions enabled by feature flags will be registered:
+///
+/// ```rust,ignore
+/// // With default features (all functions)
+/// register_all(&mut runtime);  // Registers 100+ functions
+///
+/// // With only "string" feature
+/// register_all(&mut runtime);  // Registers only string functions
 /// ```
 #[allow(unused_variables)]
 pub fn register_all(runtime: &mut Runtime) {
