@@ -1332,7 +1332,7 @@ impl Function for WrapFn {
         if !s.ends_with('\n')
             && lines
                 .last()
-                .map_or(false, |l| l.as_string().map_or(false, |s| s.is_empty()))
+                .is_some_and(|l| l.as_string().is_some_and(|s| s.is_empty()))
         {
             lines.pop();
         }

@@ -120,7 +120,7 @@
 use std::rc::Rc;
 
 use crate::common::{
-    ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
+    ArgumentType, Context, Function, JmespathError, Rcvar, Runtime, Variable, custom_error,
 };
 use crate::define_function;
 
@@ -147,29 +147,12 @@ impl Function for RegexMatchFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        let input = args[0].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected string argument".to_owned()),
-            )
-        })?;
+        // Safe to unwrap after signature validation
+        let input = args[0].as_string().unwrap();
+        let pattern = args[1].as_string().unwrap();
 
-        let pattern = args[1].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected pattern string".to_owned()),
-            )
-        })?;
-
-        let re = Regex::new(pattern).map_err(|_| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Invalid regex pattern".to_owned()),
-            )
-        })?;
+        let re = Regex::new(pattern)
+            .map_err(|e| custom_error(ctx, &format!("Invalid regex pattern: {e}")))?;
 
         Ok(Rc::new(Variable::Bool(re.is_match(input))))
     }
@@ -189,29 +172,12 @@ impl Function for RegexExtractFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        let input = args[0].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected string argument".to_owned()),
-            )
-        })?;
+        // Safe to unwrap after signature validation
+        let input = args[0].as_string().unwrap();
+        let pattern = args[1].as_string().unwrap();
 
-        let pattern = args[1].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected pattern string".to_owned()),
-            )
-        })?;
-
-        let re = Regex::new(pattern).map_err(|_| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Invalid regex pattern".to_owned()),
-            )
-        })?;
+        let re = Regex::new(pattern)
+            .map_err(|e| custom_error(ctx, &format!("Invalid regex pattern: {e}")))?;
 
         let matches: Vec<Rcvar> = re
             .find_iter(input)
@@ -245,37 +211,13 @@ impl Function for RegexReplaceFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        let input = args[0].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected string argument".to_owned()),
-            )
-        })?;
+        // Safe to unwrap after signature validation
+        let input = args[0].as_string().unwrap();
+        let pattern = args[1].as_string().unwrap();
+        let replacement = args[2].as_string().unwrap();
 
-        let pattern = args[1].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected pattern string".to_owned()),
-            )
-        })?;
-
-        let replacement = args[2].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected replacement string".to_owned()),
-            )
-        })?;
-
-        let re = Regex::new(pattern).map_err(|_| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Invalid regex pattern".to_owned()),
-            )
-        })?;
+        let re = Regex::new(pattern)
+            .map_err(|e| custom_error(ctx, &format!("Invalid regex pattern: {e}")))?;
 
         let result = re.replace_all(input, replacement);
         Ok(Rc::new(Variable::String(result.into_owned())))
