@@ -16,7 +16,7 @@ Extended functions for JMESPath queries in Rust.
 
 ## Overview
 
-This crate provides 130+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories. These extensions are useful when you need more powerful data transformation capabilities and portability across JMESPath implementations is not a concern.
+This crate provides 150+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories. These extensions are useful when you need more powerful data transformation capabilities and portability across JMESPath implementations is not a concern.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -67,6 +67,9 @@ All features are opt-in. Use `default-features = false` to select only what you 
 | `semver` | `semver_parse`, `semver_compare`, `semver_matches`, etc. | semver |
 | `network` | `ip_to_int`, `cidr_contains`, `cidr_network`, `is_private_ip` | ipnetwork |
 | `ids` | `nanoid`, `ulid`, `ulid_timestamp` | nanoid, ulid |
+| `duration` | `parse_duration`, `format_duration`, etc. | None |
+| `color` | `hex_to_rgb`, `rgb_to_hex`, `lighten`, `darken`, etc. | None |
+| `computing` | `parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, etc. | None |
 
 ### Minimal Dependencies
 

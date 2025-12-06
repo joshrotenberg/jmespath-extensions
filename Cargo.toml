@@ -58,6 +58,9 @@ semver = ["dep:semver_crate"]
 network = ["dep:ipnetwork"]
 ids = ["dep:nanoid", "dep:ulid"]
 text = []
+duration = []
+color = []
+computing = []
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

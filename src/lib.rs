@@ -4,7 +4,7 @@
 
 //! # JMESPath Extensions
 //!
-//! A comprehensive collection of 130+ extension functions for [JMESPath](https://jmespath.org/) queries.
+//! A comprehensive collection of 150+ extension functions for [JMESPath](https://jmespath.org/) queries.
 //!
 //! ## Non-Standard Extension Warning
 //!
@@ -112,6 +112,9 @@
 //! | `network` | ipnetwork | [Network/IP functions](network/index.html) |
 //! | `ids` | nanoid, ulid | [ID generation](ids/index.html) |
 //! | `text` | none | [Text analysis](text/index.html) |
+//! | `duration` | none | [Duration parsing](duration/index.html) |
+//! | `color` | none | [Color manipulation](color/index.html) |
+//! | `computing` | none | [Computing utilities](computing/index.html) |
 //!
 //! ### Using Specific Features
 //!
@@ -151,6 +154,9 @@
 //! - [`network`] - Network/IP (`ip_to_int`, `int_to_ip`, `cidr_contains`, `cidr_network`, `is_private_ip`)
 //! - [`ids`] - ID generation (`nanoid`, `ulid`, `ulid_timestamp`)
 //! - [`text`] - Text analysis (`word_count`, `char_count`, `reading_time`, `word_frequencies`)
+//! - [`duration`] - Duration parsing (`parse_duration`, `format_duration`)
+//! - [`color`] - Color manipulation (`hex_to_rgb`, `rgb_to_hex`, `lighten`, `darken`, `color_mix`)
+//! - [`computing`] - Computing utilities (`parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, `bit_xor`)
 //!
 //! ## Error Handling
 //!
@@ -263,6 +269,15 @@ pub mod ids;
 #[cfg(feature = "text")]
 pub mod text;
 
+#[cfg(feature = "duration")]
+pub mod duration;
+
+#[cfg(feature = "color")]
+pub mod color;
+
+#[cfg(feature = "computing")]
+pub mod computing;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -360,6 +375,15 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "text")]
     text::register(runtime);
+
+    #[cfg(feature = "duration")]
+    duration::register(runtime);
+
+    #[cfg(feature = "color")]
+    color::register(runtime);
+
+    #[cfg(feature = "computing")]
+    computing::register(runtime);
 }
 
 #[cfg(test)]
