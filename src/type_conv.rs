@@ -188,9 +188,7 @@
 
 use std::rc::Rc;
 
-use crate::common::{
-    ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
-};
+use crate::common::{ArgumentType, Context, Function, JmespathError, Rcvar, Runtime, Variable};
 use crate::define_function;
 
 /// Register all type functions with the runtime.
@@ -420,33 +418,30 @@ impl Function for IsBlankFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        let is_blank = match &*args[0] {
-            Variable::String(s) => s.trim().is_empty(),
-            Variable::Null => true,
-            _ => false,
-        };
-
-        Ok(Rc::new(Variable::Bool(is_blank)))
+        match &*args[0] {
+            Variable::String(s) => Ok(Rc::new(Variable::Bool(s.trim().is_empty()))),
+            Variable::Null => Ok(Rc::new(Variable::Bool(true))),
+            // Return null for non-string types
+            _ => Ok(Rc::new(Variable::Null)),
+        }
     }
 }
 
 // =============================================================================
-// is_json(string) -> boolean (valid JSON string)
+// is_json(any) -> boolean|null (valid JSON string)
 // =============================================================================
 
-define_function!(IsJsonFn, vec![ArgumentType::String], None);
+define_function!(IsJsonFn, vec![ArgumentType::Any], None);
 
 impl Function for IsJsonFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        let s = args[0].as_string().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected string argument".to_owned()),
-            )
-        })?;
+        // Return null for non-string types
+        let s = match args[0].as_string() {
+            Some(s) => s,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
 
         let is_valid = serde_json::from_str::<serde_json::Value>(s).is_ok();
 

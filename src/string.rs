@@ -27,7 +27,7 @@
 //! | [`snake_case`](#snake_case) | `snake_case(string) → string` | Convert to snake_case |
 //! | [`kebab_case`](#kebab_case) | `kebab_case(string) → string` | Convert to kebab-case |
 //! | [`truncate`](#truncate) | `truncate(string, length, suffix?) → string` | Truncate with suffix |
-//! | [`wrap`](#wrap) | `wrap(string, width) → array` | Word-wrap to width |
+//! | [`wrap`](#wrap) | `wrap(string, width) → string` | Word-wrap to width |
 //! | [`format`](#format) | `format(template, ...args) → string` | Format with placeholders |
 //!
 //! # Examples
@@ -315,14 +315,14 @@
 //!
 //! ## wrap
 //!
-//! Word-wraps a string to a specified width, returning an array of lines.
+//! Word-wraps a string to a specified width, returning a string with newlines.
 //!
 //! ```text
-//! wrap(string, width) → array
+//! wrap(string, width) → string
 //!
-//! wrap('hello world', 5)            → ["hello", "world"]
-//! wrap('the quick brown fox', 10)   → ["the quick", "brown fox"]
-//! wrap('hello', 100)                → ["hello"]
+//! wrap('hello world', 5)            → "hello\nworld"
+//! wrap('the quick brown fox', 10)   → "the quick\nbrown fox"
+//! wrap('hello', 100)                → "hello"
 //! ```
 //!
 //! ## format
@@ -1271,7 +1271,7 @@ impl Function for TruncateFn {
 }
 
 // =============================================================================
-// wrap(string, width) -> array of strings
+// wrap(string, width) -> string with newlines
 // =============================================================================
 
 define_function!(
@@ -1301,12 +1301,10 @@ impl Function for WrapFn {
         })? as usize;
 
         if width == 0 {
-            return Ok(Rc::new(Variable::Array(vec![Rc::new(Variable::String(
-                s.to_string(),
-            ))])));
+            return Ok(Rc::new(Variable::String(s.to_string())));
         }
 
-        let mut lines: Vec<Rcvar> = Vec::new();
+        let mut lines: Vec<String> = Vec::new();
 
         // Process each paragraph (separated by newlines) separately
         for paragraph in s.split('\n') {
@@ -1319,30 +1317,27 @@ impl Function for WrapFn {
                     current_line.push(' ');
                     current_line.push_str(word);
                 } else {
-                    lines.push(Rc::new(Variable::String(current_line)));
+                    lines.push(current_line);
                     current_line = word.to_string();
                 }
             }
 
             // Push the last line of this paragraph (even if empty to preserve blank lines)
-            lines.push(Rc::new(Variable::String(current_line)));
+            lines.push(current_line);
         }
 
         // Remove trailing empty line if the input didn't end with a newline
-        if !s.ends_with('\n')
-            && lines
-                .last()
-                .is_some_and(|l| l.as_string().is_some_and(|s| s.is_empty()))
-        {
+        if !s.ends_with('\n') && lines.last().is_some_and(|l| l.is_empty()) {
             lines.pop();
         }
 
         // If we have no lines but had input, return the original
         if lines.is_empty() && !s.is_empty() {
-            lines.push(Rc::new(Variable::String(s.to_string())));
+            return Ok(Rc::new(Variable::String(s.to_string())));
         }
 
-        Ok(Rc::new(Variable::Array(lines)))
+        // Join lines with newlines and return as string
+        Ok(Rc::new(Variable::String(lines.join("\n"))))
     }
 }
 
@@ -1460,10 +1455,7 @@ mod tests {
         let expr = runtime.compile("wrap(@, `5`)").unwrap();
         let data = Variable::String("hello world".to_string());
         let result = expr.search(&data).unwrap();
-        let arr = result.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
-        assert_eq!(arr[0].as_string().unwrap(), "hello");
-        assert_eq!(arr[1].as_string().unwrap(), "world");
+        assert_eq!(result.as_string().unwrap(), "hello\nworld");
     }
 
     #[test]
@@ -1472,10 +1464,7 @@ mod tests {
         let expr = runtime.compile("wrap(@, `100`)").unwrap();
         let data = Variable::String("hello\nworld".to_string());
         let result = expr.search(&data).unwrap();
-        let arr = result.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
-        assert_eq!(arr[0].as_string().unwrap(), "hello");
-        assert_eq!(arr[1].as_string().unwrap(), "world");
+        assert_eq!(result.as_string().unwrap(), "hello\nworld");
     }
 
     #[test]
@@ -1484,8 +1473,6 @@ mod tests {
         let expr = runtime.compile("wrap(@, `100`)").unwrap();
         let data = Variable::String("hello world".to_string());
         let result = expr.search(&data).unwrap();
-        let arr = result.as_array().unwrap();
-        assert_eq!(arr.len(), 1);
-        assert_eq!(arr[0].as_string().unwrap(), "hello world");
+        assert_eq!(result.as_string().unwrap(), "hello world");
     }
 }
