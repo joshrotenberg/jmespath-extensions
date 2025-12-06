@@ -106,6 +106,7 @@
 //! | `datetime` | chrono | [Date/time functions](datetime/index.html) |
 //! | `fuzzy` | strsim | [Fuzzy matching functions](fuzzy/index.html) |
 //! | `expression` | none | [Expression-based functions](expression/index.html) |
+//! | `phonetic` | rphonetic | [Phonetic encoding functions](phonetic/index.html) |
 //!
 //! ### Using Specific Features
 //!
@@ -139,6 +140,7 @@
 //! - [`url_fns`] - URL functions (`url_encode`, `url_decode`, `url_parse`)
 //! - [`regex_fns`] - Regex (`regex_match`, `regex_extract`, `regex_replace`)
 //! - [`random`] - Random (`random`, `shuffle`, `sample`, `uuid`)
+//! - [`phonetic`] - Phonetic encoding (`soundex`, `metaphone`, `double_metaphone`, `nysiis`, `sounds_like`)
 //!
 //! ## Error Handling
 //!
@@ -233,6 +235,9 @@ pub mod datetime;
 #[cfg(feature = "fuzzy")]
 pub mod fuzzy;
 
+#[cfg(feature = "phonetic")]
+pub mod phonetic;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -312,6 +317,9 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "expression")]
     expression::register(runtime);
+
+    #[cfg(feature = "phonetic")]
+    phonetic::register(runtime);
 }
 
 #[cfg(test)]

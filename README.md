@@ -55,6 +55,7 @@ let expr = runtime.compile("items[*].name | lower(@)").unwrap();
 | `datetime` | Date/time functions | chrono |
 | `fuzzy` | Fuzzy string matching | strsim |
 | `expression` | Expression-based higher-order functions | None |
+| `phonetic` | Phonetic encoding algorithms | rphonetic |
 
 ### Minimal Dependencies
 
@@ -314,6 +315,39 @@ flat_map_expr('tags', `[{"tags": ["a", "b"]}, {"tags": ["c"]}]`)
 // Result: ["a", "b", "c"]
 ```
 
+### Phonetic Functions (feature: `phonetic`)
+
+Phonetic encoding algorithms for matching names and words by pronunciation.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `soundex(string)` | Classic 4-character Soundex code | `soundex('Robert')` → `"R163"` |
+| `metaphone(string)` | Improved phonetic encoding | `metaphone('Smith')` → `"SM0"` |
+| `double_metaphone(string)` | Returns [primary, alternate] | `double_metaphone('Schmidt')` → `["XMT", "SMT"]` |
+| `nysiis(string)` | NY State Identification System | `nysiis('Johnson')` → `"JANSAN"` |
+| `match_rating_codex(string)` | Western name matching code | `match_rating_codex('Smith')` → `"SMTH"` |
+| `caverphone(string)` | Caverphone 1.0 (NZ optimized) | `caverphone('Thompson')` |
+| `caverphone2(string)` | Caverphone 2.0 (improved) | `caverphone2('Thompson')` |
+| `sounds_like(s1, s2)` | Check if strings sound alike (Soundex) | `sounds_like('Robert', 'Rupert')` → `true` |
+| `phonetic_match(s1, s2, algorithm?)` | Compare using specified algorithm | `phonetic_match('Smith', 'Smyth', 'metaphone')` → `true` |
+
+**Algorithm options for `phonetic_match`**: `soundex` (default), `metaphone`, `double_metaphone`, `nysiis`, `match_rating`/`mra`, `caverphone`/`caverphone1`, `caverphone2`
+
+**Examples:**
+```
+// Check if names sound alike
+sounds_like('Robert', 'Rupert')
+// Result: true
+
+// Compare using different algorithms
+phonetic_match('Smith', 'Smyth', 'metaphone')
+// Result: true
+
+// Get double metaphone encodings
+double_metaphone('Schmidt')
+// Result: ["XMT", "SMT"]
+```
+
 ## JMESPath Community JEP Alignment
 
 This crate aligns with several [JMESPath Enhancement Proposals (JEPs)](https://github.com/jmespath-community/jmespath.spec) from the JMESPath community, while also providing additional functionality.
@@ -376,6 +410,7 @@ This crate provides extensive functionality not yet addressed by the JEP process
 | **Statistics** | `median`, `percentile`, `variance`, `stddev` |
 | **Fuzzy** | `levenshtein`, `jaro_winkler`, `sorensen_dice`, `damerau_levenshtein` |
 | **Expression** | `map_expr`, `filter_expr`, `any_expr`, `all_expr`, `find_expr`, `find_index_expr`, `count_expr`, `sort_by_expr`, `group_by_expr`, `partition_expr`, `min_by_expr`, `max_by_expr`, `unique_by_expr`, `flat_map_expr` |
+| **Phonetic** | `soundex`, `metaphone`, `double_metaphone`, `nysiis`, `match_rating_codex`, `caverphone`, `caverphone2`, `sounds_like`, `phonetic_match` |
 
 ## Portability Warning
 
