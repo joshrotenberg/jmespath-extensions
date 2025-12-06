@@ -196,6 +196,9 @@
 
 // Re-export common types
 pub mod common;
+
+// Function registry for runtime control
+pub mod registry;
 pub use common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Signature,
     Variable,

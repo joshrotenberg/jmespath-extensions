@@ -16,7 +16,7 @@ Extended functions for JMESPath queries in Rust.
 
 | | **JMESPath Specification** | **jmespath_extensions** |
 |---|---|---|
-| **Functions** | 26 built-in functions | 150+ extension functions |
+| **Functions** | 26 built-in functions | 189 extension functions |
 | **Portability** | Works everywhere (Python, JS, Go, AWS CLI, Ansible) | Rust only |
 | **Design** | Minimal, query-focused | Transformation-heavy, practical |
 | **Governance** | JEP process, multi-year consensus | Opinionated, can change |
@@ -48,7 +48,7 @@ Use only the [26 standard JMESPath built-in functions](https://jmespath.org/spec
 
 ## Overview
 
-This crate provides 150+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
+This crate provides 189 additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -65,6 +65,44 @@ register_all(&mut runtime);
 // Now you can use extended functions in queries
 let expr = runtime.compile("items[*].name | upper(@)").unwrap();
 ```
+
+## Runtime Function Registry
+
+For applications that need runtime control over function availability (ACLs, config-based gating, introspection):
+
+```rust
+use jmespath::Runtime;
+use jmespath_extensions::registry::{FunctionRegistry, Category};
+
+let mut registry = FunctionRegistry::new();
+
+// Register specific categories
+registry.register_category(Category::String);
+registry.register_category(Category::Math);
+
+// Or register all available functions
+// registry.register_all();
+
+// Disable specific functions (e.g., for security policies)
+registry.disable_function("md5");
+registry.disable_function("sha256");
+
+// Apply to runtime
+let mut runtime = Runtime::new();
+runtime.register_builtin_functions();
+registry.apply(&mut runtime);
+
+// Introspection - list available functions
+for func in registry.functions() {
+    let type_label = if func.is_standard { "standard" } else { "extension" };
+    println!("[{}] {}: {}", type_label, func.name, func.description);
+}
+```
+
+This enables:
+- **Runtime gating**: Enable/disable functions via config instead of compile-time features
+- **ACL support**: Disable specific functions for security policies
+- **Introspection**: Query available functions with signatures, descriptions, examples, and whether they are standard JMESPath or extensions
 
 ## CLI Tool
 

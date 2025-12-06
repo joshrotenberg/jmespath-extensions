@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
+use jmespath_extensions::registry::{Category, FunctionRegistry};
 use std::io::{self, Read};
 
 /// JMESPath CLI with extended functions
@@ -29,13 +30,35 @@ struct Args {
     /// List available extension functions
     #[arg(long)]
     list_functions: bool,
+
+    /// List functions in a specific category
+    #[arg(long, value_name = "CATEGORY")]
+    list_category: Option<String>,
+
+    /// Show detailed info for a specific function
+    #[arg(long, value_name = "FUNCTION")]
+    describe: Option<String>,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
+    // Create registry for introspection
+    let mut registry = FunctionRegistry::new();
+    registry.register_all();
+
     if args.list_functions {
-        print_functions();
+        print_functions(&registry);
+        return Ok(());
+    }
+
+    if let Some(category_name) = &args.list_category {
+        print_category(&registry, category_name)?;
+        return Ok(());
+    }
+
+    if let Some(func_name) = &args.describe {
+        describe_function(&registry, func_name)?;
         return Ok(());
     }
 
@@ -97,85 +120,105 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn print_functions() {
+fn print_functions(registry: &FunctionRegistry) {
     println!("jpx - JMESPath with Extended Functions\n");
-    println!("Standard JMESPath functions (26):");
-    println!("  abs, avg, ceil, contains, ends_with, floor, join, keys, length,");
-    println!("  map, max, max_by, merge, min, min_by, not_null, reverse, sort,");
-    println!("  sort_by, starts_with, sum, to_array, to_number, to_string, type, values\n");
 
-    println!("Extension functions by category:\n");
+    // Count standard and extension functions
+    let standard_count = registry.functions().filter(|f| f.is_standard).count();
+    let extension_count = registry.functions().filter(|f| !f.is_standard).count();
 
-    println!("STRING: upper, lower, trim, trim_left, trim_right, capitalize, title,");
-    println!("        split, replace, repeat, pad_left, pad_right, substr, slice,");
-    println!("        find_first, find_last, concat, camel_case, snake_case, kebab_case, wrap\n");
+    // Print standard functions
+    let standard_funcs: Vec<_> = registry
+        .functions_in_category(Category::Standard)
+        .map(|f| f.name)
+        .collect();
+    println!("Standard JMESPath functions ({}):", standard_count);
+    println!("  {}\n", standard_funcs.join(", "));
 
-    println!("ARRAY: first, last, unique, take, drop, chunk, zip, flatten_deep,");
-    println!("       compact, range, index_at, includes, find_index, difference,");
-    println!("       intersection, union, group_by, frequencies\n");
+    println!("Extension functions ({} available):\n", extension_count);
 
-    println!("OBJECT: items, from_items, pick, omit, deep_merge, invert,");
-    println!("        rename_keys, flatten_keys\n");
+    // Group by category (skip Standard)
+    for category in Category::all() {
+        if *category == Category::Standard || !category.is_available() {
+            continue;
+        }
 
-    println!("MATH: round, floor_fn, ceil_fn, abs_fn, mod_fn, pow, sqrt, log,");
-    println!("      clamp, median, percentile, variance, stddev, sin, cos, tan\n");
+        let funcs: Vec<_> = registry.functions_in_category(*category).collect();
+        if funcs.is_empty() {
+            continue;
+        }
 
-    println!("TYPE: to_string, to_number, to_boolean, type_of, is_string,");
-    println!("      is_number, is_boolean, is_array, is_object, is_null\n");
+        let names: Vec<_> = funcs.iter().map(|f| f.name).collect();
+        println!("{}: {}", category.name().to_uppercase(), names.join(", "));
+        println!();
+    }
 
-    println!("UTILITY: now, now_ms, default, if, coalesce\n");
+    println!("Use --list-category <name> for details on a category");
+    println!("Use --describe <function> for details on a specific function");
+    println!("\nFor full documentation: https://docs.rs/jmespath_extensions");
+}
 
-    println!("DATETIME: now, now_millis, parse_date, format_date, date_add, date_diff\n");
+fn print_category(registry: &FunctionRegistry, category_name: &str) -> Result<()> {
+    let category = Category::all()
+        .iter()
+        .find(|c| c.name().eq_ignore_ascii_case(category_name))
+        .ok_or_else(|| {
+            let available: Vec<_> = Category::all()
+                .iter()
+                .filter(|c| c.is_available())
+                .map(|c| c.name())
+                .collect();
+            anyhow::anyhow!(
+                "Unknown category '{}'. Available: {}",
+                category_name,
+                available.join(", ")
+            )
+        })?;
 
-    println!("EXPRESSION: map_expr, filter_expr, any_expr, all_expr, find_expr,");
-    println!("            find_index_expr, count_expr, sort_by_expr, group_by_expr,");
+    if !category.is_available() {
+        return Err(anyhow::anyhow!(
+            "Category '{}' is not available (not compiled in)",
+            category_name
+        ));
+    }
+
+    println!("{} functions:\n", category.name().to_uppercase());
+
+    for func in registry.functions_in_category(*category) {
+        println!("  {} - {}", func.name, func.description);
+        println!("    Signature: {}", func.signature);
+        println!("    Example: {}", func.example);
+        println!();
+    }
+
+    Ok(())
+}
+
+fn describe_function(registry: &FunctionRegistry, func_name: &str) -> Result<()> {
+    let func = registry.get_function(func_name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unknown function '{}'. Use --list-functions to see available functions.",
+            func_name
+        )
+    })?;
+
+    println!("{}", func.name);
+    println!("{}", "=".repeat(func.name.len()));
+    println!();
     println!(
-        "            partition_expr, min_by_expr, max_by_expr, unique_by_expr, flat_map_expr\n"
+        "Type:        {}",
+        if func.is_standard {
+            "standard JMESPath"
+        } else {
+            "extension"
+        }
     );
+    println!("Category:    {}", func.category.name());
+    println!("Description: {}", func.description);
+    println!("Signature:   {}", func.signature);
+    println!();
+    println!("Example:");
+    println!("  {}", func.example);
 
-    println!("HASH: md5, sha1, sha256, crc32\n");
-
-    println!("ENCODING: base64_encode, base64_decode, hex_encode, hex_decode\n");
-
-    println!("REGEX: regex_match, regex_extract, regex_replace\n");
-
-    println!("URL: url_encode, url_decode, url_parse\n");
-
-    println!("VALIDATION: is_email, is_url, is_uuid, is_ipv4, is_ipv6\n");
-
-    println!("PATH: path_basename, path_dirname, path_ext, path_join\n");
-
-    println!("RANDOM: random, uuid, shuffle, sample\n");
-
-    println!("FUZZY: levenshtein, normalized_levenshtein, damerau_levenshtein,");
-    println!("       jaro, jaro_winkler, sorensen_dice\n");
-
-    println!("PHONETIC: soundex, metaphone, double_metaphone, nysiis,");
-    println!(
-        "          match_rating_codex, caverphone, caverphone2, sounds_like, phonetic_match\n"
-    );
-
-    println!("GEO: haversine, haversine_km, haversine_mi, bearing\n");
-
-    println!("SEMVER: semver_parse, semver_major, semver_minor, semver_patch,");
-    println!("        semver_compare, semver_matches, is_semver\n");
-
-    println!("NETWORK: ip_to_int, int_to_ip, cidr_contains, cidr_network,");
-    println!("         cidr_broadcast, cidr_prefix, is_private_ip\n");
-
-    println!("IDS: nanoid, ulid, ulid_timestamp\n");
-
-    println!("TEXT: word_count, char_count, sentence_count, paragraph_count,");
-    println!("      reading_time, reading_time_seconds, char_frequencies, word_frequencies\n");
-
-    println!("DURATION: parse_duration, format_duration, duration_hours,");
-    println!("          duration_minutes, duration_seconds\n");
-
-    println!("COLOR: hex_to_rgb, rgb_to_hex, lighten, darken, color_mix,");
-    println!("       color_invert, color_grayscale, color_complement\n");
-
-    println!("COMPUTING: parse_bytes, format_bytes, format_bytes_binary,");
-    println!("           bit_and, bit_or, bit_xor, bit_not, bit_shift_left, bit_shift_right\n");
-
-    println!("For full documentation: https://docs.rs/jmespath_extensions");
+    Ok(())
 }
