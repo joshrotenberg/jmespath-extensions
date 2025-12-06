@@ -9,8 +9,8 @@
 //! | [`lower`](#lower) | `lower(string) → string` | Convert to lowercase |
 //! | [`upper`](#upper) | `upper(string) → string` | Convert to uppercase |
 //! | [`trim`](#trim) | `trim(string) → string` | Remove leading/trailing whitespace |
-//! | [`trim_start`](#trim_start) | `trim_start(string) → string` | Remove leading whitespace |
-//! | [`trim_end`](#trim_end) | `trim_end(string) → string` | Remove trailing whitespace |
+//! | [`trim_left`](#trim_left) | `trim_left(string) → string` | Remove leading whitespace |
+//! | [`trim_right`](#trim_right) | `trim_right(string) → string` | Remove trailing whitespace |
 //! | [`split`](#split) | `split(string, delimiter) → array` | Split string into array |
 //! | [`replace`](#replace) | `replace(string, old, new) → string` | Replace all occurrences |
 //! | [`pad_left`](#pad_left) | `pad_left(string, width, char) → string` | Left-pad to width |
@@ -19,8 +19,8 @@
 //! | [`capitalize`](#capitalize) | `capitalize(string) → string` | Capitalize first letter |
 //! | [`title`](#title) | `title(string) → string` | Title Case Each Word |
 //! | [`repeat`](#repeat) | `repeat(string, count) → string` | Repeat string N times |
-//! | [`index_of`](#index_of) | `index_of(string, search) → number` | Find first occurrence |
-//! | [`last_index_of`](#last_index_of) | `last_index_of(string, search) → number` | Find last occurrence |
+//! | [`find_first`](#find_first) | `find_first(string, search) → number` | Find first occurrence |
+//! | [`find_last`](#find_last) | `find_last(string, search) → number` | Find last occurrence |
 //! | [`slice`](#slice) | `slice(string, start, end?) → string` | Extract slice |
 //! | [`concat`](#concat) | `concat(array, separator?) → string` | Join array of strings |
 //! | [`camel_case`](#camel_case) | `camel_case(string) → string` | Convert to camelCase |
@@ -89,26 +89,26 @@
 //! trim('hello')       → "hello"
 //! ```
 //!
-//! ## trim_start
+//! ## trim_left
 //!
 //! Removes leading whitespace from a string.
 //!
 //! ```text
-//! trim_start(string) → string
+//! trim_left(string) → string
 //!
-//! trim_start('  hello  ') → "hello  "
-//! trim_start('\nhello')   → "hello"
+//! trim_left('  hello  ') → "hello  "
+//! trim_left('\nhello')   → "hello"
 //! ```
 //!
-//! ## trim_end
+//! ## trim_right
 //!
 //! Removes trailing whitespace from a string.
 //!
 //! ```text
-//! trim_end(string) → string
+//! trim_right(string) → string
 //!
-//! trim_end('  hello  ') → "  hello"
-//! trim_end('hello\n')   → "hello"
+//! trim_right('  hello  ') → "  hello"
+//! trim_right('hello\n')   → "hello"
 //! ```
 //!
 //! ## split
@@ -210,28 +210,28 @@
 //! repeat('hello', 0) → ""
 //! ```
 //!
-//! ## index_of
+//! ## find_first
 //!
 //! Finds the first occurrence of a substring. Returns -1 if not found.
 //!
 //! ```text
-//! index_of(string, search) → number
+//! find_first(string, search) → number
 //!
-//! index_of('hello world', 'world') → 6
-//! index_of('hello world', 'o')     → 4
-//! index_of('hello', 'x')           → -1
+//! find_first('hello world', 'world') → 6
+//! find_first('hello world', 'o')     → 4
+//! find_first('hello', 'x')           → -1
 //! ```
 //!
-//! ## last_index_of
+//! ## find_last
 //!
 //! Finds the last occurrence of a substring. Returns -1 if not found.
 //!
 //! ```text
-//! last_index_of(string, search) → number
+//! find_last(string, search) → number
 //!
-//! last_index_of('hello world', 'o') → 7
-//! last_index_of('abcabc', 'abc')    → 3
-//! last_index_of('hello', 'x')       → -1
+//! find_last('hello world', 'o') → 7
+//! find_last('abcabc', 'abc')    → 3
+//! find_last('hello', 'x')       → -1
 //! ```
 //!
 //! ## slice
@@ -349,8 +349,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("lower", Box::new(LowerFn::new()));
     runtime.register_function("upper", Box::new(UpperFn::new()));
     runtime.register_function("trim", Box::new(TrimFn::new()));
-    runtime.register_function("trim_start", Box::new(TrimStartFn::new()));
-    runtime.register_function("trim_end", Box::new(TrimEndFn::new()));
+    runtime.register_function("trim_left", Box::new(TrimStartFn::new()));
+    runtime.register_function("trim_right", Box::new(TrimEndFn::new()));
     runtime.register_function("split", Box::new(SplitFn::new()));
     runtime.register_function("replace", Box::new(ReplaceFn::new()));
     runtime.register_function("pad_left", Box::new(PadLeftFn::new()));
@@ -359,8 +359,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("capitalize", Box::new(CapitalizeFn::new()));
     runtime.register_function("title", Box::new(TitleFn::new()));
     runtime.register_function("repeat", Box::new(RepeatFn::new()));
-    runtime.register_function("index_of", Box::new(IndexOfFn::new()));
-    runtime.register_function("last_index_of", Box::new(LastIndexOfFn::new()));
+    runtime.register_function("find_first", Box::new(IndexOfFn::new()));
+    runtime.register_function("find_last", Box::new(LastIndexOfFn::new()));
     runtime.register_function("slice", Box::new(SliceFn::new()));
     runtime.register_function("concat", Box::new(ConcatFn::new()));
     runtime.register_function("upper_case", Box::new(UpperCaseFn::new()));

@@ -6,8 +6,8 @@
 //!
 //! | Function | Signature | Description |
 //! |----------|-----------|-------------|
-//! | [`entries`](#entries) | `entries(object) → array` | Convert to [{key, value}, ...] |
-//! | [`from_entries`](#from_entries) | `from_entries(array) → object` | Convert [{key, value}, ...] to object |
+//! | [`items`](#items) | `items(object) → array` | Convert to [{key, value}, ...] |
+//! | [`from_items`](#from_items) | `from_items(array) → object` | Convert [{key, value}, ...] to object |
 //! | [`pick`](#pick) | `pick(object, keys) → object` | Select specific keys |
 //! | [`omit`](#omit) | `omit(object, keys) → object` | Remove specific keys |
 //! | [`invert`](#invert) | `invert(object) → object` | Swap keys and values |
@@ -26,8 +26,8 @@
 //! runtime.register_builtin_functions();
 //! object::register(&mut runtime);
 //!
-//! // Get object entries
-//! let expr = runtime.compile("entries(@)").unwrap();
+//! // Get object items
+//! let expr = runtime.compile("items(@)").unwrap();
 //! let data = Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
 //! let result = expr.search(&data).unwrap();
 //! assert_eq!(result.as_array().unwrap().len(), 2);
@@ -35,26 +35,26 @@
 //!
 //! # Function Details
 //!
-//! ## entries
+//! ## items
 //!
 //! Converts an object to an array of `{key, value}` objects.
 //!
 //! ```text
-//! entries(object) → array
+//! items(object) → array
 //!
-//! entries({a: 1, b: 2})     → [{key: "a", value: 1}, {key: "b", value: 2}]
-//! entries({})               → []
+//! items({a: 1, b: 2})     → [{key: "a", value: 1}, {key: "b", value: 2}]
+//! items({})               → []
 //! ```
 //!
-//! ## from_entries
+//! ## from_items
 //!
 //! Converts an array of `{key, value}` objects back to an object.
 //!
 //! ```text
-//! from_entries(array) → object
+//! from_items(array) → object
 //!
-//! from_entries([{key: 'a', value: 1}, {key: 'b', value: 2}])   → {a: 1, b: 2}
-//! from_entries([])                                              → {}
+//! from_items([{key: 'a', value: 1}, {key: 'b', value: 2}])   → {a: 1, b: 2}
+//! from_items([])                                              → {}
 //! ```
 //!
 //! ## pick
@@ -150,8 +150,8 @@ use crate::define_function;
 
 /// Register all object functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
-    runtime.register_function("entries", Box::new(EntriesFn::new()));
-    runtime.register_function("from_entries", Box::new(FromEntriesFn::new()));
+    runtime.register_function("items", Box::new(EntriesFn::new()));
+    runtime.register_function("from_items", Box::new(FromEntriesFn::new()));
     runtime.register_function("pick", Box::new(PickFn::new()));
     runtime.register_function("omit", Box::new(OmitFn::new()));
     runtime.register_function("invert", Box::new(InvertFn::new()));
@@ -590,9 +590,9 @@ mod tests {
     }
 
     #[test]
-    fn test_entries() {
+    fn test_items() {
         let runtime = setup_runtime();
-        let expr = runtime.compile("entries(@)").unwrap();
+        let expr = runtime.compile("items(@)").unwrap();
         let mut obj = BTreeMap::new();
         obj.insert(
             "a".to_string(),
