@@ -53,6 +53,7 @@ let expr = runtime.compile("items[*].name | lower(@)").unwrap();
 | `uuid` | UUID generation | uuid |
 | `rand` | Random number generation | rand |
 | `datetime` | Date/time functions | chrono |
+| `fuzzy` | Fuzzy string matching | strsim |
 
 ### Minimal Dependencies
 
@@ -248,6 +249,22 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 
 **Format specifiers** (chrono strftime): `%Y` (year), `%m` (month), `%d` (day), `%H` (hour), `%M` (minute), `%S` (second)
 
+### Fuzzy String Matching (feature: `fuzzy`)
+
+| Function | Description | Returns |
+|----------|-------------|---------|
+| `levenshtein(s1, s2)` | Edit distance (insertions, deletions, substitutions) | number |
+| `normalized_levenshtein(s1, s2)` | Normalized edit distance | 0.0-1.0 |
+| `damerau_levenshtein(s1, s2)` | Edit distance with transpositions | number |
+| `jaro(s1, s2)` | Jaro similarity | 0.0-1.0 |
+| `jaro_winkler(s1, s2)` | Jaro-Winkler similarity (boosts common prefixes) | 0.0-1.0 |
+| `sorensen_dice(s1, s2)` | Sørensen-Dice coefficient (bigram-based) | 0.0-1.0 |
+
+**Examples:**
+- `levenshtein('kitten', 'sitting')` → `3`
+- `jaro_winkler('hello', 'hallo')` → `0.88` (high similarity)
+- `sorensen_dice('night', 'nacht')` → `0.25`
+
 ## JMESPath Community JEP Alignment
 
 This crate aligns with several [JMESPath Enhancement Proposals (JEPs)](https://github.com/jmespath-community/jmespath.spec) from the JMESPath community, while also providing additional functionality.
@@ -308,6 +325,7 @@ This crate provides extensive functionality not yet addressed by the JEP process
 | **Path** | `path_basename`, `path_dirname`, `path_ext`, `path_join` |
 | **Date/Time** | `now`, `now_millis`, `parse_date`, `format_date`, `date_add`, `date_diff` |
 | **Statistics** | `median`, `percentile`, `variance`, `stddev` |
+| **Fuzzy** | `levenshtein`, `jaro_winkler`, `sorensen_dice`, `damerau_levenshtein` |
 
 ## Portability Warning
 
