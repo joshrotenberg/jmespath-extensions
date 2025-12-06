@@ -33,7 +33,7 @@ ulid = { version = "1.1", optional = true }
 
 [features]
 default = ["full"]
-full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic"]
+full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing"]
 core = ["string", "array", "object", "math", "type", "utility", "validation", "path", "expression"]
 string = []
 array = []
@@ -58,6 +58,9 @@ semver = ["dep:semver_crate"]
 network = ["dep:ipnetwork"]
 ids = ["dep:nanoid", "dep:ulid"]
 text = []
+duration = []
+color = []
+computing = []
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

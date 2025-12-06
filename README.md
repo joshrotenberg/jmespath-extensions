@@ -7,16 +7,48 @@
 
 Extended functions for JMESPath queries in Rust.
 
-> **Warning: Non-Standard Extension**
+> **Non-Standard Extensions - Not Portable**
 >
-> This crate provides **custom extension functions** that are **NOT part of the JMESPath specification**.
-> Queries using these functions will **NOT work** in other JMESPath implementations (Python, JavaScript, Go, etc.).
->
-> For portable queries, use only the [26 standard JMESPath built-in functions](https://jmespath.org/specification.html#built-in-functions).
+> This crate provides **custom extension functions** that are **NOT part of the [JMESPath specification](https://jmespath.org/specification.html)**.
+> Queries using these functions will **NOT work** in other JMESPath implementations (Python, JavaScript, Go, AWS CLI, Ansible, etc.).
+
+## JMESPath Spec vs This Library
+
+| | **JMESPath Specification** | **jmespath_extensions** |
+|---|---|---|
+| **Functions** | 26 built-in functions | 150+ extension functions |
+| **Portability** | Works everywhere (Python, JS, Go, AWS CLI, Ansible) | Rust only |
+| **Design** | Minimal, query-focused | Transformation-heavy, practical |
+| **Governance** | JEP process, multi-year consensus | Opinionated, can change |
+| **Philosophy** | "Spec purity" | "Useful > Pure" |
+
+### What This Means
+
+1. **Not portable**: Queries using `upper()`, `map_expr()`, `haversine()`, etc. won't work in AWS CLI's `--query`, Ansible filters, or any other JMESPath implementation.
+
+2. **No spec backing**: Function names, signatures, and behaviors are our decisions. While we align with JEPs where possible (`items`, `find_first`), many functions are novel.
+
+3. **Expression functions are unique**: `map_expr`, `filter_expr`, `sort_by_expr` etc. leverage Rust runtime access—these don't exist in any JMESPath spec or implementation.
+
+### Use Cases
+
+This library is ideal for:
+
+- **Backend data transformation**: Reshape API responses, filter datasets, compute derived fields
+- **Configuration processing**: Query and transform JSON/YAML configs with complex logic
+- **ETL pipelines**: Extract, transform, and validate data with expressive queries
+- **Log/event processing**: Filter and aggregate structured log data
+- **CLI tools**: Build jq-like tools with domain-specific functions
+- **Embedded queries**: Let users write safe, sandboxed data queries in your application
+
+### For Portable Queries
+
+Use only the [26 standard JMESPath built-in functions](https://jmespath.org/specification.html#built-in-functions):
+`abs`, `avg`, `ceil`, `contains`, `ends_with`, `floor`, `join`, `keys`, `length`, `map`, `max`, `max_by`, `merge`, `min`, `min_by`, `not_null`, `reverse`, `sort`, `sort_by`, `starts_with`, `sum`, `to_array`, `to_number`, `to_string`, `type`, `values`
 
 ## Overview
 
-This crate provides 130+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories. These extensions are useful when you need more powerful data transformation capabilities and portability across JMESPath implementations is not a concern.
+This crate provides 150+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -33,6 +65,31 @@ register_all(&mut runtime);
 // Now you can use extended functions in queries
 let expr = runtime.compile("items[*].name | upper(@)").unwrap();
 ```
+
+## CLI Tool
+
+The `jpx` CLI tool in `examples/jpx/` lets you experiment with all functions from the command line:
+
+```bash
+cd examples/jpx && cargo install --path .
+
+# String functions
+echo '{"name": "hello"}' | jpx 'upper(name)'
+# "HELLO"
+
+# Duration parsing
+echo '{"d": "1h30m"}' | jpx 'parse_duration(d)'
+# 5400.0
+
+# Color manipulation
+echo '{"c": "#ff5500"}' | jpx 'hex_to_rgb(c)'
+# {"r": 255, "g": 85, "b": 0}
+
+# List all available functions
+jpx --list-functions
+```
+
+See [examples/jpx/README.md](examples/jpx/README.md) for full documentation and example queries.
 
 ## Features
 
@@ -67,6 +124,9 @@ All features are opt-in. Use `default-features = false` to select only what you 
 | `semver` | `semver_parse`, `semver_compare`, `semver_matches`, etc. | semver |
 | `network` | `ip_to_int`, `cidr_contains`, `cidr_network`, `is_private_ip` | ipnetwork |
 | `ids` | `nanoid`, `ulid`, `ulid_timestamp` | nanoid, ulid |
+| `duration` | `parse_duration`, `format_duration`, etc. | None |
+| `color` | `hex_to_rgb`, `rgb_to_hex`, `lighten`, `darken`, etc. | None |
+| `computing` | `parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, etc. | None |
 
 ### Minimal Dependencies
 
@@ -148,15 +208,6 @@ This crate aligns with several [JMESPath Enhancement Proposals](https://github.c
 - **JEP-013** (Object Functions): `items`, `from_items`, `zip`
 
 Additional functions extend well beyond these proposals. Some JEPs (like arithmetic operators) require parser changes and cannot be implemented as extension functions.
-
-## Portability Warning
-
-These extension functions are designed for use cases where:
-- You control both the query author and the runtime environment
-- You need functionality beyond standard JMESPath
-- Cross-implementation compatibility is not required
-
-For portable queries, use only the standard JMESPath built-in functions.
 
 ## Benchmarks
 
