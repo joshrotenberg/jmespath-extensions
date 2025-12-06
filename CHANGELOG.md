@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.2.0...v0.2.1) - 2025-12-06
+
+### Added
+
+- add duration, color, and computing modules ([#19](https://github.com/joshrotenberg/jmespath-extensions/pull/19))
+- add benchmarks, improve CI, slim down README ([#18](https://github.com/joshrotenberg/jmespath-extensions/pull/18))
+- add geo, semver, network, ids, and text modules ([#17](https://github.com/joshrotenberg/jmespath-extensions/pull/17))
+- add phonetic encoding functions ([#16](https://github.com/joshrotenberg/jmespath-extensions/pull/16))
+- add expression-based higher-order functions ([#15](https://github.com/joshrotenberg/jmespath-extensions/pull/15))
+- add fuzzy string matching functions ([#13](https://github.com/joshrotenberg/jmespath-extensions/pull/13))
+- add datetime functions ([#12](https://github.com/joshrotenberg/jmespath-extensions/pull/12))
+
 ## [0.2.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.1.0...v0.2.0) - 2025-12-06
 
 ### Fixed
