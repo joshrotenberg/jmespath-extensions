@@ -52,6 +52,7 @@ let expr = runtime.compile("items[*].name | lower(@)").unwrap();
 | `url` | URL encoding/parsing | url, urlencoding |
 | `uuid` | UUID generation | uuid |
 | `rand` | Random number generation | rand |
+| `datetime` | Date/time functions | chrono |
 
 ### Minimal Dependencies
 
@@ -232,6 +233,21 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 | `sample(array, n)` | Random sample of n elements |
 | `sample(array, n, seed)` | Deterministic sample with seed |
 
+### Date/Time Functions (feature: `datetime`)
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `now()` | Current Unix timestamp (seconds) | `now()` → `1699900000` |
+| `now_millis()` | Current Unix timestamp (milliseconds) | `now_millis()` → `1699900000000` |
+| `parse_date(string, format?)` | Parse date string to timestamp | `parse_date('2024-07-03')` → `1719964800` |
+| `format_date(timestamp, format)` | Format timestamp to string | `format_date(0, '%Y-%m-%d')` → `"1970-01-01"` |
+| `date_add(timestamp, amount, unit)` | Add time to timestamp | `date_add(0, 1, 'days')` → `86400` |
+| `date_diff(ts1, ts2, unit)` | Difference between timestamps | `date_diff(86400, 0, 'days')` → `1` |
+
+**Time units**: `seconds`/`second`/`s`, `minutes`/`minute`/`m`, `hours`/`hour`/`h`, `days`/`day`/`d`, `weeks`/`week`/`w`
+
+**Format specifiers** (chrono strftime): `%Y` (year), `%m` (month), `%d` (day), `%H` (hour), `%M` (minute), `%S` (second)
+
 ## JMESPath Community JEP Alignment
 
 This crate aligns with several [JMESPath Enhancement Proposals (JEPs)](https://github.com/jmespath-community/jmespath.spec) from the JMESPath community, while also providing additional functionality.
@@ -290,7 +306,7 @@ This crate provides extensive functionality not yet addressed by the JEP process
 | **Random** | `random`, `sample`, `shuffle` |
 | **Validation** | `is_email`, `is_url`, `is_ipv4`, `is_ipv6`, `is_blank` |
 | **Path** | `path_basename`, `path_dirname`, `path_ext`, `path_join` |
-| **Time** | `now`, `now_ms` |
+| **Date/Time** | `now`, `now_millis`, `parse_date`, `format_date`, `date_add`, `date_diff` |
 | **Statistics** | `median`, `percentile`, `variance`, `stddev` |
 
 ## Portability Warning

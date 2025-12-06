@@ -103,6 +103,7 @@
 //! | `regex` | regex | [Regex functions](regex_fns/index.html) |
 //! | `uuid` | uuid | UUID generation |
 //! | `rand` | rand | [Random functions](random/index.html) |
+//! | `datetime` | chrono | [Date/time functions](datetime/index.html) |
 //!
 //! ### Using Specific Features
 //!
@@ -125,7 +126,8 @@
 //! - [`object`] - Object utilities (`items`, `pick`, `omit`, `deep_merge`, etc.)
 //! - [`math`] - Math operations (`round`, `sqrt`, `pow`, `median`, `sin`, `cos`, etc.)
 //! - [`type_conv`] - Type functions (`type_of`, `is_string`, `is_empty`, `to_number`, etc.)
-//! - [`utility`] - Utilities (`now`, `default`, `if`, `coalesce`, `json_encode`, etc.)
+//! - [`utility`] - Utilities (`default`, `if`, `coalesce`, `json_encode`, etc.)
+//! - [`datetime`] - Date/time (`now`, `now_millis`, `parse_date`, `format_date`, `date_add`, `date_diff`)
 //! - [`path`] - Path functions (`path_basename`, `path_dirname`, `path_ext`, `path_join`)
 //! - [`validation`] - Validation (`is_email`, `is_url`, `is_uuid`, `is_ipv4`, `is_ipv6`)
 //! - [`hash`] - Hashing (`md5`, `sha1`, `sha256`, `crc32`)
@@ -218,6 +220,9 @@ pub mod regex_fns;
 #[cfg(any(feature = "rand", feature = "uuid"))]
 pub mod random;
 
+#[cfg(feature = "datetime")]
+pub mod datetime;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -288,6 +293,9 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(any(feature = "rand", feature = "uuid"))]
     random::register(runtime);
+
+    #[cfg(feature = "datetime")]
+    datetime::register(runtime);
 }
 
 #[cfg(test)]
