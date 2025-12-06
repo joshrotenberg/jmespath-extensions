@@ -16,7 +16,7 @@ Extended functions for JMESPath queries in Rust.
 
 ## Overview
 
-This crate provides 100+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories. These extensions are useful when you need more powerful data transformation capabilities and portability across JMESPath implementations is not a concern.
+This crate provides 130+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories. These extensions are useful when you need more powerful data transformation capabilities and portability across JMESPath implementations is not a concern.
 
 ## Quick Start
 
@@ -56,6 +56,11 @@ let expr = runtime.compile("items[*].name | lower(@)").unwrap();
 | `fuzzy` | Fuzzy string matching | strsim |
 | `expression` | Expression-based higher-order functions | None |
 | `phonetic` | Phonetic encoding algorithms | rphonetic |
+| `geo` | Geospatial distance and bearing | geoutils |
+| `semver` | Semantic versioning operations | semver |
+| `network` | IP address and CIDR operations | ipnetwork |
+| `ids` | ID generation (NanoID, ULID) | nanoid, ulid |
+| `text` | Text analysis (word count, reading time) | None |
 
 ### Minimal Dependencies
 
@@ -348,6 +353,149 @@ double_metaphone('Schmidt')
 // Result: ["XMT", "SMT"]
 ```
 
+### Geospatial Functions (feature: `geo`)
+
+Calculate distances and bearings between geographic coordinates.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `haversine(lat1, lon1, lat2, lon2)` | Distance in meters between two points | `haversine(40.7128, -74.0060, 51.5074, -0.1278)` → `5570222.1` |
+| `haversine_km(lat1, lon1, lat2, lon2)` | Distance in kilometers | `haversine_km(40.7128, -74.0060, 51.5074, -0.1278)` → `5570.2` |
+| `haversine_mi(lat1, lon1, lat2, lon2)` | Distance in miles | `haversine_mi(40.7128, -74.0060, 51.5074, -0.1278)` → `3461.2` |
+| `bearing(lat1, lon1, lat2, lon2)` | Compass bearing in degrees (0-360) | `bearing(40.7128, -74.0060, 51.5074, -0.1278)` → `51.2` |
+
+**Examples:**
+```
+// Distance from NYC to London in km
+haversine_km(40.7128, -74.0060, 51.5074, -0.1278)
+// Result: ~5570.2
+
+// Bearing from NYC to London
+bearing(40.7128, -74.0060, 51.5074, -0.1278)
+// Result: ~51.2 (northeast)
+```
+
+### Semantic Versioning Functions (feature: `semver`)
+
+Parse and compare semantic versions (SemVer 2.0.0 compliant).
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `semver_parse(string)` | Parse version into components | `semver_parse('1.2.3-beta+build')` → `{"major":1,"minor":2,"patch":3,"pre":"beta","build":"build"}` |
+| `semver_major(string)` | Extract major version | `semver_major('1.2.3')` → `1` |
+| `semver_minor(string)` | Extract minor version | `semver_minor('1.2.3')` → `2` |
+| `semver_patch(string)` | Extract patch version | `semver_patch('1.2.3')` → `3` |
+| `semver_compare(v1, v2)` | Compare versions (-1, 0, 1) | `semver_compare('1.0.0', '2.0.0')` → `-1` |
+| `semver_matches(version, requirement)` | Check if version matches requirement | `semver_matches('1.2.3', '>=1.0.0')` → `true` |
+| `is_semver(string)` | Check if valid semver | `is_semver('1.2.3')` → `true` |
+
+**Examples:**
+```
+// Parse a version
+semver_parse('2.1.0-alpha.1+build.123')
+// Result: {"major": 2, "minor": 1, "patch": 0, "pre": "alpha.1", "build": "build.123"}
+
+// Check version requirements
+semver_matches('1.5.0', '>=1.0.0, <2.0.0')
+// Result: true
+
+// Compare versions
+semver_compare('1.2.3', '1.2.4')
+// Result: -1 (first is less than second)
+```
+
+### Network Functions (feature: `network`)
+
+IP address and CIDR network operations.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `ip_to_int(string)` | Convert IPv4 to integer | `ip_to_int('192.168.1.1')` → `3232235777` |
+| `int_to_ip(number)` | Convert integer to IPv4 | `int_to_ip(3232235777)` → `"192.168.1.1"` |
+| `cidr_contains(cidr, ip)` | Check if IP is in CIDR range | `cidr_contains('192.168.0.0/16', '192.168.1.1')` → `true` |
+| `cidr_network(cidr)` | Get network address | `cidr_network('192.168.1.100/24')` → `"192.168.1.0"` |
+| `cidr_broadcast(cidr)` | Get broadcast address | `cidr_broadcast('192.168.1.0/24')` → `"192.168.1.255"` |
+| `cidr_prefix(cidr)` | Get prefix length | `cidr_prefix('192.168.1.0/24')` → `24` |
+| `is_private_ip(string)` | Check if IP is private (RFC 1918) | `is_private_ip('192.168.1.1')` → `true` |
+
+**Examples:**
+```
+// Check if IP is in subnet
+cidr_contains('10.0.0.0/8', '10.255.255.255')
+// Result: true
+
+// Get network boundaries
+cidr_network('192.168.1.100/24')
+// Result: "192.168.1.0"
+
+cidr_broadcast('192.168.1.100/24')
+// Result: "192.168.1.255"
+
+// Check private IP ranges
+is_private_ip('172.16.0.1')  // 172.16.0.0/12
+// Result: true
+```
+
+### ID Generation Functions (feature: `ids`)
+
+Generate unique identifiers.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `nanoid()` | Generate 21-char NanoID | `nanoid()` → `"V1StGXR8_Z5jdHi6B-myT"` |
+| `nanoid(size)` | Generate NanoID with custom length | `nanoid(10)` → `"IRFa-VaY2b"` |
+| `ulid()` | Generate ULID (sortable, timestamp-based) | `ulid()` → `"01ARZ3NDEKTSV4RRFFQ69G5FAV"` |
+| `ulid_timestamp(ulid)` | Extract Unix timestamp from ULID (ms) | `ulid_timestamp('01ARZ3NDEKTSV4RRFFQ69G5FAV')` → `1469918176385` |
+
+**Examples:**
+```
+// Generate compact URL-safe ID
+nanoid()
+// Result: "V1StGXR8_Z5jdHi6B-myT" (21 chars, URL-safe)
+
+// Generate sortable ULID
+ulid()
+// Result: "01HQMYV7K5KCSKFJ8Y45VX3QJT" (26 chars, Crockford base32)
+
+// Extract timestamp from ULID
+ulid_timestamp('01HQMYV7K5KCSKFJ8Y45VX3QJT')
+// Result: 1706000000000 (milliseconds since Unix epoch)
+```
+
+### Text Analysis Functions (feature: `text`)
+
+Analyze text content for statistics and metrics.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `word_count(string)` | Count words | `word_count('Hello world!')` → `2` |
+| `char_count(string)` | Count characters (excluding whitespace) | `char_count('Hello world!')` → `11` |
+| `sentence_count(string)` | Count sentences | `sentence_count('Hello. World!')` → `2` |
+| `paragraph_count(string)` | Count paragraphs | `paragraph_count('Para 1\n\nPara 2')` → `2` |
+| `reading_time(string)` | Estimated reading time (minutes) | `reading_time(long_text)` → `5` |
+| `reading_time_seconds(string)` | Estimated reading time (seconds) | `reading_time_seconds(text)` → `30` |
+| `char_frequencies(string)` | Character frequency map | `char_frequencies('aab')` → `{"a":2,"b":1}` |
+| `word_frequencies(string)` | Word frequency map | `word_frequencies('the cat the')` → `{"the":2,"cat":1}` |
+
+**Examples:**
+```
+// Basic text stats
+word_count('The quick brown fox jumps over the lazy dog')
+// Result: 9
+
+// Estimate reading time (assumes 200 wpm)
+reading_time('... 1000 word article ...')
+// Result: 5 (minutes)
+
+// Get word frequencies
+word_frequencies('to be or not to be')
+// Result: {"to": 2, "be": 2, "or": 1, "not": 1}
+
+// Character analysis
+char_frequencies('hello')
+// Result: {"h": 1, "e": 1, "l": 2, "o": 1}
+```
+
 ## JMESPath Community JEP Alignment
 
 This crate aligns with several [JMESPath Enhancement Proposals (JEPs)](https://github.com/jmespath-community/jmespath.spec) from the JMESPath community, while also providing additional functionality.
@@ -411,6 +559,11 @@ This crate provides extensive functionality not yet addressed by the JEP process
 | **Fuzzy** | `levenshtein`, `jaro_winkler`, `sorensen_dice`, `damerau_levenshtein` |
 | **Expression** | `map_expr`, `filter_expr`, `any_expr`, `all_expr`, `find_expr`, `find_index_expr`, `count_expr`, `sort_by_expr`, `group_by_expr`, `partition_expr`, `min_by_expr`, `max_by_expr`, `unique_by_expr`, `flat_map_expr` |
 | **Phonetic** | `soundex`, `metaphone`, `double_metaphone`, `nysiis`, `match_rating_codex`, `caverphone`, `caverphone2`, `sounds_like`, `phonetic_match` |
+| **Geo** | `haversine`, `haversine_km`, `haversine_mi`, `bearing` |
+| **SemVer** | `semver_parse`, `semver_major`, `semver_minor`, `semver_patch`, `semver_compare`, `semver_matches`, `is_semver` |
+| **Network** | `ip_to_int`, `int_to_ip`, `cidr_contains`, `cidr_network`, `cidr_broadcast`, `cidr_prefix`, `is_private_ip` |
+| **IDs** | `nanoid`, `ulid`, `ulid_timestamp` |
+| **Text** | `word_count`, `char_count`, `sentence_count`, `paragraph_count`, `reading_time`, `reading_time_seconds`, `char_frequencies`, `word_frequencies` |
 
 ## Portability Warning
 
