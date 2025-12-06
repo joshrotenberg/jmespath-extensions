@@ -1,7 +1,114 @@
 //! URL encoding and parsing functions.
 //!
-//! These functions provide URL manipulation capabilities.
-//! Requires the `url` feature.
+//! This module provides URL manipulation capabilities for JMESPath expressions, including
+//! URL percent-encoding/decoding and URL parsing into components. These functions are useful
+//! for working with web addresses, query strings, and URL components.
+//!
+//! **Note:** This module requires the `url` feature to be enabled.
+//!
+//! # Function Reference
+//!
+//! | Function | Arguments | Returns | Description |
+//! |----------|-----------|---------|-------------|
+//! | `url_encode` | `(text: string)` | `string` | Percent-encode string for URLs |
+//! | `url_decode` | `(encoded: string)` | `string` | Decode percent-encoded URL string |
+//! | `url_parse` | `(url: string)` | `object` | Parse URL into components |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath_extensions::Runtime;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! jmespath_extensions::register_all(&mut runtime);
+//!
+//! let expr = runtime.compile("url_encode(@)").unwrap();
+//! let data = jmespath::Variable::String("hello world".to_string());
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_string().unwrap(), "hello%20world");
+//! ```
+//!
+//! # Function Details
+//!
+//! ## URL Encoding
+//!
+//! ### `url_encode(text: string) -> string`
+//!
+//! Percent-encodes a string for safe use in URLs. Special characters are converted to
+//! `%XX` format where XX is the hexadecimal value of the byte.
+//!
+//! ```text
+//! url_encode('hello world')                // "hello%20world"
+//! url_encode('name=John Doe')              // "name%3DJohn%20Doe"
+//! url_encode('path/to/file')               // "path%2Fto%2Efile"
+//! url_encode('email@example.com')          // "email%40example.com"
+//! url_encode('100%')                       // "100%25"
+//! ```
+//!
+//! ### `url_decode(encoded: string) -> string`
+//!
+//! Decodes a percent-encoded URL string back to its original form. Returns an error if
+//! the encoding is invalid.
+//!
+//! ```text
+//! url_decode('hello%20world')              // "hello world"
+//! url_decode('name%3DJohn%20Doe')          // "name=John Doe"
+//! url_decode('path%2Fto%2Efile')           // "path/to/file"
+//! url_decode('email%40example.com')        // "email@example.com"
+//! url_decode('100%25')                     // "100%"
+//! ```
+//!
+//! ## URL Parsing
+//!
+//! ### `url_parse(url: string) -> object`
+//!
+//! Parses a URL string into its component parts and returns an object with the following fields:
+//!
+//! - `scheme`: Protocol (e.g., "http", "https", "ftp")
+//! - `host`: Hostname or IP address (null if not present)
+//! - `port`: Port number (null if not specified or default)
+//! - `path`: URL path component
+//! - `query`: Query string without the '?' (null if not present)
+//! - `fragment`: Fragment identifier without the '#' (null if not present)
+//! - `username`: Username for authentication (only if present)
+//! - `password`: Password for authentication (only if present)
+//!
+//! Returns an error if the URL is malformed.
+//!
+//! ```text
+//! url_parse('https://example.com/path')
+//! // {
+//! //   "scheme": "https",
+//! //   "host": "example.com",
+//! //   "port": null,
+//! //   "path": "/path",
+//! //   "query": null,
+//! //   "fragment": null
+//! // }
+//!
+//! url_parse('http://user:pass@example.com:8080/path?key=value#section')
+//! // {
+//! //   "scheme": "http",
+//! //   "host": "example.com",
+//! //   "port": 8080,
+//! //   "path": "/path",
+//! //   "query": "key=value",
+//! //   "fragment": "section",
+//! //   "username": "user",
+//! //   "password": "pass"
+//! // }
+//!
+//! url_parse('https://api.example.com/v1/users?limit=10&offset=20')
+//! // {
+//! //   "scheme": "https",
+//! //   "host": "api.example.com",
+//! //   "port": null,
+//! //   "path": "/v1/users",
+//! //   "query": "limit=10&offset=20",
+//! //   "fragment": null
+//! // }
+//! ```
 
 use std::collections::BTreeMap;
 use std::rc::Rc;

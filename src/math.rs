@@ -1,7 +1,262 @@
 //! Math and statistics functions.
 //!
-//! These functions provide extended math operations beyond the standard
-//! JMESPath built-ins.
+//! This module provides mathematical operations and statistical functions.
+//!
+//! # Function Reference
+//!
+//! | Function | Signature | Description |
+//! |----------|-----------|-------------|
+//! | [`round`](#round) | `round(n, precision?) → number` | Round to precision |
+//! | [`floor_fn`](#floor_fn) | `floor_fn(n) → number` | Round down |
+//! | [`ceil_fn`](#ceil_fn) | `ceil_fn(n) → number` | Round up |
+//! | [`abs_fn`](#abs_fn) | `abs_fn(n) → number` | Absolute value |
+//! | [`mod_fn`](#mod_fn) | `mod_fn(a, b) → number` | Modulo operation |
+//! | [`pow`](#pow) | `pow(base, exp) → number` | Exponentiation |
+//! | [`sqrt`](#sqrt) | `sqrt(n) → number` | Square root |
+//! | [`log`](#log) | `log(n, base?) → number` | Logarithm |
+//! | [`clamp`](#clamp) | `clamp(n, min, max) → number` | Clamp to range |
+//! | [`median`](#median) | `median(array) → number` | Median value |
+//! | [`percentile`](#percentile) | `percentile(array, p) → number` | Percentile |
+//! | [`variance`](#variance) | `variance(array) → number` | Statistical variance |
+//! | [`stddev`](#stddev) | `stddev(array) → number` | Standard deviation |
+//! | [`sin`](#sin) | `sin(n) → number` | Sine (radians) |
+//! | [`cos`](#cos) | `cos(n) → number` | Cosine (radians) |
+//! | [`tan`](#tan) | `tan(n) → number` | Tangent (radians) |
+//! | [`asin`](#asin) | `asin(n) → number` | Arcsine |
+//! | [`acos`](#acos) | `acos(n) → number` | Arccosine |
+//! | [`atan`](#atan) | `atan(n) → number` | Arctangent |
+//! | [`atan2`](#atan2) | `atan2(y, x) → number` | Two-argument arctangent |
+//! | [`deg_to_rad`](#deg_to_rad) | `deg_to_rad(deg) → number` | Degrees to radians |
+//! | [`rad_to_deg`](#rad_to_deg) | `rad_to_deg(rad) → number` | Radians to degrees |
+//! | [`sign`](#sign) | `sign(n) → number` | Sign (-1, 0, 1) |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::math;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! math::register(&mut runtime);
+//!
+//! // Round to 2 decimal places
+//! let expr = runtime.compile("round(@, `2`)").unwrap();
+//! let data = Variable::from_json("3.14159").unwrap();
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_number().unwrap(), 3.14);
+//! ```
+//!
+//! # Function Details
+//!
+//! ## round
+//!
+//! Rounds a number to a specified precision (decimal places).
+//!
+//! ```text
+//! round(number, precision?) → number
+//!
+//! round(3.14159)        → 3
+//! round(3.14159, 2)     → 3.14
+//! round(3.14159, 4)     → 3.1416
+//! round(1234.5, -2)     → 1200       // Negative precision rounds to tens, hundreds, etc.
+//! ```
+//!
+//! ## floor_fn
+//!
+//! Rounds a number down to the nearest integer.
+//!
+//! ```text
+//! floor_fn(number) → number
+//!
+//! floor_fn(3.7)     → 3
+//! floor_fn(3.2)     → 3
+//! floor_fn(-3.2)    → -4
+//! ```
+//!
+//! ## ceil_fn
+//!
+//! Rounds a number up to the nearest integer.
+//!
+//! ```text
+//! ceil_fn(number) → number
+//!
+//! ceil_fn(3.2)      → 4
+//! ceil_fn(3.7)      → 4
+//! ceil_fn(-3.7)     → -3
+//! ```
+//!
+//! ## abs_fn
+//!
+//! Returns the absolute value of a number.
+//!
+//! ```text
+//! abs_fn(number) → number
+//!
+//! abs_fn(-5)        → 5
+//! abs_fn(5)         → 5
+//! abs_fn(-3.14)     → 3.14
+//! ```
+//!
+//! ## mod_fn
+//!
+//! Returns the remainder of division (modulo operation).
+//!
+//! ```text
+//! mod_fn(a, b) → number
+//!
+//! mod_fn(10, 3)     → 1
+//! mod_fn(10, 5)     → 0
+//! mod_fn(-10, 3)    → -1
+//! ```
+//!
+//! ## pow
+//!
+//! Raises a number to a power.
+//!
+//! ```text
+//! pow(base, exponent) → number
+//!
+//! pow(2, 8)         → 256
+//! pow(10, 3)        → 1000
+//! pow(4, 0.5)       → 2          // Square root
+//! pow(2, -1)        → 0.5
+//! ```
+//!
+//! ## sqrt
+//!
+//! Returns the square root of a number.
+//!
+//! ```text
+//! sqrt(number) → number
+//!
+//! sqrt(16)          → 4
+//! sqrt(2)           → 1.4142...
+//! sqrt(0)           → 0
+//! ```
+//!
+//! ## log
+//!
+//! Returns the logarithm of a number. Default base is e (natural log).
+//!
+//! ```text
+//! log(number, base?) → number
+//!
+//! log(10)           → 2.302...    // Natural log (ln)
+//! log(100, 10)      → 2           // Log base 10
+//! log(8, 2)         → 3           // Log base 2
+//! ```
+//!
+//! ## clamp
+//!
+//! Restricts a number to a range.
+//!
+//! ```text
+//! clamp(number, min, max) → number
+//!
+//! clamp(15, 0, 10)      → 10
+//! clamp(-5, 0, 10)      → 0
+//! clamp(5, 0, 10)       → 5
+//! ```
+//!
+//! ## median
+//!
+//! Returns the median (middle value) of an array of numbers.
+//!
+//! ```text
+//! median(array) → number
+//!
+//! median([1, 2, 3, 4, 5])       → 3
+//! median([1, 2, 3, 4])          → 2.5    // Average of middle two
+//! median([5, 1, 3])             → 3
+//! ```
+//!
+//! ## percentile
+//!
+//! Returns the value at a given percentile in an array.
+//!
+//! ```text
+//! percentile(array, p) → number
+//!
+//! percentile([1, 2, 3, 4, 5], 50)    → 3      // 50th percentile = median
+//! percentile([1, 2, 3, 4, 5], 0)     → 1      // Minimum
+//! percentile([1, 2, 3, 4, 5], 100)   → 5      // Maximum
+//! ```
+//!
+//! ## variance
+//!
+//! Returns the statistical variance of an array.
+//!
+//! ```text
+//! variance(array) → number
+//!
+//! variance([1, 2, 3, 4, 5])     → 2.5
+//! variance([10, 10, 10])        → 0
+//! ```
+//!
+//! ## stddev
+//!
+//! Returns the standard deviation of an array.
+//!
+//! ```text
+//! stddev(array) → number
+//!
+//! stddev([1, 2, 3, 4, 5])       → 1.5811...
+//! stddev([10, 10, 10])          → 0
+//! ```
+//!
+//! ## Trigonometric Functions
+//!
+//! All trig functions work with radians.
+//!
+//! ```text
+//! sin(radians) → number         // Sine
+//! cos(radians) → number         // Cosine
+//! tan(radians) → number         // Tangent
+//! asin(value) → radians         // Arcsine
+//! acos(value) → radians         // Arccosine
+//! atan(value) → radians         // Arctangent
+//! atan2(y, x) → radians         // Two-argument arctangent
+//!
+//! sin(0)            → 0
+//! cos(0)            → 1
+//! sin(3.14159/2)    → 1         // sin(π/2) ≈ 1
+//! ```
+//!
+//! ## deg_to_rad
+//!
+//! Converts degrees to radians.
+//!
+//! ```text
+//! deg_to_rad(degrees) → radians
+//!
+//! deg_to_rad(180)       → 3.14159...   // π
+//! deg_to_rad(90)        → 1.5707...    // π/2
+//! deg_to_rad(360)       → 6.2831...    // 2π
+//! ```
+//!
+//! ## rad_to_deg
+//!
+//! Converts radians to degrees.
+//!
+//! ```text
+//! rad_to_deg(radians) → degrees
+//!
+//! rad_to_deg(3.14159)   → 180
+//! rad_to_deg(1.5707)    → 90
+//! ```
+//!
+//! ## sign
+//!
+//! Returns the sign of a number (-1, 0, or 1).
+//!
+//! ```text
+//! sign(number) → number
+//!
+//! sign(42)          → 1
+//! sign(-42)         → -1
+//! sign(0)           → 0
+//! ```
 
 use std::rc::Rc;
 
@@ -390,7 +645,7 @@ impl Function for MedianFn {
         numbers.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let len = numbers.len();
-        let median = if len % 2 == 0 {
+        let median = if len.is_multiple_of(2) {
             (numbers[len / 2 - 1] + numbers[len / 2]) / 2.0
         } else {
             numbers[len / 2]

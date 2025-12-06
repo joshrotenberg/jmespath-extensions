@@ -1,7 +1,116 @@
 //! Validation functions.
 //!
-//! These functions provide validation for common formats like email, URL, IP addresses.
-//! Requires the `regex` feature for pattern matching.
+//! This module provides format validation capabilities for common data types like email addresses,
+//! URLs, UUIDs, and IP addresses. These functions help verify that string values match expected
+//! patterns and formats.
+//!
+//! **Note:** Email, URL, and UUID validation require the `regex` feature to be enabled.
+//!
+//! # Function Reference
+//!
+//! | Function | Arguments | Returns | Description | Feature Required |
+//! |----------|-----------|---------|-------------|------------------|
+//! | `is_email` | `(email: string)` | `boolean` | Validate email address format | `regex` |
+//! | `is_url` | `(url: string)` | `boolean` | Validate HTTP/HTTPS URL format | `regex` |
+//! | `is_uuid` | `(uuid: string)` | `boolean` | Validate UUID format | `regex` |
+//! | `is_ipv4` | `(ip: string)` | `boolean` | Validate IPv4 address | - |
+//! | `is_ipv6` | `(ip: string)` | `boolean` | Validate IPv6 address | - |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath_extensions::Runtime;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! jmespath_extensions::register_all(&mut runtime);
+//!
+//! let expr = runtime.compile("is_ipv4(@)").unwrap();
+//! let data = jmespath::Variable::String("192.168.1.1".to_string());
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_boolean().unwrap(), true);
+//! ```
+//!
+//! # Function Details
+//!
+//! ## Email Validation
+//!
+//! ### `is_email(email: string) -> boolean`
+//!
+//! Validates whether a string is a properly formatted email address. Uses a basic regex pattern
+//! that checks for the structure: `local@domain.tld`
+//!
+//! **Requires:** `regex` feature
+//!
+//! ```text
+//! is_email('user@example.com')             // true
+//! is_email('john.doe+tag@domain.co.uk')    // true
+//! is_email('invalid.email')                // false
+//! is_email('missing@domain')               // false
+//! is_email('@example.com')                 // false
+//! ```
+//!
+//! ## URL Validation
+//!
+//! ### `is_url(url: string) -> boolean`
+//!
+//! Validates whether a string is a properly formatted HTTP or HTTPS URL.
+//!
+//! **Requires:** `regex` feature
+//!
+//! ```text
+//! is_url('https://example.com')            // true
+//! is_url('http://example.com/path')        // true
+//! is_url('https://sub.domain.com:8080')    // true
+//! is_url('ftp://example.com')              // false (only http/https)
+//! is_url('not a url')                      // false
+//! ```
+//!
+//! ## UUID Validation
+//!
+//! ### `is_uuid(uuid: string) -> boolean`
+//!
+//! Validates whether a string is a properly formatted UUID (RFC 4122 format).
+//! Accepts UUIDs with or without hyphens.
+//!
+//! **Requires:** `regex` feature
+//!
+//! ```text
+//! is_uuid('550e8400-e29b-41d4-a716-446655440000')   // true
+//! is_uuid('6ba7b810-9dad-11d1-80b4-00c04fd430c8')   // true
+//! is_uuid('invalid-uuid')                          // false
+//! is_uuid('550e8400-e29b-41d4-a716')               // false (too short)
+//! ```
+//!
+//! ## IP Address Validation
+//!
+//! ### `is_ipv4(ip: string) -> boolean`
+//!
+//! Validates whether a string is a valid IPv4 address. Uses Rust's standard library parser
+//! for accurate validation.
+//!
+//! ```text
+//! is_ipv4('192.168.1.1')                   // true
+//! is_ipv4('10.0.0.1')                      // true
+//! is_ipv4('255.255.255.255')               // true
+//! is_ipv4('256.1.1.1')                     // false (256 > 255)
+//! is_ipv4('192.168.1')                     // false (incomplete)
+//! is_ipv4('::1')                           // false (IPv6)
+//! ```
+//!
+//! ### `is_ipv6(ip: string) -> boolean`
+//!
+//! Validates whether a string is a valid IPv6 address. Uses Rust's standard library parser
+//! for accurate validation. Supports both full and compressed notation.
+//!
+//! ```text
+//! is_ipv6('::1')                           // true (loopback)
+//! is_ipv6('2001:db8::1')                   // true (compressed)
+//! is_ipv6('fe80::1')                       // true
+//! is_ipv6('2001:0db8:0000:0000:0000:0000:0000:0001')  // true (full)
+//! is_ipv6('192.168.1.1')                   // false (IPv4)
+//! is_ipv6('not-an-ip')                     // false
+//! ```
 
 use std::rc::Rc;
 

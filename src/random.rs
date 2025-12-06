@@ -1,7 +1,132 @@
 //! Random and UUID generation functions.
 //!
-//! These functions provide random number generation and UUID creation.
-//! Requires the `rand` and/or `uuid` features.
+//! This module provides random number generation, array shuffling, sampling, and UUID generation
+//! capabilities for JMESPath expressions. These functions are useful for generating test data,
+//! randomizing selections, and creating unique identifiers.
+//!
+//! **Note:** Random functions require the `rand` feature, and UUID generation requires the `uuid` feature.
+//!
+//! # Function Reference
+//!
+//! | Function | Arguments | Returns | Description | Feature Required |
+//! |----------|-----------|---------|-------------|------------------|
+//! | `random` | `()` | `number` | Generate random number 0.0-1.0 | `rand` |
+//! | `shuffle` | `(array: array)` | `array` | Randomly shuffle array elements | `rand` |
+//! | `sample` | `(array: array, n: number)` | `array` | Random sample of n elements | `rand` |
+//! | `uuid` | `()` | `string` | Generate UUID v4 | `uuid` |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath_extensions::Runtime;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! jmespath_extensions::register_all(&mut runtime);
+//!
+//! // Generate a UUID
+//! let expr = runtime.compile("uuid()").unwrap();
+//! let result = expr.search(&jmespath::Variable::Null).unwrap();
+//! // Result is a UUID string like "550e8400-e29b-41d4-a716-446655440000"
+//! ```
+//!
+//! # Function Details
+//!
+//! ## Random Number Generation
+//!
+//! ### `random() -> number`
+//!
+//! Generates a random floating-point number between 0.0 (inclusive) and 1.0 (exclusive).
+//! Uses a cryptographically secure random number generator.
+//!
+//! **Requires:** `rand` feature
+//!
+//! ```text
+//! random()                                 // 0.42857... (random value)
+//! random()                                 // 0.87321... (different each time)
+//! random() * `100`                         // Random number 0-100
+//! floor(random() * `10`)                   // Random integer 0-9
+//! ```
+//!
+//! ## Array Randomization
+//!
+//! ### `shuffle(array: array) -> array`
+//!
+//! Returns a new array with the elements randomly shuffled. The original array order is not preserved.
+//! Each element appears exactly once in the result.
+//!
+//! **Requires:** `rand` feature
+//!
+//! ```text
+//! shuffle(`[1, 2, 3, 4, 5]`)
+//! // [3, 1, 5, 2, 4] (random order)
+//!
+//! shuffle(`['a', 'b', 'c']`)
+//! // ['c', 'a', 'b'] (random order)
+//!
+//! shuffle(`[]`)
+//! // []
+//!
+//! shuffle(`[1]`)
+//! // [1] (single element unchanged)
+//! ```
+//!
+//! ### `sample(array: array, n: number) -> array`
+//!
+//! Returns a random sample of n elements from the array without replacement. If n is greater
+//! than the array length, returns all elements in random order. The order of sampled elements
+//! is randomized.
+//!
+//! **Requires:** `rand` feature
+//!
+//! ```text
+//! sample(`[1, 2, 3, 4, 5]`, `2`)
+//! // [3, 1] (random 2 elements)
+//!
+//! sample(`['a', 'b', 'c', 'd']`, `3`)
+//! // ['d', 'a', 'c'] (random 3 elements)
+//!
+//! sample(`[1, 2, 3]`, `5`)
+//! // [2, 3, 1] (returns all 3 elements, randomized)
+//!
+//! sample(`[1, 2, 3]`, `0`)
+//! // []
+//!
+//! sample(`[]`, `5`)
+//! // []
+//! ```
+//!
+//! ## UUID Generation
+//!
+//! ### `uuid() -> string`
+//!
+//! Generates a random UUID (Universally Unique Identifier) version 4 string. UUIDs are
+//! 128-bit identifiers that are virtually guaranteed to be unique. The format is:
+//! `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx` where x is any hexadecimal digit and y is
+//! one of 8, 9, A, or B.
+//!
+//! **Requires:** `uuid` feature
+//!
+//! ```text
+//! uuid()
+//! // "550e8400-e29b-41d4-a716-446655440000"
+//!
+//! uuid()
+//! // "6ba7b810-9dad-11d1-80b4-00c04fd430c8" (different each time)
+//!
+//! // Useful for generating unique IDs in data
+//! {id: uuid(), name: 'item'}
+//! // {id: "f47ac10b-58cc-4372-a567-0e02b2c3d479", name: "item"}
+//! ```
+//!
+//! ## Use Cases
+//!
+//! - **Testing**: Generate random data for tests
+//! - **Sampling**: Select random subsets from large datasets
+//! - **Randomization**: Shuffle items for fair ordering
+//! - **Unique IDs**: Generate unique identifiers for records
+//! - **Load Distribution**: Randomly assign items across buckets
+//! - **A/B Testing**: Randomly assign users to test groups
 
 use std::rc::Rc;
 

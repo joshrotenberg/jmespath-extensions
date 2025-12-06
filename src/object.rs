@@ -1,7 +1,144 @@
 //! Object manipulation functions.
 //!
-//! These functions provide extended object operations beyond the standard
-//! JMESPath built-ins.
+//! This module provides extended object operations beyond the standard JMESPath built-ins.
+//!
+//! # Function Reference
+//!
+//! | Function | Signature | Description |
+//! |----------|-----------|-------------|
+//! | [`entries`](#entries) | `entries(object) → array` | Convert to [{key, value}, ...] |
+//! | [`from_entries`](#from_entries) | `from_entries(array) → object` | Convert [{key, value}, ...] to object |
+//! | [`pick`](#pick) | `pick(object, keys) → object` | Select specific keys |
+//! | [`omit`](#omit) | `omit(object, keys) → object` | Remove specific keys |
+//! | [`invert`](#invert) | `invert(object) → object` | Swap keys and values |
+//! | [`rename_keys`](#rename_keys) | `rename_keys(object, mapping) → object` | Rename keys |
+//! | [`flatten_keys`](#flatten_keys) | `flatten_keys(object, sep?) → object` | Flatten nested object |
+//! | [`unflatten_keys`](#unflatten_keys) | `unflatten_keys(object, sep?) → object` | Unflatten to nested |
+//! | [`deep_merge`](#deep_merge) | `deep_merge(obj1, obj2) → object` | Deep merge two objects |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::object;
+//!
+//! let mut runtime = Runtime::new();
+//! runtime.register_builtin_functions();
+//! object::register(&mut runtime);
+//!
+//! // Get object entries
+//! let expr = runtime.compile("entries(@)").unwrap();
+//! let data = Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
+//! let result = expr.search(&data).unwrap();
+//! assert_eq!(result.as_array().unwrap().len(), 2);
+//! ```
+//!
+//! # Function Details
+//!
+//! ## entries
+//!
+//! Converts an object to an array of `{key, value}` objects.
+//!
+//! ```text
+//! entries(object) → array
+//!
+//! entries({a: 1, b: 2})     → [{key: "a", value: 1}, {key: "b", value: 2}]
+//! entries({})               → []
+//! ```
+//!
+//! ## from_entries
+//!
+//! Converts an array of `{key, value}` objects back to an object.
+//!
+//! ```text
+//! from_entries(array) → object
+//!
+//! from_entries([{key: 'a', value: 1}, {key: 'b', value: 2}])   → {a: 1, b: 2}
+//! from_entries([])                                              → {}
+//! ```
+//!
+//! ## pick
+//!
+//! Returns a new object with only the specified keys.
+//!
+//! ```text
+//! pick(object, keys) → object
+//!
+//! pick({a: 1, b: 2, c: 3}, ['a', 'c'])   → {a: 1, c: 3}
+//! pick({a: 1, b: 2}, ['x'])              → {}
+//! pick({a: 1, b: 2}, [])                 → {}
+//! ```
+//!
+//! ## omit
+//!
+//! Returns a new object without the specified keys.
+//!
+//! ```text
+//! omit(object, keys) → object
+//!
+//! omit({a: 1, b: 2, c: 3}, ['b'])        → {a: 1, c: 3}
+//! omit({a: 1, b: 2}, ['a', 'b'])         → {}
+//! omit({a: 1, b: 2}, [])                 → {a: 1, b: 2}
+//! ```
+//!
+//! ## invert
+//!
+//! Swaps keys and values in an object. Values must be strings or numbers.
+//!
+//! ```text
+//! invert(object) → object
+//!
+//! invert({a: '1', b: '2'})       → {"1": "a", "2": "b"}
+//! invert({x: 'foo', y: 'bar'})   → {foo: "x", bar: "y"}
+//! ```
+//!
+//! ## rename_keys
+//!
+//! Renames object keys according to a mapping.
+//!
+//! ```text
+//! rename_keys(object, mapping) → object
+//!
+//! rename_keys({a: 1, b: 2}, {a: 'x', b: 'y'})   → {x: 1, y: 2}
+//! rename_keys({a: 1, b: 2}, {a: 'x'})           → {x: 1, b: 2}
+//! ```
+//!
+//! ## flatten_keys
+//!
+//! Flattens a nested object into a single-level object with compound keys.
+//!
+//! ```text
+//! flatten_keys(object, separator?) → object
+//!
+//! flatten_keys({a: {b: 1, c: 2}})           → {"a.b": 1, "a.c": 2}
+//! flatten_keys({a: {b: {c: 1}}})            → {"a.b.c": 1}
+//! flatten_keys({a: {b: 1}}, '_')            → {"a_b": 1}
+//! ```
+//!
+//! ## unflatten_keys
+//!
+//! Unflattens a flat object with compound keys into a nested object.
+//!
+//! ```text
+//! unflatten_keys(object, separator?) → object
+//!
+//! unflatten_keys({"a.b": 1, "a.c": 2})      → {a: {b: 1, c: 2}}
+//! unflatten_keys({"a.b.c": 1})              → {a: {b: {c: 1}}}
+//! unflatten_keys({"a_b": 1}, '_')           → {a: {b: 1}}
+//! ```
+//!
+//! ## deep_merge
+//!
+//! Recursively merges two objects. Values from the second object override the first.
+//!
+//! ```text
+//! deep_merge(object1, object2) → object
+//!
+//! deep_merge({a: 1}, {b: 2})                     → {a: 1, b: 2}
+//! deep_merge({a: 1}, {a: 2})                     → {a: 2}
+//! deep_merge({a: {b: 1}}, {a: {c: 2}})           → {a: {b: 1, c: 2}}
+//! deep_merge({a: {b: 1}}, {a: {b: 2}})           → {a: {b: 2}}
+//! ```
 
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
