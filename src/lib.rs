@@ -238,6 +238,21 @@ pub mod fuzzy;
 #[cfg(feature = "phonetic")]
 pub mod phonetic;
 
+#[cfg(feature = "geo")]
+pub mod geo;
+
+#[cfg(feature = "semver")]
+pub mod semver_fns;
+
+#[cfg(feature = "network")]
+pub mod network;
+
+#[cfg(feature = "ids")]
+pub mod ids;
+
+#[cfg(feature = "text")]
+pub mod text;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -320,6 +335,21 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "phonetic")]
     phonetic::register(runtime);
+
+    #[cfg(feature = "geo")]
+    geo::register(runtime);
+
+    #[cfg(feature = "semver")]
+    semver_fns::register(runtime);
+
+    #[cfg(feature = "network")]
+    network::register(runtime);
+
+    #[cfg(feature = "ids")]
+    ids::register(runtime);
+
+    #[cfg(feature = "text")]
+    text::register(runtime);
 }
 
 #[cfg(test)]
