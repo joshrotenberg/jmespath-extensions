@@ -41,6 +41,8 @@ use std::collections::{HashMap, HashSet};
 /// Function category matching compile-time features
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Category {
+    /// Standard JMESPath built-in functions (always available)
+    Standard,
     String,
     Array,
     Object,
@@ -70,9 +72,10 @@ pub enum Category {
 }
 
 impl Category {
-    /// Returns all categories
+    /// Returns all categories (including Standard)
     pub fn all() -> &'static [Category] {
         &[
+            Category::Standard,
             Category::String,
             Category::Array,
             Category::Object,
@@ -105,6 +108,7 @@ impl Category {
     /// Returns the category name as a string
     pub fn name(&self) -> &'static str {
         match self {
+            Category::Standard => "standard",
             Category::String => "string",
             Category::Array => "array",
             Category::Object => "object",
@@ -137,6 +141,8 @@ impl Category {
     /// Check if this category is available (compiled in)
     pub fn is_available(&self) -> bool {
         match self {
+            // Standard functions are always available
+            Category::Standard => true,
             #[cfg(feature = "string")]
             Category::String => true,
             #[cfg(feature = "array")]
@@ -208,6 +214,8 @@ pub struct FunctionInfo {
     pub signature: &'static str,
     /// Example usage
     pub example: &'static str,
+    /// Whether this is a standard JMESPath function (vs extension)
+    pub is_standard: bool,
 }
 
 /// Registry for managing function availability at runtime
@@ -327,6 +335,7 @@ impl FunctionRegistry {
         }
     }
 
+    #[allow(unused_variables)]
     fn apply_category(&self, runtime: &mut Runtime, category: Category) {
         // Check which functions in this category are enabled
         let enabled_in_category: HashSet<&str> = self
@@ -403,6 +412,7 @@ impl FunctionRegistry {
 /// Get function metadata for a category
 fn get_category_functions(category: Category) -> Vec<FunctionInfo> {
     match category {
+        Category::Standard => standard_functions(),
         Category::String => string_functions(),
         Category::Array => array_functions(),
         Category::Object => object_functions(),
@@ -434,6 +444,220 @@ fn get_category_functions(category: Category) -> Vec<FunctionInfo> {
 
 // Function metadata definitions
 
+/// Standard JMESPath built-in functions (always available)
+fn standard_functions() -> Vec<FunctionInfo> {
+    vec![
+        FunctionInfo {
+            name: "abs",
+            category: Category::Standard,
+            description: "Returns the absolute value of a number",
+            signature: "number -> number",
+            example: "abs(`-5`) -> 5",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "avg",
+            category: Category::Standard,
+            description: "Returns the average of an array of numbers",
+            signature: "array[number] -> number",
+            example: "avg([1, 2, 3]) -> 2",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "ceil",
+            category: Category::Standard,
+            description: "Returns the smallest integer greater than or equal to the number",
+            signature: "number -> number",
+            example: "ceil(`1.5`) -> 2",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "contains",
+            category: Category::Standard,
+            description: "Returns true if the subject contains the search value",
+            signature: "array|string, any -> boolean",
+            example: "contains([1, 2, 3], `2`) -> true",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "ends_with",
+            category: Category::Standard,
+            description: "Returns true if the subject ends with the suffix",
+            signature: "string, string -> boolean",
+            example: "ends_with('hello', 'lo') -> true",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "floor",
+            category: Category::Standard,
+            description: "Returns the largest integer less than or equal to the number",
+            signature: "number -> number",
+            example: "floor(`1.9`) -> 1",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "join",
+            category: Category::Standard,
+            description: "Returns array elements joined into a string with a separator",
+            signature: "string, array[string] -> string",
+            example: "join(', ', ['a', 'b', 'c']) -> \"a, b, c\"",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "keys",
+            category: Category::Standard,
+            description: "Returns an array of keys from an object",
+            signature: "object -> array[string]",
+            example: "keys({a: 1, b: 2}) -> [\"a\", \"b\"]",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "length",
+            category: Category::Standard,
+            description: "Returns the length of an array, object, or string",
+            signature: "array|object|string -> number",
+            example: "length([1, 2, 3]) -> 3",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "map",
+            category: Category::Standard,
+            description: "Applies an expression to each element of an array",
+            signature: "expression, array -> array",
+            example: "map(&a, [{a: 1}, {a: 2}]) -> [1, 2]",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "max",
+            category: Category::Standard,
+            description: "Returns the maximum value in an array",
+            signature: "array[number]|array[string] -> number|string",
+            example: "max([1, 3, 2]) -> 3",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "max_by",
+            category: Category::Standard,
+            description: "Returns the element with maximum value by expression",
+            signature: "array, expression -> any",
+            example: "max_by([{a: 1}, {a: 2}], &a) -> {a: 2}",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "merge",
+            category: Category::Standard,
+            description: "Merges objects into a single object",
+            signature: "object... -> object",
+            example: "merge({a: 1}, {b: 2}) -> {a: 1, b: 2}",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "min",
+            category: Category::Standard,
+            description: "Returns the minimum value in an array",
+            signature: "array[number]|array[string] -> number|string",
+            example: "min([1, 3, 2]) -> 1",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "min_by",
+            category: Category::Standard,
+            description: "Returns the element with minimum value by expression",
+            signature: "array, expression -> any",
+            example: "min_by([{a: 1}, {a: 2}], &a) -> {a: 1}",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "not_null",
+            category: Category::Standard,
+            description: "Returns the first non-null argument",
+            signature: "any... -> any",
+            example: "not_null(`null`, 'a', 'b') -> \"a\"",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "reverse",
+            category: Category::Standard,
+            description: "Reverses an array or string",
+            signature: "array|string -> array|string",
+            example: "reverse([1, 2, 3]) -> [3, 2, 1]",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "sort",
+            category: Category::Standard,
+            description: "Sorts an array of numbers or strings",
+            signature: "array[number]|array[string] -> array",
+            example: "sort([3, 1, 2]) -> [1, 2, 3]",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "sort_by",
+            category: Category::Standard,
+            description: "Sorts an array by expression result",
+            signature: "array, expression -> array",
+            example: "sort_by([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "starts_with",
+            category: Category::Standard,
+            description: "Returns true if the subject starts with the prefix",
+            signature: "string, string -> boolean",
+            example: "starts_with('hello', 'he') -> true",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "sum",
+            category: Category::Standard,
+            description: "Returns the sum of an array of numbers",
+            signature: "array[number] -> number",
+            example: "sum([1, 2, 3]) -> 6",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "to_array",
+            category: Category::Standard,
+            description: "Converts a value to an array",
+            signature: "any -> array",
+            example: "to_array('hello') -> [\"hello\"]",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "to_number",
+            category: Category::Standard,
+            description: "Converts a value to a number",
+            signature: "any -> number",
+            example: "to_number('42') -> 42",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "to_string",
+            category: Category::Standard,
+            description: "Converts a value to a string",
+            signature: "any -> string",
+            example: "to_string(`42`) -> \"42\"",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "type",
+            category: Category::Standard,
+            description: "Returns the type of a value as a string",
+            signature: "any -> string",
+            example: "type('hello') -> \"string\"",
+            is_standard: true,
+        },
+        FunctionInfo {
+            name: "values",
+            category: Category::Standard,
+            description: "Returns an array of values from an object",
+            signature: "object -> array",
+            example: "values({a: 1, b: 2}) -> [1, 2]",
+            is_standard: true,
+        },
+    ]
+}
+
 fn string_functions() -> Vec<FunctionInfo> {
     vec![
         FunctionInfo {
@@ -442,6 +666,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Convert string to uppercase",
             signature: "string -> string",
             example: "upper('hello') -> \"HELLO\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "lower",
@@ -449,6 +674,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Convert string to lowercase",
             signature: "string -> string",
             example: "lower('HELLO') -> \"hello\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "trim",
@@ -456,6 +682,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Remove leading and trailing whitespace",
             signature: "string -> string",
             example: "trim('  hello  ') -> \"hello\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "trim_left",
@@ -463,6 +690,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Remove leading whitespace",
             signature: "string -> string",
             example: "trim_left('  hello') -> \"hello\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "trim_right",
@@ -470,6 +698,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Remove trailing whitespace",
             signature: "string -> string",
             example: "trim_right('hello  ') -> \"hello\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "split",
@@ -477,6 +706,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Split string by delimiter",
             signature: "string, string -> array",
             example: "split('a,b,c', ',') -> [\"a\", \"b\", \"c\"]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "replace",
@@ -484,6 +714,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Replace occurrences of a substring",
             signature: "string, string, string -> string",
             example: "replace('hello', 'l', 'L') -> \"heLLo\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "repeat",
@@ -491,6 +722,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Repeat a string n times",
             signature: "string, number -> string",
             example: "repeat('ab', `3`) -> \"ababab\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "pad_left",
@@ -498,6 +730,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Pad string on the left to reach target length",
             signature: "string, number, string -> string",
             example: "pad_left('5', `3`, '0') -> \"005\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "pad_right",
@@ -505,6 +738,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Pad string on the right to reach target length",
             signature: "string, number, string -> string",
             example: "pad_right('5', `3`, '0') -> \"500\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "capitalize",
@@ -512,6 +746,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Capitalize the first character",
             signature: "string -> string",
             example: "capitalize('hello') -> \"Hello\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "title",
@@ -519,6 +754,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Convert to title case",
             signature: "string -> string",
             example: "title('hello world') -> \"Hello World\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "camel_case",
@@ -526,6 +762,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Convert to camelCase",
             signature: "string -> string",
             example: "camel_case('hello_world') -> \"helloWorld\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "snake_case",
@@ -533,6 +770,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Convert to snake_case",
             signature: "string -> string",
             example: "snake_case('helloWorld') -> \"hello_world\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "kebab_case",
@@ -540,6 +778,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Convert to kebab-case",
             signature: "string -> string",
             example: "kebab_case('helloWorld') -> \"hello-world\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "substr",
@@ -547,6 +786,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Extract substring by start index and length",
             signature: "string, number, number -> string",
             example: "substr('hello', `1`, `3`) -> \"ell\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "slice",
@@ -554,6 +794,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Extract substring by start and end index",
             signature: "string, number, number -> string",
             example: "slice('hello', `1`, `4`) -> \"ell\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "find_first",
@@ -561,6 +802,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Find first occurrence of substring",
             signature: "string, string -> number | null",
             example: "find_first('hello', 'l') -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "find_last",
@@ -568,6 +810,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Find last occurrence of substring",
             signature: "string, string -> number | null",
             example: "find_last('hello', 'l') -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "concat",
@@ -575,6 +818,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Concatenate strings",
             signature: "string... -> string",
             example: "concat('hello', ' ', 'world') -> \"hello world\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "wrap",
@@ -582,6 +826,7 @@ fn string_functions() -> Vec<FunctionInfo> {
             description: "Wrap text to specified width",
             signature: "string, number -> string",
             example: "wrap('hello world', `5`) -> \"hello\\nworld\"",
+            is_standard: false,
         },
     ]
 }
@@ -594,6 +839,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Get first element of array",
             signature: "array -> any",
             example: "first([1, 2, 3]) -> 1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "last",
@@ -601,6 +847,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Get last element of array",
             signature: "array -> any",
             example: "last([1, 2, 3]) -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "unique",
@@ -608,6 +855,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Remove duplicate values",
             signature: "array -> array",
             example: "unique([1, 2, 1, 3]) -> [1, 2, 3]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "take",
@@ -615,6 +863,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Take first n elements",
             signature: "array, number -> array",
             example: "take([1, 2, 3, 4], `2`) -> [1, 2]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "drop",
@@ -622,6 +871,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Drop first n elements",
             signature: "array, number -> array",
             example: "drop([1, 2, 3, 4], `2`) -> [3, 4]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "chunk",
@@ -629,6 +879,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Split array into chunks of size n",
             signature: "array, number -> array",
             example: "chunk([1, 2, 3, 4], `2`) -> [[1, 2], [3, 4]]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "zip",
@@ -636,6 +887,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Zip two arrays together",
             signature: "array, array -> array",
             example: "zip([1, 2], ['a', 'b']) -> [[1, 'a'], [2, 'b']]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "flatten_deep",
@@ -643,6 +895,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Recursively flatten nested arrays",
             signature: "array -> array",
             example: "flatten_deep([[1, [2]], [3]]) -> [1, 2, 3]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "compact",
@@ -650,6 +903,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Remove null values from array",
             signature: "array -> array",
             example: "compact([1, null, 2, null]) -> [1, 2]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "range",
@@ -657,6 +911,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Generate array of numbers",
             signature: "number, number -> array",
             example: "range(`1`, `5`) -> [1, 2, 3, 4]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "index_at",
@@ -664,6 +919,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Get element at index (supports negative)",
             signature: "array, number -> any",
             example: "index_at([1, 2, 3], `-1`) -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "includes",
@@ -671,6 +927,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Check if array contains value",
             signature: "array, any -> boolean",
             example: "includes([1, 2, 3], `2`) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "find_index",
@@ -678,6 +935,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Find index of value in array",
             signature: "array, any -> number | null",
             example: "find_index([1, 2, 3], `2`) -> 1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "difference",
@@ -685,6 +943,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Elements in first array not in second",
             signature: "array, array -> array",
             example: "difference([1, 2, 3], [2]) -> [1, 3]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "intersection",
@@ -692,6 +951,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Elements common to both arrays",
             signature: "array, array -> array",
             example: "intersection([1, 2], [2, 3]) -> [2]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "union",
@@ -699,6 +959,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Unique elements from both arrays",
             signature: "array, array -> array",
             example: "union([1, 2], [2, 3]) -> [1, 2, 3]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "group_by",
@@ -706,6 +967,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Group array elements by key",
             signature: "array, string -> object",
             example: "group_by([{t: 'a'}, {t: 'b'}], 't') -> {a: [...], b: [...]}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "frequencies",
@@ -713,6 +975,7 @@ fn array_functions() -> Vec<FunctionInfo> {
             description: "Count occurrences of each value",
             signature: "array -> object",
             example: "frequencies(['a', 'b', 'a']) -> {a: 2, b: 1}",
+            is_standard: false,
         },
     ]
 }
@@ -725,6 +988,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Convert object to array of [key, value] pairs",
             signature: "object -> array",
             example: "items({a: 1}) -> [[\"a\", 1]]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "from_items",
@@ -732,6 +996,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Convert array of [key, value] pairs to object",
             signature: "array -> object",
             example: "from_items([['a', 1]]) -> {a: 1}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "pick",
@@ -739,6 +1004,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Select specific keys from object",
             signature: "object, array -> object",
             example: "pick({a: 1, b: 2}, ['a']) -> {a: 1}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "omit",
@@ -746,6 +1012,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Remove specific keys from object",
             signature: "object, array -> object",
             example: "omit({a: 1, b: 2}, ['a']) -> {b: 2}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "deep_merge",
@@ -753,6 +1020,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Recursively merge objects",
             signature: "object, object -> object",
             example: "deep_merge({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "invert",
@@ -760,6 +1028,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Swap keys and values",
             signature: "object -> object",
             example: "invert({a: 'x'}) -> {x: 'a'}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "rename_keys",
@@ -767,6 +1036,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Rename object keys",
             signature: "object, object -> object",
             example: "rename_keys({a: 1}, {a: 'b'}) -> {b: 1}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "flatten_keys",
@@ -774,6 +1044,7 @@ fn object_functions() -> Vec<FunctionInfo> {
             description: "Flatten nested object with dot notation keys",
             signature: "object -> object",
             example: "flatten_keys({a: {b: 1}}) -> {\"a.b\": 1}",
+            is_standard: false,
         },
     ]
 }
@@ -786,6 +1057,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Round to specified decimal places",
             signature: "number, number -> number",
             example: "round(`3.14159`, `2`) -> 3.14",
+            is_standard: false,
         },
         FunctionInfo {
             name: "floor_fn",
@@ -793,6 +1065,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Round down to nearest integer",
             signature: "number -> number",
             example: "floor_fn(`3.7`) -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "ceil_fn",
@@ -800,6 +1073,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Round up to nearest integer",
             signature: "number -> number",
             example: "ceil_fn(`3.2`) -> 4",
+            is_standard: false,
         },
         FunctionInfo {
             name: "abs_fn",
@@ -807,6 +1081,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Absolute value",
             signature: "number -> number",
             example: "abs_fn(`-5`) -> 5",
+            is_standard: false,
         },
         FunctionInfo {
             name: "mod_fn",
@@ -814,6 +1089,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Modulo operation",
             signature: "number, number -> number",
             example: "mod_fn(`10`, `3`) -> 1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "pow",
@@ -821,6 +1097,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Raise to power",
             signature: "number, number -> number",
             example: "pow(`2`, `3`) -> 8",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sqrt",
@@ -828,6 +1105,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Square root",
             signature: "number -> number",
             example: "sqrt(`16`) -> 4",
+            is_standard: false,
         },
         FunctionInfo {
             name: "log",
@@ -835,6 +1113,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Natural logarithm",
             signature: "number -> number",
             example: "log(`2.718`) -> ~1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "clamp",
@@ -842,6 +1121,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Clamp value to range",
             signature: "number, number, number -> number",
             example: "clamp(`15`, `0`, `10`) -> 10",
+            is_standard: false,
         },
         FunctionInfo {
             name: "median",
@@ -849,6 +1129,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Calculate median of array",
             signature: "array -> number",
             example: "median([1, 2, 3, 4, 5]) -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "percentile",
@@ -856,6 +1137,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Calculate percentile of array",
             signature: "array, number -> number",
             example: "percentile([1, 2, 3, 4, 5], `50`) -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "variance",
@@ -863,6 +1145,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Calculate variance of array",
             signature: "array -> number",
             example: "variance([1, 2, 3, 4, 5]) -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "stddev",
@@ -870,6 +1153,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Calculate standard deviation of array",
             signature: "array -> number",
             example: "stddev([1, 2, 3, 4, 5]) -> 1.414...",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sin",
@@ -877,6 +1161,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Sine function",
             signature: "number -> number",
             example: "sin(`0`) -> 0",
+            is_standard: false,
         },
         FunctionInfo {
             name: "cos",
@@ -884,6 +1169,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Cosine function",
             signature: "number -> number",
             example: "cos(`0`) -> 1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "tan",
@@ -891,6 +1177,7 @@ fn math_functions() -> Vec<FunctionInfo> {
             description: "Tangent function",
             signature: "number -> number",
             example: "tan(`0`) -> 0",
+            is_standard: false,
         },
     ]
 }
@@ -903,6 +1190,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Get the type of a value",
             signature: "any -> string",
             example: "type_of(`42`) -> \"number\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_string",
@@ -910,6 +1198,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Check if value is a string",
             signature: "any -> boolean",
             example: "is_string('hello') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_number",
@@ -917,6 +1206,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Check if value is a number",
             signature: "any -> boolean",
             example: "is_number(`42`) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_boolean",
@@ -924,6 +1214,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Check if value is a boolean",
             signature: "any -> boolean",
             example: "is_boolean(`true`) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_array",
@@ -931,6 +1222,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Check if value is an array",
             signature: "any -> boolean",
             example: "is_array([1, 2]) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_object",
@@ -938,6 +1230,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Check if value is an object",
             signature: "any -> boolean",
             example: "is_object({a: 1}) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_null",
@@ -945,6 +1238,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Check if value is null",
             signature: "any -> boolean",
             example: "is_null(`null`) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_empty",
@@ -952,6 +1246,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Check if value is empty",
             signature: "any -> boolean",
             example: "is_empty([]) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "to_boolean",
@@ -959,6 +1254,7 @@ fn type_functions() -> Vec<FunctionInfo> {
             description: "Convert value to boolean",
             signature: "any -> boolean",
             example: "to_boolean('true') -> true",
+            is_standard: false,
         },
     ]
 }
@@ -971,6 +1267,7 @@ fn utility_functions() -> Vec<FunctionInfo> {
             description: "Return default value if null",
             signature: "any, any -> any",
             example: "default(`null`, 'fallback') -> \"fallback\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "if",
@@ -978,6 +1275,7 @@ fn utility_functions() -> Vec<FunctionInfo> {
             description: "Conditional expression",
             signature: "boolean, any, any -> any",
             example: "if(`true`, 'yes', 'no') -> \"yes\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "coalesce",
@@ -985,6 +1283,7 @@ fn utility_functions() -> Vec<FunctionInfo> {
             description: "Return first non-null value",
             signature: "any... -> any",
             example: "coalesce(`null`, `null`, 'value') -> \"value\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "now",
@@ -992,6 +1291,7 @@ fn utility_functions() -> Vec<FunctionInfo> {
             description: "Current Unix timestamp in seconds",
             signature: "-> number",
             example: "now() -> 1699900000",
+            is_standard: false,
         },
         FunctionInfo {
             name: "now_ms",
@@ -999,6 +1299,7 @@ fn utility_functions() -> Vec<FunctionInfo> {
             description: "Current Unix timestamp in milliseconds",
             signature: "-> number",
             example: "now_ms() -> 1699900000000",
+            is_standard: false,
         },
         FunctionInfo {
             name: "json_decode",
@@ -1006,6 +1307,7 @@ fn utility_functions() -> Vec<FunctionInfo> {
             description: "Parse JSON string",
             signature: "string -> any",
             example: "json_decode('{\"a\": 1}') -> {a: 1}",
+            is_standard: false,
         },
     ]
 }
@@ -1018,6 +1320,7 @@ fn validation_functions() -> Vec<FunctionInfo> {
             description: "Validate email address format",
             signature: "string -> boolean",
             example: "is_email('user@example.com') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_url",
@@ -1025,6 +1328,7 @@ fn validation_functions() -> Vec<FunctionInfo> {
             description: "Validate URL format",
             signature: "string -> boolean",
             example: "is_url('https://example.com') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_uuid",
@@ -1032,6 +1336,7 @@ fn validation_functions() -> Vec<FunctionInfo> {
             description: "Validate UUID format",
             signature: "string -> boolean",
             example: "is_uuid('550e8400-e29b-41d4-a716-446655440000') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_ipv4",
@@ -1039,6 +1344,7 @@ fn validation_functions() -> Vec<FunctionInfo> {
             description: "Validate IPv4 address format",
             signature: "string -> boolean",
             example: "is_ipv4('192.168.1.1') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_ipv6",
@@ -1046,6 +1352,7 @@ fn validation_functions() -> Vec<FunctionInfo> {
             description: "Validate IPv6 address format",
             signature: "string -> boolean",
             example: "is_ipv6('::1') -> true",
+            is_standard: false,
         },
     ]
 }
@@ -1058,6 +1365,7 @@ fn path_functions() -> Vec<FunctionInfo> {
             description: "Get filename from path",
             signature: "string -> string",
             example: "path_basename('/foo/bar.txt') -> \"bar.txt\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "path_dirname",
@@ -1065,6 +1373,7 @@ fn path_functions() -> Vec<FunctionInfo> {
             description: "Get directory from path",
             signature: "string -> string",
             example: "path_dirname('/foo/bar.txt') -> \"/foo\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "path_ext",
@@ -1072,6 +1381,7 @@ fn path_functions() -> Vec<FunctionInfo> {
             description: "Get file extension",
             signature: "string -> string",
             example: "path_ext('/foo/bar.txt') -> \"txt\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "path_join",
@@ -1079,6 +1389,7 @@ fn path_functions() -> Vec<FunctionInfo> {
             description: "Join path segments",
             signature: "string... -> string",
             example: "path_join('/foo', 'bar', 'baz') -> \"/foo/bar/baz\"",
+            is_standard: false,
         },
     ]
 }
@@ -1091,6 +1402,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Map expression over array",
             signature: "array, expression -> array",
             example: "map_expr([1, 2], &@ * `2`) -> [2, 4]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "filter_expr",
@@ -1098,6 +1410,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Filter array by expression",
             signature: "array, expression -> array",
             example: "filter_expr([1, 2, 3], &@ > `1`) -> [2, 3]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "any_expr",
@@ -1105,6 +1418,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Check if any element matches",
             signature: "array, expression -> boolean",
             example: "any_expr([1, 2, 3], &@ > `2`) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "all_expr",
@@ -1112,6 +1426,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Check if all elements match",
             signature: "array, expression -> boolean",
             example: "all_expr([1, 2, 3], &@ > `0`) -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "find_expr",
@@ -1119,6 +1434,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Find first element matching expression",
             signature: "array, expression -> any",
             example: "find_expr([1, 2, 3], &@ > `1`) -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "find_index_expr",
@@ -1126,6 +1442,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Find index of first matching element",
             signature: "array, expression -> number | null",
             example: "find_index_expr([1, 2, 3], &@ > `1`) -> 1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "count_expr",
@@ -1133,6 +1450,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Count elements matching expression",
             signature: "array, expression -> number",
             example: "count_expr([1, 2, 3], &@ > `1`) -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sort_by_expr",
@@ -1140,6 +1458,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Sort array by expression",
             signature: "array, expression -> array",
             example: "sort_by_expr([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "group_by_expr",
@@ -1147,6 +1466,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Group array by expression result",
             signature: "array, expression -> object",
             example: "group_by_expr([{t: 'a'}, {t: 'b'}], &t) -> {a: [...], b: [...]}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "partition_expr",
@@ -1154,6 +1474,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Partition array by expression",
             signature: "array, expression -> array",
             example: "partition_expr([1, 2, 3], &@ > `1`) -> [[2, 3], [1]]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "min_by_expr",
@@ -1161,6 +1482,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Find minimum by expression",
             signature: "array, expression -> any",
             example: "min_by_expr([{a: 2}, {a: 1}], &a) -> {a: 1}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "max_by_expr",
@@ -1168,6 +1490,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Find maximum by expression",
             signature: "array, expression -> any",
             example: "max_by_expr([{a: 2}, {a: 1}], &a) -> {a: 2}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "unique_by_expr",
@@ -1175,6 +1498,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Remove duplicates by expression",
             signature: "array, expression -> array",
             example: "unique_by_expr([{a: 1}, {a: 1}], &a) -> [{a: 1}]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "flat_map_expr",
@@ -1182,6 +1506,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
             description: "Map and flatten results",
             signature: "array, expression -> array",
             example: "flat_map_expr([[1], [2]], &@) -> [1, 2]",
+            is_standard: false,
         },
     ]
 }
@@ -1194,6 +1519,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Count words in text",
             signature: "string -> number",
             example: "word_count('hello world') -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "char_count",
@@ -1201,6 +1527,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Count characters in text",
             signature: "string -> number",
             example: "char_count('hello') -> 5",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sentence_count",
@@ -1208,6 +1535,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Count sentences in text",
             signature: "string -> number",
             example: "sentence_count('Hello. World!') -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "paragraph_count",
@@ -1215,6 +1543,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Count paragraphs in text",
             signature: "string -> number",
             example: "paragraph_count('A\\n\\nB') -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "reading_time",
@@ -1222,6 +1551,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Estimate reading time",
             signature: "string -> string",
             example: "reading_time('...long text...') -> \"2 min read\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "reading_time_seconds",
@@ -1229,6 +1559,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Estimate reading time in seconds",
             signature: "string -> number",
             example: "reading_time_seconds('...text...') -> 120",
+            is_standard: false,
         },
         FunctionInfo {
             name: "char_frequencies",
@@ -1236,6 +1567,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Count character frequencies",
             signature: "string -> object",
             example: "char_frequencies('aab') -> {a: 2, b: 1}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "word_frequencies",
@@ -1243,6 +1575,7 @@ fn text_functions() -> Vec<FunctionInfo> {
             description: "Count word frequencies",
             signature: "string -> object",
             example: "word_frequencies('a a b') -> {a: 2, b: 1}",
+            is_standard: false,
         },
     ]
 }
@@ -1255,6 +1588,7 @@ fn hash_functions() -> Vec<FunctionInfo> {
             description: "Calculate MD5 hash",
             signature: "string -> string",
             example: "md5('hello') -> \"5d41402abc4b2a76b9719d911017c592\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sha1",
@@ -1262,6 +1596,7 @@ fn hash_functions() -> Vec<FunctionInfo> {
             description: "Calculate SHA-1 hash",
             signature: "string -> string",
             example: "sha1('hello') -> \"aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sha256",
@@ -1269,6 +1604,7 @@ fn hash_functions() -> Vec<FunctionInfo> {
             description: "Calculate SHA-256 hash",
             signature: "string -> string",
             example: "sha256('hello') -> \"2cf24dba...\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "crc32",
@@ -1276,6 +1612,7 @@ fn hash_functions() -> Vec<FunctionInfo> {
             description: "Calculate CRC32 checksum",
             signature: "string -> number",
             example: "crc32('hello') -> 907060870",
+            is_standard: false,
         },
     ]
 }
@@ -1288,6 +1625,7 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             description: "Encode string to base64",
             signature: "string -> string",
             example: "base64_encode('hello') -> \"aGVsbG8=\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "base64_decode",
@@ -1295,6 +1633,7 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             description: "Decode base64 string",
             signature: "string -> string",
             example: "base64_decode('aGVsbG8=') -> \"hello\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "hex_encode",
@@ -1302,6 +1641,7 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             description: "Encode string to hex",
             signature: "string -> string",
             example: "hex_encode('hello') -> \"68656c6c6f\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "hex_decode",
@@ -1309,6 +1649,7 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             description: "Decode hex string",
             signature: "string -> string",
             example: "hex_decode('68656c6c6f') -> \"hello\"",
+            is_standard: false,
         },
     ]
 }
@@ -1321,6 +1662,7 @@ fn regex_functions() -> Vec<FunctionInfo> {
             description: "Test if string matches regex",
             signature: "string, string -> boolean",
             example: "regex_match('hello', '^h.*o$') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "regex_extract",
@@ -1328,6 +1670,7 @@ fn regex_functions() -> Vec<FunctionInfo> {
             description: "Extract regex matches",
             signature: "string, string -> array",
             example: "regex_extract('a1b2', '\\\\d+') -> [\"1\", \"2\"]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "regex_replace",
@@ -1335,6 +1678,7 @@ fn regex_functions() -> Vec<FunctionInfo> {
             description: "Replace regex matches",
             signature: "string, string, string -> string",
             example: "regex_replace('a1b2', '\\\\d+', 'X') -> \"aXbX\"",
+            is_standard: false,
         },
     ]
 }
@@ -1347,6 +1691,7 @@ fn url_functions() -> Vec<FunctionInfo> {
             description: "URL encode a string",
             signature: "string -> string",
             example: "url_encode('hello world') -> \"hello%20world\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "url_decode",
@@ -1354,6 +1699,7 @@ fn url_functions() -> Vec<FunctionInfo> {
             description: "URL decode a string",
             signature: "string -> string",
             example: "url_decode('hello%20world') -> \"hello world\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "url_parse",
@@ -1361,6 +1707,7 @@ fn url_functions() -> Vec<FunctionInfo> {
             description: "Parse URL into components",
             signature: "string -> object",
             example: "url_parse('https://example.com/path') -> {scheme: 'https', ...}",
+            is_standard: false,
         },
     ]
 }
@@ -1372,6 +1719,7 @@ fn uuid_functions() -> Vec<FunctionInfo> {
         description: "Generate a UUID v4",
         signature: "-> string",
         example: "uuid() -> \"550e8400-e29b-41d4-a716-446655440000\"",
+        is_standard: false,
     }]
 }
 
@@ -1383,6 +1731,7 @@ fn rand_functions() -> Vec<FunctionInfo> {
             description: "Generate random number between 0 and 1",
             signature: "-> number",
             example: "random() -> 0.123456...",
+            is_standard: false,
         },
         FunctionInfo {
             name: "shuffle",
@@ -1390,6 +1739,7 @@ fn rand_functions() -> Vec<FunctionInfo> {
             description: "Randomly shuffle array",
             signature: "array -> array",
             example: "shuffle([1, 2, 3]) -> [2, 3, 1]",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sample",
@@ -1397,6 +1747,7 @@ fn rand_functions() -> Vec<FunctionInfo> {
             description: "Random sample from array",
             signature: "array, number -> array",
             example: "sample([1, 2, 3, 4], `2`) -> [3, 1]",
+            is_standard: false,
         },
     ]
 }
@@ -1409,6 +1760,7 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             description: "Parse date string to timestamp",
             signature: "string, string? -> number",
             example: "parse_date('2024-01-15', '%Y-%m-%d') -> 1705276800",
+            is_standard: false,
         },
         FunctionInfo {
             name: "format_date",
@@ -1416,6 +1768,7 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             description: "Format timestamp to string",
             signature: "number, string -> string",
             example: "format_date(`1705276800`, '%Y-%m-%d') -> \"2024-01-15\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "date_add",
@@ -1423,6 +1776,7 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             description: "Add time to timestamp",
             signature: "number, number, string -> number",
             example: "date_add(`0`, `1`, 'days') -> 86400",
+            is_standard: false,
         },
         FunctionInfo {
             name: "date_diff",
@@ -1430,6 +1784,7 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             description: "Difference between timestamps",
             signature: "number, number, string -> number",
             example: "date_diff(`86400`, `0`, 'days') -> 1",
+            is_standard: false,
         },
     ]
 }
@@ -1442,6 +1797,7 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             description: "Levenshtein edit distance",
             signature: "string, string -> number",
             example: "levenshtein('kitten', 'sitting') -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "normalized_levenshtein",
@@ -1449,6 +1805,7 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             description: "Normalized Levenshtein (0-1)",
             signature: "string, string -> number",
             example: "normalized_levenshtein('ab', 'abc') -> 0.666...",
+            is_standard: false,
         },
         FunctionInfo {
             name: "damerau_levenshtein",
@@ -1456,6 +1813,7 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             description: "Damerau-Levenshtein distance",
             signature: "string, string -> number",
             example: "damerau_levenshtein('ab', 'ba') -> 1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "jaro",
@@ -1463,6 +1821,7 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             description: "Jaro similarity (0-1)",
             signature: "string, string -> number",
             example: "jaro('hello', 'hallo') -> 0.866...",
+            is_standard: false,
         },
         FunctionInfo {
             name: "jaro_winkler",
@@ -1470,6 +1829,7 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             description: "Jaro-Winkler similarity (0-1)",
             signature: "string, string -> number",
             example: "jaro_winkler('hello', 'hallo') -> 0.88",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sorensen_dice",
@@ -1477,6 +1837,7 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             description: "Sorensen-Dice coefficient (0-1)",
             signature: "string, string -> number",
             example: "sorensen_dice('night', 'nacht') -> 0.25",
+            is_standard: false,
         },
     ]
 }
@@ -1489,6 +1850,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Soundex phonetic code",
             signature: "string -> string",
             example: "soundex('Robert') -> \"R163\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "metaphone",
@@ -1496,6 +1858,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Metaphone phonetic code",
             signature: "string -> string",
             example: "metaphone('Smith') -> \"SM0\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "double_metaphone",
@@ -1503,6 +1866,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Double Metaphone codes",
             signature: "string -> object",
             example: "double_metaphone('Smith') -> {primary: 'SM0', secondary: 'XMT'}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "nysiis",
@@ -1510,6 +1874,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "NYSIIS phonetic code",
             signature: "string -> string",
             example: "nysiis('Smith') -> \"SNAT\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "match_rating_codex",
@@ -1517,6 +1882,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Match Rating codex",
             signature: "string -> string",
             example: "match_rating_codex('Smith') -> \"SMTH\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "caverphone",
@@ -1524,6 +1890,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Caverphone code",
             signature: "string -> string",
             example: "caverphone('Smith') -> \"SMT1111111\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "caverphone2",
@@ -1531,6 +1898,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Caverphone 2 code",
             signature: "string -> string",
             example: "caverphone2('Smith') -> \"SMT1111111\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "sounds_like",
@@ -1538,6 +1906,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Check if strings sound similar",
             signature: "string, string -> boolean",
             example: "sounds_like('Robert', 'Rupert') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "phonetic_match",
@@ -1545,6 +1914,7 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             description: "Check phonetic match with algorithm",
             signature: "string, string, string -> boolean",
             example: "phonetic_match('Smith', 'Smyth', 'soundex') -> true",
+            is_standard: false,
         },
     ]
 }
@@ -1557,6 +1927,7 @@ fn geo_functions() -> Vec<FunctionInfo> {
             description: "Haversine distance in meters",
             signature: "number, number, number, number -> number",
             example: "haversine(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570222",
+            is_standard: false,
         },
         FunctionInfo {
             name: "haversine_km",
@@ -1564,6 +1935,7 @@ fn geo_functions() -> Vec<FunctionInfo> {
             description: "Haversine distance in kilometers",
             signature: "number, number, number, number -> number",
             example: "haversine_km(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570.2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "haversine_mi",
@@ -1571,6 +1943,7 @@ fn geo_functions() -> Vec<FunctionInfo> {
             description: "Haversine distance in miles",
             signature: "number, number, number, number -> number",
             example: "haversine_mi(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 3461.0",
+            is_standard: false,
         },
         FunctionInfo {
             name: "bearing",
@@ -1578,6 +1951,7 @@ fn geo_functions() -> Vec<FunctionInfo> {
             description: "Bearing between coordinates",
             signature: "number, number, number, number -> number",
             example: "bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 51.2",
+            is_standard: false,
         },
     ]
 }
@@ -1590,6 +1964,7 @@ fn semver_functions() -> Vec<FunctionInfo> {
             description: "Parse semantic version",
             signature: "string -> object",
             example: "semver_parse('1.2.3') -> {major: 1, minor: 2, patch: 3}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "semver_major",
@@ -1597,6 +1972,7 @@ fn semver_functions() -> Vec<FunctionInfo> {
             description: "Get major version",
             signature: "string -> number",
             example: "semver_major('1.2.3') -> 1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "semver_minor",
@@ -1604,6 +1980,7 @@ fn semver_functions() -> Vec<FunctionInfo> {
             description: "Get minor version",
             signature: "string -> number",
             example: "semver_minor('1.2.3') -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "semver_patch",
@@ -1611,6 +1988,7 @@ fn semver_functions() -> Vec<FunctionInfo> {
             description: "Get patch version",
             signature: "string -> number",
             example: "semver_patch('1.2.3') -> 3",
+            is_standard: false,
         },
         FunctionInfo {
             name: "semver_compare",
@@ -1618,6 +1996,7 @@ fn semver_functions() -> Vec<FunctionInfo> {
             description: "Compare versions (-1, 0, 1)",
             signature: "string, string -> number",
             example: "semver_compare('1.0.0', '2.0.0') -> -1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "semver_matches",
@@ -1625,6 +2004,7 @@ fn semver_functions() -> Vec<FunctionInfo> {
             description: "Check if version matches constraint",
             signature: "string, string -> boolean",
             example: "semver_matches('1.2.3', '^1.0.0') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_semver",
@@ -1632,6 +2012,7 @@ fn semver_functions() -> Vec<FunctionInfo> {
             description: "Check if string is valid semver",
             signature: "string -> boolean",
             example: "is_semver('1.2.3') -> true",
+            is_standard: false,
         },
     ]
 }
@@ -1644,6 +2025,7 @@ fn network_functions() -> Vec<FunctionInfo> {
             description: "Convert IP address to integer",
             signature: "string -> number",
             example: "ip_to_int('192.168.1.1') -> 3232235777",
+            is_standard: false,
         },
         FunctionInfo {
             name: "int_to_ip",
@@ -1651,6 +2033,7 @@ fn network_functions() -> Vec<FunctionInfo> {
             description: "Convert integer to IP address",
             signature: "number -> string",
             example: "int_to_ip(`3232235777`) -> \"192.168.1.1\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "cidr_contains",
@@ -1658,6 +2041,7 @@ fn network_functions() -> Vec<FunctionInfo> {
             description: "Check if IP is in CIDR range",
             signature: "string, string -> boolean",
             example: "cidr_contains('192.168.0.0/16', '192.168.1.1') -> true",
+            is_standard: false,
         },
         FunctionInfo {
             name: "cidr_network",
@@ -1665,6 +2049,7 @@ fn network_functions() -> Vec<FunctionInfo> {
             description: "Get network address from CIDR",
             signature: "string -> string",
             example: "cidr_network('192.168.1.0/24') -> \"192.168.1.0\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "cidr_broadcast",
@@ -1672,6 +2057,7 @@ fn network_functions() -> Vec<FunctionInfo> {
             description: "Get broadcast address from CIDR",
             signature: "string -> string",
             example: "cidr_broadcast('192.168.1.0/24') -> \"192.168.1.255\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "cidr_prefix",
@@ -1679,6 +2065,7 @@ fn network_functions() -> Vec<FunctionInfo> {
             description: "Get prefix length from CIDR",
             signature: "string -> number",
             example: "cidr_prefix('192.168.1.0/24') -> 24",
+            is_standard: false,
         },
         FunctionInfo {
             name: "is_private_ip",
@@ -1686,6 +2073,7 @@ fn network_functions() -> Vec<FunctionInfo> {
             description: "Check if IP is in private range",
             signature: "string -> boolean",
             example: "is_private_ip('192.168.1.1') -> true",
+            is_standard: false,
         },
     ]
 }
@@ -1698,6 +2086,7 @@ fn ids_functions() -> Vec<FunctionInfo> {
             description: "Generate nanoid",
             signature: "number? -> string",
             example: "nanoid() -> \"V1StGXR8_Z5jdHi6B-myT\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "ulid",
@@ -1705,6 +2094,7 @@ fn ids_functions() -> Vec<FunctionInfo> {
             description: "Generate ULID",
             signature: "-> string",
             example: "ulid() -> \"01ARZ3NDEKTSV4RRFFQ69G5FAV\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "ulid_timestamp",
@@ -1712,6 +2102,7 @@ fn ids_functions() -> Vec<FunctionInfo> {
             description: "Extract timestamp from ULID",
             signature: "string -> number",
             example: "ulid_timestamp('01ARZ3NDEKTSV4RRFFQ69G5FAV') -> 1469918176385",
+            is_standard: false,
         },
     ]
 }
@@ -1724,6 +2115,7 @@ fn duration_functions() -> Vec<FunctionInfo> {
             description: "Parse duration string to seconds",
             signature: "string -> number",
             example: "parse_duration('1h30m') -> 5400",
+            is_standard: false,
         },
         FunctionInfo {
             name: "format_duration",
@@ -1731,6 +2123,7 @@ fn duration_functions() -> Vec<FunctionInfo> {
             description: "Format seconds as duration string",
             signature: "number -> string",
             example: "format_duration(`5400`) -> \"1h30m\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "duration_hours",
@@ -1738,6 +2131,7 @@ fn duration_functions() -> Vec<FunctionInfo> {
             description: "Convert seconds to hours",
             signature: "number -> number",
             example: "duration_hours(`7200`) -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "duration_minutes",
@@ -1745,6 +2139,7 @@ fn duration_functions() -> Vec<FunctionInfo> {
             description: "Convert seconds to minutes",
             signature: "number -> number",
             example: "duration_minutes(`120`) -> 2",
+            is_standard: false,
         },
         FunctionInfo {
             name: "duration_seconds",
@@ -1752,6 +2147,7 @@ fn duration_functions() -> Vec<FunctionInfo> {
             description: "Get seconds component",
             signature: "number -> number",
             example: "duration_seconds(`65`) -> 5",
+            is_standard: false,
         },
     ]
 }
@@ -1764,6 +2160,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Convert hex color to RGB",
             signature: "string -> object",
             example: "hex_to_rgb('#ff5500') -> {r: 255, g: 85, b: 0}",
+            is_standard: false,
         },
         FunctionInfo {
             name: "rgb_to_hex",
@@ -1771,6 +2168,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Convert RGB to hex color",
             signature: "number, number, number -> string",
             example: "rgb_to_hex(`255`, `85`, `0`) -> \"#ff5500\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "lighten",
@@ -1778,6 +2176,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Lighten a color by percentage",
             signature: "string, number -> string",
             example: "lighten('#3366cc', `20`) -> \"#5c85d6\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "darken",
@@ -1785,6 +2184,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Darken a color by percentage",
             signature: "string, number -> string",
             example: "darken('#3366cc', `20`) -> \"#2952a3\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "color_mix",
@@ -1792,6 +2192,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Mix two colors",
             signature: "string, string, number -> string",
             example: "color_mix('#ff0000', '#0000ff', `50`) -> \"#800080\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "color_invert",
@@ -1799,6 +2200,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Invert a color",
             signature: "string -> string",
             example: "color_invert('#ff0000') -> \"#00ffff\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "color_grayscale",
@@ -1806,6 +2208,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Convert to grayscale",
             signature: "string -> string",
             example: "color_grayscale('#ff0000') -> \"#4c4c4c\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "color_complement",
@@ -1813,6 +2216,7 @@ fn color_functions() -> Vec<FunctionInfo> {
             description: "Get complementary color",
             signature: "string -> string",
             example: "color_complement('#ff0000') -> \"#00ffff\"",
+            is_standard: false,
         },
     ]
 }
@@ -1825,6 +2229,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Parse byte size string",
             signature: "string -> number",
             example: "parse_bytes('1.5 GB') -> 1500000000",
+            is_standard: false,
         },
         FunctionInfo {
             name: "format_bytes",
@@ -1832,6 +2237,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Format bytes (decimal)",
             signature: "number -> string",
             example: "format_bytes(`1500000000`) -> \"1.50 GB\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "format_bytes_binary",
@@ -1839,6 +2245,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Format bytes (binary)",
             signature: "number -> string",
             example: "format_bytes_binary(`1073741824`) -> \"1.00 GiB\"",
+            is_standard: false,
         },
         FunctionInfo {
             name: "bit_and",
@@ -1846,6 +2253,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Bitwise AND",
             signature: "number, number -> number",
             example: "bit_and(`12`, `10`) -> 8",
+            is_standard: false,
         },
         FunctionInfo {
             name: "bit_or",
@@ -1853,6 +2261,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Bitwise OR",
             signature: "number, number -> number",
             example: "bit_or(`12`, `10`) -> 14",
+            is_standard: false,
         },
         FunctionInfo {
             name: "bit_xor",
@@ -1860,6 +2269,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Bitwise XOR",
             signature: "number, number -> number",
             example: "bit_xor(`12`, `10`) -> 6",
+            is_standard: false,
         },
         FunctionInfo {
             name: "bit_not",
@@ -1867,6 +2277,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Bitwise NOT",
             signature: "number -> number",
             example: "bit_not(`0`) -> -1",
+            is_standard: false,
         },
         FunctionInfo {
             name: "bit_shift_left",
@@ -1874,6 +2285,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Bitwise left shift",
             signature: "number, number -> number",
             example: "bit_shift_left(`1`, `4`) -> 16",
+            is_standard: false,
         },
         FunctionInfo {
             name: "bit_shift_right",
@@ -1881,6 +2293,7 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Bitwise right shift",
             signature: "number, number -> number",
             example: "bit_shift_right(`16`, `2`) -> 4",
+            is_standard: false,
         },
     ]
 }
@@ -1897,66 +2310,90 @@ mod tests {
 
     #[test]
     fn test_register_category() {
+        // Use Standard category which is always available
         let mut registry = FunctionRegistry::new();
-        registry.register_category(Category::String);
+        registry.register_category(Category::Standard);
         assert!(!registry.is_empty());
-        assert!(registry.is_enabled("upper"));
-        assert!(registry.is_enabled("lower"));
+        assert!(registry.is_enabled("abs"));
+        assert!(registry.is_enabled("length"));
     }
 
     #[test]
     fn test_disable_function() {
         let mut registry = FunctionRegistry::new();
-        registry.register_category(Category::String);
-        assert!(registry.is_enabled("upper"));
+        registry.register_category(Category::Standard);
+        assert!(registry.is_enabled("abs"));
 
-        registry.disable_function("upper");
-        assert!(!registry.is_enabled("upper"));
-        assert!(registry.is_enabled("lower")); // others still enabled
+        registry.disable_function("abs");
+        assert!(!registry.is_enabled("abs"));
+        assert!(registry.is_enabled("length")); // others still enabled
     }
 
     #[test]
     fn test_enable_function() {
         let mut registry = FunctionRegistry::new();
-        registry.register_category(Category::String);
-        registry.disable_function("upper");
-        assert!(!registry.is_enabled("upper"));
+        registry.register_category(Category::Standard);
+        registry.disable_function("abs");
+        assert!(!registry.is_enabled("abs"));
 
-        registry.enable_function("upper");
-        assert!(registry.is_enabled("upper"));
+        registry.enable_function("abs");
+        assert!(registry.is_enabled("abs"));
     }
 
     #[test]
     fn test_get_function() {
         let mut registry = FunctionRegistry::new();
-        registry.register_category(Category::String);
+        registry.register_category(Category::Standard);
 
-        let info = registry.get_function("upper").unwrap();
-        assert_eq!(info.name, "upper");
-        assert_eq!(info.category, Category::String);
+        let info = registry.get_function("abs").unwrap();
+        assert_eq!(info.name, "abs");
+        assert_eq!(info.category, Category::Standard);
+        assert!(info.is_standard);
     }
 
     #[test]
     fn test_functions_in_category() {
         let mut registry = FunctionRegistry::new();
-        registry.register_category(Category::String);
-        registry.register_category(Category::Math);
+        registry.register_category(Category::Standard);
 
-        let string_fns: Vec<_> = registry.functions_in_category(Category::String).collect();
-        assert!(string_fns.iter().all(|f| f.category == Category::String));
+        let standard_fns: Vec<_> = registry.functions_in_category(Category::Standard).collect();
+        assert!(
+            standard_fns
+                .iter()
+                .all(|f| f.category == Category::Standard)
+        );
+        assert_eq!(standard_fns.len(), 26); // 26 standard JMESPath functions
     }
 
     #[test]
     fn test_register_all() {
         let mut registry = FunctionRegistry::new();
         registry.register_all();
-        // Should have functions registered (count depends on enabled features)
-        // With all features: 150+, with minimal: at least some
-        assert!(registry.len() > 0);
+        // Should have at least standard functions (26) plus any enabled features
+        assert!(registry.len() >= 26);
     }
 
     #[test]
     fn test_apply_to_runtime() {
+        // Standard functions are registered via runtime.register_builtin_functions()
+        // not via registry.apply(), so we test with an extension if available
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Standard);
+
+        let mut runtime = Runtime::new();
+        runtime.register_builtin_functions();
+        registry.apply(&mut runtime);
+
+        // Verify standard function works (registered by register_builtin_functions)
+        let expr = runtime.compile("abs(`-5`)").unwrap();
+        let data = jmespath::Variable::Null;
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 5.0);
+    }
+
+    #[test]
+    #[cfg(feature = "string")]
+    fn test_apply_extension_to_runtime() {
         let mut registry = FunctionRegistry::new();
         registry.register_category(Category::String);
 
@@ -1964,7 +2401,7 @@ mod tests {
         runtime.register_builtin_functions();
         registry.apply(&mut runtime);
 
-        // Verify function works
+        // Verify extension function works
         let expr = runtime.compile("upper('hello')").unwrap();
         let data = jmespath::Variable::Null;
         let result = expr.search(&data).unwrap();

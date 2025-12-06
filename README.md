@@ -16,7 +16,7 @@ Extended functions for JMESPath queries in Rust.
 
 | | **JMESPath Specification** | **jmespath_extensions** |
 |---|---|---|
-| **Functions** | 26 built-in functions | 150+ extension functions |
+| **Functions** | 26 built-in functions | 189 extension functions |
 | **Portability** | Works everywhere (Python, JS, Go, AWS CLI, Ansible) | Rust only |
 | **Design** | Minimal, query-focused | Transformation-heavy, practical |
 | **Governance** | JEP process, multi-year consensus | Opinionated, can change |
@@ -48,7 +48,7 @@ Use only the [26 standard JMESPath built-in functions](https://jmespath.org/spec
 
 ## Overview
 
-This crate provides 150+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
+This crate provides 189 additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -94,14 +94,15 @@ registry.apply(&mut runtime);
 
 // Introspection - list available functions
 for func in registry.functions() {
-    println!("{}: {} - {}", func.name, func.signature, func.description);
+    let type_label = if func.is_standard { "standard" } else { "extension" };
+    println!("[{}] {}: {}", type_label, func.name, func.description);
 }
 ```
 
 This enables:
 - **Runtime gating**: Enable/disable functions via config instead of compile-time features
 - **ACL support**: Disable specific functions for security policies
-- **Introspection**: Query available functions with signatures, descriptions, and examples
+- **Introspection**: Query available functions with signatures, descriptions, examples, and whether they are standard JMESPath or extensions
 
 ## CLI Tool
 

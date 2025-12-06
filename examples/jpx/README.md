@@ -1,6 +1,6 @@
 # jpx - JMESPath CLI with Extended Functions
 
-A command-line tool for querying JSON data using JMESPath expressions with 150+ additional functions beyond the standard specification.
+A command-line tool for querying JSON data using JMESPath expressions with 189 additional functions beyond the standard JMESPath specification. Also includes the 26 standard JMESPath built-in functions.
 
 ## Installation
 
@@ -36,16 +36,20 @@ Options:
 
 ```bash
 # List all available functions grouped by category
+# Shows 26 standard JMESPath functions and 189 extension functions
 jpx --list-functions
 
 # List functions in a specific category
 jpx --list-category string
 jpx --list-category math
 jpx --list-category geo
+jpx --list-category standard  # List all 26 standard JMESPath functions
 
 # Get detailed info about a specific function
+# Shows type (standard JMESPath or extension), category, signature, and example
 jpx --describe upper
 jpx --describe haversine_km
+jpx --describe abs  # Standard JMESPath function
 ```
 
 ## Examples

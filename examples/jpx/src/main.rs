@@ -122,16 +122,24 @@ fn main() -> Result<()> {
 
 fn print_functions(registry: &FunctionRegistry) {
     println!("jpx - JMESPath with Extended Functions\n");
-    println!("Standard JMESPath functions (26):");
-    println!("  abs, avg, ceil, contains, ends_with, floor, join, keys, length,");
-    println!("  map, max, max_by, merge, min, min_by, not_null, reverse, sort,");
-    println!("  sort_by, starts_with, sum, to_array, to_number, to_string, type, values\n");
 
-    println!("Extension functions ({} available):\n", registry.len());
+    // Count standard and extension functions
+    let standard_count = registry.functions().filter(|f| f.is_standard).count();
+    let extension_count = registry.functions().filter(|f| !f.is_standard).count();
 
-    // Group by category
+    // Print standard functions
+    let standard_funcs: Vec<_> = registry
+        .functions_in_category(Category::Standard)
+        .map(|f| f.name)
+        .collect();
+    println!("Standard JMESPath functions ({}):", standard_count);
+    println!("  {}\n", standard_funcs.join(", "));
+
+    println!("Extension functions ({} available):\n", extension_count);
+
+    // Group by category (skip Standard)
     for category in Category::all() {
-        if !category.is_available() {
+        if *category == Category::Standard || !category.is_available() {
             continue;
         }
 
@@ -197,6 +205,14 @@ fn describe_function(registry: &FunctionRegistry, func_name: &str) -> Result<()>
     println!("{}", func.name);
     println!("{}", "=".repeat(func.name.len()));
     println!();
+    println!(
+        "Type:        {}",
+        if func.is_standard {
+            "standard JMESPath"
+        } else {
+            "extension"
+        }
+    );
     println!("Category:    {}", func.category.name());
     println!("Description: {}", func.description);
     println!("Signature:   {}", func.signature);
