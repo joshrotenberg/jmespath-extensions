@@ -4,7 +4,7 @@
 
 //! # JMESPath Extensions
 //!
-//! A comprehensive collection of 100+ extension functions for [JMESPath](https://jmespath.org/) queries.
+//! A comprehensive collection of 130+ extension functions for [JMESPath](https://jmespath.org/) queries.
 //!
 //! ## Non-Standard Extension Warning
 //!
@@ -107,6 +107,11 @@
 //! | `fuzzy` | strsim | [Fuzzy matching functions](fuzzy/index.html) |
 //! | `expression` | none | [Expression-based functions](expression/index.html) |
 //! | `phonetic` | rphonetic | [Phonetic encoding functions](phonetic/index.html) |
+//! | `geo` | geoutils | [Geospatial functions](geo/index.html) |
+//! | `semver` | semver | [Semantic versioning](semver_fns/index.html) |
+//! | `network` | ipnetwork | [Network/IP functions](network/index.html) |
+//! | `ids` | nanoid, ulid | [ID generation](ids/index.html) |
+//! | `text` | none | [Text analysis](text/index.html) |
 //!
 //! ### Using Specific Features
 //!
@@ -141,6 +146,11 @@
 //! - [`regex_fns`] - Regex (`regex_match`, `regex_extract`, `regex_replace`)
 //! - [`random`] - Random (`random`, `shuffle`, `sample`, `uuid`)
 //! - [`phonetic`] - Phonetic encoding (`soundex`, `metaphone`, `double_metaphone`, `nysiis`, `sounds_like`)
+//! - [`geo`] - Geospatial (`haversine`, `haversine_km`, `haversine_mi`, `bearing`)
+//! - [`semver_fns`] - Semantic versioning (`semver_parse`, `semver_compare`, `semver_matches`, `is_semver`)
+//! - [`network`] - Network/IP (`ip_to_int`, `int_to_ip`, `cidr_contains`, `cidr_network`, `is_private_ip`)
+//! - [`ids`] - ID generation (`nanoid`, `ulid`, `ulid_timestamp`)
+//! - [`text`] - Text analysis (`word_count`, `char_count`, `reading_time`, `word_frequencies`)
 //!
 //! ## Error Handling
 //!
