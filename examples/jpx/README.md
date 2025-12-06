@@ -22,12 +22,30 @@ Arguments:
   [EXPRESSION]  JMESPath expression to evaluate
 
 Options:
-  -f, --file <FILE>     Input file (reads from stdin if not provided)
-  -r, --raw             Output raw strings without quotes
-  -c, --compact         Compact output (no pretty printing)
-      --list-functions  List available extension functions
-  -h, --help            Print help
-  -V, --version         Print version
+  -f, --file <FILE>           Input file (reads from stdin if not provided)
+  -r, --raw                   Output raw strings without quotes
+  -c, --compact               Compact output (no pretty printing)
+      --list-functions        List all available extension functions
+      --list-category <NAME>  List functions in a specific category
+      --describe <FUNCTION>   Show detailed info for a specific function
+  -h, --help                  Print help
+  -V, --version               Print version
+```
+
+## Function Discovery
+
+```bash
+# List all available functions grouped by category
+jpx --list-functions
+
+# List functions in a specific category
+jpx --list-category string
+jpx --list-category math
+jpx --list-category geo
+
+# Get detailed info about a specific function
+jpx --describe upper
+jpx --describe haversine_km
 ```
 
 ## Examples

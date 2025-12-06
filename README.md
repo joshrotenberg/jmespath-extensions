@@ -66,6 +66,43 @@ register_all(&mut runtime);
 let expr = runtime.compile("items[*].name | upper(@)").unwrap();
 ```
 
+## Runtime Function Registry
+
+For applications that need runtime control over function availability (ACLs, config-based gating, introspection):
+
+```rust
+use jmespath::Runtime;
+use jmespath_extensions::registry::{FunctionRegistry, Category};
+
+let mut registry = FunctionRegistry::new();
+
+// Register specific categories
+registry.register_category(Category::String);
+registry.register_category(Category::Math);
+
+// Or register all available functions
+// registry.register_all();
+
+// Disable specific functions (e.g., for security policies)
+registry.disable_function("md5");
+registry.disable_function("sha256");
+
+// Apply to runtime
+let mut runtime = Runtime::new();
+runtime.register_builtin_functions();
+registry.apply(&mut runtime);
+
+// Introspection - list available functions
+for func in registry.functions() {
+    println!("{}: {} - {}", func.name, func.signature, func.description);
+}
+```
+
+This enables:
+- **Runtime gating**: Enable/disable functions via config instead of compile-time features
+- **ACL support**: Disable specific functions for security policies
+- **Introspection**: Query available functions with signatures, descriptions, and examples
+
 ## CLI Tool
 
 The `jpx` CLI tool in `examples/jpx/` lets you experiment with all functions from the command line:
