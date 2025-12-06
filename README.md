@@ -66,6 +66,31 @@ register_all(&mut runtime);
 let expr = runtime.compile("items[*].name | upper(@)").unwrap();
 ```
 
+## CLI Tool
+
+The `jpx` CLI tool in `examples/jpx/` lets you experiment with all functions from the command line:
+
+```bash
+cd examples/jpx && cargo install --path .
+
+# String functions
+echo '{"name": "hello"}' | jpx 'upper(name)'
+# "HELLO"
+
+# Duration parsing
+echo '{"d": "1h30m"}' | jpx 'parse_duration(d)'
+# 5400.0
+
+# Color manipulation
+echo '{"c": "#ff5500"}' | jpx 'hex_to_rgb(c)'
+# {"r": 255, "g": 85, "b": 0}
+
+# List all available functions
+jpx --list-functions
+```
+
+See [examples/jpx/README.md](examples/jpx/README.md) for full documentation and example queries.
+
 ## Features
 
 All features are opt-in. Use `default-features = false` to select only what you need.
