@@ -105,6 +105,7 @@
 //! | `rand` | rand | [Random functions](random/index.html) |
 //! | `datetime` | chrono | [Date/time functions](datetime/index.html) |
 //! | `fuzzy` | strsim | [Fuzzy matching functions](fuzzy/index.html) |
+//! | `expression` | none | [Expression-based functions](expression/index.html) |
 //!
 //! ### Using Specific Features
 //!
@@ -130,6 +131,7 @@
 //! - [`utility`] - Utilities (`default`, `if`, `coalesce`, `json_encode`, etc.)
 //! - [`datetime`] - Date/time (`now`, `now_millis`, `parse_date`, `format_date`, `date_add`, `date_diff`)
 //! - [`fuzzy`] - Fuzzy matching (`levenshtein`, `jaro_winkler`, `sorensen_dice`, etc.)
+//! - [`expression`] - Expression functions (`map_expr`, `filter_expr`, `any_expr`, `all_expr`, `find_expr`, `sort_by_expr`)
 //! - [`path`] - Path functions (`path_basename`, `path_dirname`, `path_ext`, `path_join`)
 //! - [`validation`] - Validation (`is_email`, `is_url`, `is_uuid`, `is_ipv4`, `is_ipv6`)
 //! - [`hash`] - Hashing (`md5`, `sha1`, `sha256`, `crc32`)
@@ -205,6 +207,9 @@ pub mod path;
 
 #[cfg(feature = "validation")]
 pub mod validation;
+
+#[cfg(feature = "expression")]
+pub mod expression;
 
 // Feature-gated modules with external dependencies
 #[cfg(feature = "hash")]
@@ -304,6 +309,9 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "fuzzy")]
     fuzzy::register(runtime);
+
+    #[cfg(feature = "expression")]
+    expression::register(runtime);
 }
 
 #[cfg(test)]
