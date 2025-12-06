@@ -54,6 +54,7 @@ let expr = runtime.compile("items[*].name | lower(@)").unwrap();
 | `rand` | Random number generation | rand |
 | `datetime` | Date/time functions | chrono |
 | `fuzzy` | Fuzzy string matching | strsim |
+| `expression` | Expression-based higher-order functions | None |
 
 ### Minimal Dependencies
 
@@ -265,6 +266,54 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 - `jaro_winkler('hello', 'hallo')` → `0.88` (high similarity)
 - `sorensen_dice('night', 'nacht')` → `0.25`
 
+### Expression Functions (feature: `expression`)
+
+Higher-order functions that accept JMESPath expressions as arguments for powerful data transformations.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `map_expr(expr, array)` | Apply expression to each element | `map_expr('name', users)` → `["Alice", "Bob"]` |
+| `filter_expr(expr, array)` | Keep elements where expression is truthy | `filter_expr('age >= \`18\`', users)` |
+| `any_expr(expr, array)` | True if any element matches | `any_expr('active', users)` → `true` |
+| `all_expr(expr, array)` | True if all elements match | `all_expr('verified', users)` → `false` |
+| `find_expr(expr, array)` | First element matching expression | `find_expr('id == \`2\`', users)` |
+| `find_index_expr(expr, array)` | Index of first match or -1 | `find_index_expr('id == \`2\`', users)` → `1` |
+| `count_expr(expr, array)` | Count elements where expression is truthy | `count_expr('active', users)` → `3` |
+| `sort_by_expr(expr, array)` | Sort array by expression result | `sort_by_expr('age', users)` |
+| `group_by_expr(expr, array)` | Group elements by expression result | `group_by_expr('type', items)` → `{"a": [...], "b": [...]}` |
+| `partition_expr(expr, array)` | Split into [matches, non_matches] | `partition_expr('active', users)` → `[[...], [...]]` |
+| `min_by_expr(expr, array)` | Element with minimum expression value | `min_by_expr('age', users)` |
+| `max_by_expr(expr, array)` | Element with maximum expression value | `max_by_expr('age', users)` |
+| `unique_by_expr(expr, array)` | Dedupe by expression result | `unique_by_expr('type', items)` |
+| `flat_map_expr(expr, array)` | Map and flatten results | `flat_map_expr('tags', posts)` |
+
+**Examples:**
+```
+// Extract names from objects
+map_expr('name', `[{"name": "Alice"}, {"name": "Bob"}]`)
+// Result: ["Alice", "Bob"]
+
+// Filter adults
+filter_expr('age >= `18`', `[{"age": 25}, {"age": 17}, {"age": 30}]`)
+// Result: [{"age": 25}, {"age": 30}]
+
+// Sort by field
+sort_by_expr('score', `[{"score": 3}, {"score": 1}, {"score": 2}]`)
+// Result: [{"score": 1}, {"score": 2}, {"score": 3}]
+
+// Group by category
+group_by_expr('type', `[{"type": "a", "val": 1}, {"type": "b", "val": 2}, {"type": "a", "val": 3}]`)
+// Result: {"a": [{"type": "a", "val": 1}, {"type": "a", "val": 3}], "b": [{"type": "b", "val": 2}]}
+
+// Partition into matches and non-matches
+partition_expr('@ > `3`', `[1, 2, 3, 4, 5]`)
+// Result: [[4, 5], [1, 2, 3]]
+
+// Flatten all tags
+flat_map_expr('tags', `[{"tags": ["a", "b"]}, {"tags": ["c"]}]`)
+// Result: ["a", "b", "c"]
+```
+
 ## JMESPath Community JEP Alignment
 
 This crate aligns with several [JMESPath Enhancement Proposals (JEPs)](https://github.com/jmespath-community/jmespath.spec) from the JMESPath community, while also providing additional functionality.
@@ -326,6 +375,7 @@ This crate provides extensive functionality not yet addressed by the JEP process
 | **Date/Time** | `now`, `now_millis`, `parse_date`, `format_date`, `date_add`, `date_diff` |
 | **Statistics** | `median`, `percentile`, `variance`, `stddev` |
 | **Fuzzy** | `levenshtein`, `jaro_winkler`, `sorensen_dice`, `damerau_levenshtein` |
+| **Expression** | `map_expr`, `filter_expr`, `any_expr`, `all_expr`, `find_expr`, `find_index_expr`, `count_expr`, `sort_by_expr`, `group_by_expr`, `partition_expr`, `min_by_expr`, `max_by_expr`, `unique_by_expr`, `flat_map_expr` |
 
 ## Portability Warning
 
