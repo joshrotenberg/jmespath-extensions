@@ -22,10 +22,11 @@ url = { version = "2.5", optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
 hex = { version = "0.4", optional = true }
 rand = { version = "0.8", optional = true }
+chrono = { version = "0.4", optional = true }
 
 [features]
 default = ["full"]
-full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand"]
+full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime"]
 core = ["string", "array", "object", "math", "type", "utility", "validation", "path"]
 string = []
 array = []
@@ -41,3 +42,4 @@ regex = ["dep:regex"]
 url = ["dep:url", "dep:urlencoding"]
 uuid = ["dep:uuid"]
 rand = ["dep:rand"]
+datetime = ["dep:chrono"]
