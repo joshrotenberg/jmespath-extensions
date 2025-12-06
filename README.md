@@ -242,8 +242,10 @@ See the [API documentation](https://docs.rs/jmespath_extensions) for complete fu
 
 This crate aligns with several [JMESPath Enhancement Proposals](https://github.com/jmespath-community/jmespath.spec):
 
-- **JEP-014** (String Functions): `lower`, `upper`, `trim`, `pad_left`, `pad_right`, `replace`, `split`, `find_first`, `find_last`
+- **JEP-014** (String Functions): `lower`, `upper`, `trim`, `trim_left`, `trim_right`, `pad_left`, `pad_right`, `replace`, `split`, `find_first`, `find_last`
 - **JEP-013** (Object Functions): `items`, `from_items`, `zip`
+
+Functions that align with JEPs have `jep: Some("JEP-XXX")` in their `FunctionInfo` metadata, accessible via the registry.
 
 Additional functions extend well beyond these proposals. Some JEPs (like arithmetic operators) require parser changes and cannot be implemented as extension functions.
 

@@ -214,6 +214,9 @@ fn describe_function(registry: &FunctionRegistry, func_name: &str) -> Result<()>
         }
     );
     println!("Category:    {}", func.category.name());
+    if let Some(jep) = func.jep {
+        println!("JEP:         {}", jep);
+    }
     println!("Description: {}", func.description);
     println!("Signature:   {}", func.signature);
     println!();
