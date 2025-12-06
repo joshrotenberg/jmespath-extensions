@@ -86,6 +86,7 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 | `camel_case(string)` | Convert to camelCase | `camel_case('hello_world')` → `"helloWorld"` |
 | `snake_case(string)` | Convert to snake_case | `snake_case('helloWorld')` → `"hello_world"` |
 | `kebab_case(string)` | Convert to kebab-case | `kebab_case('helloWorld')` → `"hello-world"` |
+| `wrap(string, width)` | Word-wrap to width | `wrap('hello world', 5)` → `"hello\nworld"` |
 
 ### Array Functions
 
@@ -224,9 +225,12 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 | Function | Description |
 |----------|-------------|
 | `random()` | Random float 0.0-1.0 |
+| `random(min, max)` | Random float in range [min, max) |
 | `uuid()` | Generate UUID v4 |
 | `shuffle(array)` | Randomly shuffle array |
+| `shuffle(array, seed)` | Deterministic shuffle with seed |
 | `sample(array, n)` | Random sample of n elements |
+| `sample(array, n, seed)` | Deterministic sample with seed |
 
 ## JMESPath Community JEP Alignment
 
@@ -239,23 +243,23 @@ This crate aligns with several [JMESPath Enhancement Proposals (JEPs)](https://g
 | `lower` | `lower` | |
 | `upper` | `upper` | |
 | `trim` | `trim` | |
-| `trim_left` | `trim_start` | Different name |
-| `trim_right` | `trim_end` | Different name |
+| `trim_left` | `trim_left` | |
+| `trim_right` | `trim_right` | |
 | `pad_left` | `pad_left` | |
 | `pad_right` | `pad_right` | |
 | `replace` | `replace` | |
 | `split` | `split` | |
-| `find_first` | `index_of` | Different name |
-| `find_last` | `last_index_of` | Different name |
+| `find_first` | `find_first` | |
+| `find_last` | `find_last` | |
 
-**Additional string functions**: `capitalize`, `title`, `title_case`, `camel_case`, `snake_case`, `kebab_case`, `substr`, `slice`, `concat`, `repeat`, `truncate`
+**Additional string functions**: `capitalize`, `title`, `title_case`, `camel_case`, `snake_case`, `kebab_case`, `substr`, `slice`, `concat`, `repeat`, `truncate`, `wrap`
 
 ### JEP-013: Object Functions
 
 | JEP-013 Function | jmespath_extensions | Notes |
 |------------------|---------------------|-------|
-| `items` | `entries` | Different name (JS-style) |
-| `from_items` | `from_entries` | Different name (JS-style) |
+| `items` | `items` | |
+| `from_items` | `from_items` | |
 | `zip` | `zip` | In array module |
 
 **Additional object functions**: `pick`, `omit`, `deep_merge`, `rename_keys`, `invert`, `flatten_keys`, `unflatten_keys`
