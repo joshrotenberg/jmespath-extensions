@@ -122,7 +122,7 @@
 //!
 //! - [`string`] - String manipulation (`upper`, `lower`, `split`, `replace`, `camel_case`, etc.)
 //! - [`mod@array`] - Array operations (`first`, `last`, `unique`, `chunk`, `zip`, `range`, etc.)
-//! - [`object`] - Object utilities (`entries`, `pick`, `omit`, `deep_merge`, etc.)
+//! - [`object`] - Object utilities (`items`, `pick`, `omit`, `deep_merge`, etc.)
 //! - [`math`] - Math operations (`round`, `sqrt`, `pow`, `median`, `sin`, `cos`, etc.)
 //! - [`type_conv`] - Type functions (`type_of`, `is_string`, `is_empty`, `to_number`, etc.)
 //! - [`utility`] - Utilities (`now`, `default`, `if`, `coalesce`, `json_encode`, etc.)

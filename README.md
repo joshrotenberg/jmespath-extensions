@@ -64,8 +64,8 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 | `lower(string)` | Convert to lowercase | `lower('HELLO')` → `"hello"` |
 | `upper(string)` | Convert to uppercase | `upper('hello')` → `"HELLO"` |
 | `trim(string)` | Remove leading/trailing whitespace | `trim('  hi  ')` → `"hi"` |
-| `trim_start(string)` | Remove leading whitespace | `trim_start('  hi')` → `"hi"` |
-| `trim_end(string)` | Remove trailing whitespace | `trim_end('hi  ')` → `"hi"` |
+| `trim_left(string)` | Remove leading whitespace | `trim_left('  hi')` → `"hi"` |
+| `trim_right(string)` | Remove trailing whitespace | `trim_right('hi  ')` → `"hi"` |
 | `capitalize(string)` | Capitalize first letter | `capitalize('hello')` → `"Hello"` |
 | `title(string)` | Capitalize each word | `title('hello world')` → `"Hello World"` |
 | `split(string, delim)` | Split string into array | `split('a,b,c', ',')` → `["a","b","c"]` |
@@ -75,8 +75,8 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 | `pad_right(string, width, char)` | Right-pad string | `pad_right('5', 3, '0')` → `"500"` |
 | `substr(string, start, len?)` | Extract substring | `substr('hello', 1, 3)` → `"ell"` |
 | `slice(string, start, end?)` | Extract by indices | `slice('hello', 1, 4)` → `"ell"` |
-| `index_of(string, search)` | Find first occurrence | `index_of('hello', 'l')` → `2` |
-| `last_index_of(string, search)` | Find last occurrence | `last_index_of('hello', 'l')` → `3` |
+| `find_first(string, search)` | Find first occurrence | `find_first('hello', 'l')` → `2` |
+| `find_last(string, search)` | Find last occurrence | `find_last('hello', 'l')` → `3` |
 | `concat(array, sep?)` | Join strings | `concat(['a','b'], '-')` → `"a-b"` |
 | `camel_case(string)` | Convert to camelCase | `camel_case('hello_world')` → `"helloWorld"` |
 | `snake_case(string)` | Convert to snake_case | `snake_case('helloWorld')` → `"hello_world"` |
@@ -109,8 +109,8 @@ jmespath_extensions = { version = "0.1", default-features = false, features = ["
 
 | Function | Description | Example |
 |----------|-------------|---------|
-| `entries(object)` | Convert to [{key, value}] | `entries({a:1})` → `[{"key":"a","value":1}]` |
-| `from_entries(array)` | Convert [{key, value}] to object | `from_entries([{"key":"a","value":1}])` → `{"a":1}` |
+| `items(object)` | Convert to [{key, value}] | `items({a:1})` → `[{"key":"a","value":1}]` |
+| `from_items(array)` | Convert [{key, value}] to object | `from_items([{"key":"a","value":1}])` → `{"a":1}` |
 | `pick(object, keys)` | Select specific keys | `pick({a:1,b:2}, ['a'])` → `{"a":1}` |
 | `omit(object, keys)` | Exclude specific keys | `omit({a:1,b:2}, ['a'])` → `{"b":2}` |
 | `deep_merge(obj1, obj2)` | Recursively merge objects | `deep_merge({a:{b:1}}, {a:{c:2}})` |
