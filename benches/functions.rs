@@ -1,6 +1,7 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
+use jmespath_extensions::registry::FunctionRegistry;
 
 fn create_runtime() -> Runtime {
     let mut runtime = Runtime::new();
@@ -260,6 +261,37 @@ fn bench_registration(c: &mut Criterion) {
             runtime.register_builtin_functions();
             register_all(&mut runtime);
             black_box(runtime)
+        })
+    });
+
+    // Registry-based registration
+    c.bench_function("registry_register_all", |b| {
+        b.iter(|| {
+            let mut registry = FunctionRegistry::new();
+            registry.register_all();
+            let mut runtime = Runtime::new();
+            runtime.register_builtin_functions();
+            registry.apply(&mut runtime);
+            black_box(runtime)
+        })
+    });
+
+    // Registry creation and introspection
+    c.bench_function("registry_create_all", |b| {
+        b.iter(|| {
+            let mut registry = FunctionRegistry::new();
+            registry.register_all();
+            black_box(registry)
+        })
+    });
+
+    // Registry introspection
+    c.bench_function("registry_introspection", |b| {
+        let mut registry = FunctionRegistry::new();
+        registry.register_all();
+        b.iter(|| {
+            let count: usize = registry.functions().count();
+            black_box(count)
         })
     });
 }
