@@ -3,8 +3,14 @@ name = "jmespath_extensions"
 version = "0.2.1"
 edition = "2024"
 authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
-description = "Extended functions for JMESPath"
+description = "Extended functions for JMESPath queries - 150+ functions for strings, arrays, dates, hashing, encoding, geo, and more"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/joshrotenberg/jmespath-extensions"
+homepage = "https://github.com/joshrotenberg/jmespath-extensions"
+documentation = "https://docs.rs/jmespath_extensions"
+readme = "README.md"
+keywords = ["jmespath", "json", "query", "transform", "filter"]
+categories = ["data-structures", "parsing", "text-processing"]
 
 [dependencies]
 jmespath = "0.4"
