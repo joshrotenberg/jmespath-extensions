@@ -136,7 +136,7 @@
 use std::rc::Rc;
 
 #[cfg(feature = "rand")]
-use crate::common::{ArgumentType, ErrorReason};
+use crate::common::ErrorReason;
 use crate::common::{Context, Function, JmespathError, Rcvar, Runtime, Variable};
 use crate::define_function;
 
@@ -156,19 +156,63 @@ pub fn register(runtime: &mut Runtime) {
 
 // =============================================================================
 // random() -> number (0.0 to 1.0)
+// random(min, max) -> number in range [min, max)
 // =============================================================================
 
 #[cfg(feature = "rand")]
-define_function!(RandomFn, vec![], None);
+pub struct RandomFn;
+
+#[cfg(feature = "rand")]
+impl Default for RandomFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "rand")]
+impl RandomFn {
+    pub fn new() -> RandomFn {
+        RandomFn
+    }
+}
 
 #[cfg(feature = "rand")]
 impl Function for RandomFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
-        self.signature.validate(args, ctx)?;
-
         use rand::Rng;
+
+        // Manual validation: accept 0 or 2 arguments
+        if !args.is_empty() && args.len() != 2 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("random() takes 0 or 2 arguments".to_owned()),
+            ));
+        }
+
         let mut rng = rand::thread_rng();
-        let value: f64 = rng.gen_range(0.0..1.0);
+
+        let value: f64 = if args.is_empty() {
+            // random() - return 0.0 to 1.0
+            rng.gen_range(0.0..1.0)
+        } else {
+            // random(min, max) - return min to max
+            let min = args[0].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for min".to_owned()),
+                )
+            })?;
+            let max = args[1].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for max".to_owned()),
+                )
+            })?;
+            rng.gen_range(min..max)
+        };
 
         Ok(Rc::new(Variable::Number(
             serde_json::Number::from_f64(value).unwrap_or_else(|| serde_json::Number::from(0)),
@@ -178,15 +222,37 @@ impl Function for RandomFn {
 
 // =============================================================================
 // shuffle(array) -> array (randomly shuffled)
+// shuffle(array, seed) -> array (deterministically shuffled)
 // =============================================================================
 
 #[cfg(feature = "rand")]
-define_function!(ShuffleFn, vec![ArgumentType::Array], None);
+pub struct ShuffleFn;
+
+#[cfg(feature = "rand")]
+impl Default for ShuffleFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "rand")]
+impl ShuffleFn {
+    pub fn new() -> ShuffleFn {
+        ShuffleFn
+    }
+}
 
 #[cfg(feature = "rand")]
 impl Function for ShuffleFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
-        self.signature.validate(args, ctx)?;
+        // Manual validation: 1 or 2 arguments
+        if args.is_empty() || args.len() > 2 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("shuffle() takes 1 or 2 arguments".to_owned()),
+            ));
+        }
 
         let arr = args[0].as_array().ok_or_else(|| {
             JmespathError::new(
@@ -196,9 +262,26 @@ impl Function for ShuffleFn {
             )
         })?;
 
+        use rand::SeedableRng;
         use rand::seq::SliceRandom;
+
         let mut result: Vec<Rcvar> = arr.clone();
-        result.shuffle(&mut rand::thread_rng());
+
+        if args.len() == 2 {
+            // Deterministic shuffle with seed
+            let seed = args[1].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for seed".to_owned()),
+                )
+            })? as u64;
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            result.shuffle(&mut rng);
+        } else {
+            // Random shuffle
+            result.shuffle(&mut rand::thread_rng());
+        }
 
         Ok(Rc::new(Variable::Array(result)))
     }
@@ -206,19 +289,37 @@ impl Function for ShuffleFn {
 
 // =============================================================================
 // sample(array, n) -> array (random sample of n elements)
+// sample(array, n, seed) -> array (deterministic sample)
 // =============================================================================
 
 #[cfg(feature = "rand")]
-define_function!(
-    SampleFn,
-    vec![ArgumentType::Array, ArgumentType::Number],
-    None
-);
+pub struct SampleFn;
+
+#[cfg(feature = "rand")]
+impl Default for SampleFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "rand")]
+impl SampleFn {
+    pub fn new() -> SampleFn {
+        SampleFn
+    }
+}
 
 #[cfg(feature = "rand")]
 impl Function for SampleFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
-        self.signature.validate(args, ctx)?;
+        // Manual validation: 2 or 3 arguments
+        if args.len() < 2 || args.len() > 3 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("sample() takes 2 or 3 arguments".to_owned()),
+            ));
+        }
 
         let arr = args[0].as_array().ok_or_else(|| {
             JmespathError::new(
@@ -236,11 +337,28 @@ impl Function for SampleFn {
             )
         })? as usize;
 
+        use rand::SeedableRng;
         use rand::seq::SliceRandom;
-        let sample: Vec<Rcvar> = arr
-            .choose_multiple(&mut rand::thread_rng(), n.min(arr.len()))
-            .cloned()
-            .collect();
+
+        let sample: Vec<Rcvar> = if args.len() == 3 {
+            // Deterministic sample with seed
+            let seed = args[2].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for seed".to_owned()),
+                )
+            })? as u64;
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            arr.choose_multiple(&mut rng, n.min(arr.len()))
+                .cloned()
+                .collect()
+        } else {
+            // Random sample
+            arr.choose_multiple(&mut rand::thread_rng(), n.min(arr.len()))
+                .cloned()
+                .collect()
+        };
 
         Ok(Rc::new(Variable::Array(sample)))
     }

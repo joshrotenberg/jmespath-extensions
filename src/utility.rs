@@ -346,4 +346,37 @@ mod tests {
         let result = expr.search(&Variable::Null).unwrap();
         assert_eq!(result.as_string().unwrap(), "no");
     }
+
+    #[test]
+    fn test_json_decode_object() {
+        let runtime = setup_runtime();
+        // Test parsing a JSON object string
+        let expr = runtime.compile("json_decode(@)").unwrap();
+        let data = Variable::String(r#"{"a":1,"b":2}"#.to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_object());
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("a"));
+    }
+
+    #[test]
+    fn test_json_decode_from_field() {
+        let runtime = setup_runtime();
+        // This simulates: {"s": "{\"a\":1,\"b\":2}"}
+        // When accessed as s, we get the string {"a":1,"b":2}
+        let expr = runtime.compile("json_decode(s)").unwrap();
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            "s".to_string(),
+            Rc::new(Variable::String(r#"{"a":1,"b":2}"#.to_string())),
+        );
+        let data = Variable::Object(map);
+
+        let result = expr.search(&data);
+        println!("Result: {:?}", result);
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert!(val.is_object());
+    }
 }
