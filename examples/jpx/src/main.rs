@@ -159,8 +159,25 @@ fn main() -> Result<()> {
     let json_value: serde_json::Value = serde_json::from_str(&serde_json::to_string(&*result)?)?;
 
     let output = if args.color.should_colorize() && !args.compact {
-        // Colored pretty output
-        colored_json::to_colored_json_auto(&json_value)?
+        // Colored pretty output with custom color scheme
+        use colored_json::{ColoredFormatter, PrettyFormatter, Style, Styler};
+
+        let styler = Styler {
+            key: Style::new().blue().bold(),
+            string_value: Style::new().green(),
+            integer_value: Style::new().cyan(),
+            float_value: Style::new().cyan(),
+            bool_value: Style::new().yellow(),
+            nil_value: Style::new().red().dim(),
+            ..Default::default()
+        };
+
+        let formatter = ColoredFormatter::with_styler(PrettyFormatter::new(), styler);
+        let mut writer = Vec::new();
+        let mut serializer = serde_json::Serializer::with_formatter(&mut writer, formatter);
+        use serde::Serialize;
+        json_value.serialize(&mut serializer)?;
+        String::from_utf8(writer)?
     } else if args.compact {
         serde_json::to_string(&json_value)?
     } else {
