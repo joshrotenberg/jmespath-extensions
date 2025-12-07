@@ -29,6 +29,11 @@
 //! | [`deg_to_rad`](#deg_to_rad) | `deg_to_rad(deg) → number` | Degrees to radians |
 //! | [`rad_to_deg`](#rad_to_deg) | `rad_to_deg(rad) → number` | Radians to degrees |
 //! | [`sign`](#sign) | `sign(n) → number` | Sign (-1, 0, 1) |
+//! | [`add`](#add) | `add(a, b) → number` | Addition |
+//! | [`subtract`](#subtract) | `subtract(a, b) → number` | Subtraction |
+//! | [`multiply`](#multiply) | `multiply(a, b) → number` | Multiplication |
+//! | [`divide`](#divide) | `divide(a, b) → number` | Division |
+//! | [`mode`](#mode) | `mode(array) → any` | Most common value |
 //!
 //! # Examples
 //!
@@ -257,6 +262,68 @@
 //! sign(-42)         → -1
 //! sign(0)           → 0
 //! ```
+//!
+//! ## add
+//!
+//! Adds two numbers.
+//!
+//! ```text
+//! add(a, b) → number
+//!
+//! add(1, 2)         → 3
+//! add(10.5, 2.5)    → 13
+//! add(-5, 10)       → 5
+//! ```
+//!
+//! ## subtract
+//!
+//! Subtracts second number from first.
+//!
+//! ```text
+//! subtract(a, b) → number
+//!
+//! subtract(5, 3)    → 2
+//! subtract(10, 20)  → -10
+//! subtract(3.5, 1.2)→ 2.3
+//! ```
+//!
+//! ## multiply
+//!
+//! Multiplies two numbers.
+//!
+//! ```text
+//! multiply(a, b) → number
+//!
+//! multiply(3, 4)    → 12
+//! multiply(2.5, 4)  → 10
+//! multiply(-3, 5)   → -15
+//! ```
+//!
+//! ## divide
+//!
+//! Divides first number by second.
+//!
+//! ```text
+//! divide(a, b) → number
+//!
+//! divide(10, 2)     → 5
+//! divide(7, 2)      → 3.5
+//! divide(10, 0)     → error (division by zero)
+//! ```
+//!
+//! ## mode
+//!
+//! Returns the most common value in an array. If there's a tie, returns
+//! the first value that reached the highest count.
+//!
+//! ```text
+//! mode(array) → any
+//!
+//! mode([1, 2, 2, 3])           → 2
+//! mode(['a', 'b', 'a', 'c'])   → "a"
+//! mode([1, 1, 2, 2, 3])        → 1    // tie: returns first
+//! mode([])                     → null
+//! ```
 
 use std::rc::Rc;
 
@@ -290,6 +357,11 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("deg_to_rad", Box::new(DegToRadFn::new()));
     runtime.register_function("rad_to_deg", Box::new(RadToDegFn::new()));
     runtime.register_function("sign", Box::new(SignFn::new()));
+    runtime.register_function("add", Box::new(AddFn::new()));
+    runtime.register_function("subtract", Box::new(SubtractFn::new()));
+    runtime.register_function("multiply", Box::new(MultiplyFn::new()));
+    runtime.register_function("divide", Box::new(DivideFn::new()));
+    runtime.register_function("mode", Box::new(ModeFn::new()));
 }
 
 // =============================================================================
@@ -1011,6 +1083,189 @@ impl Function for SignFn {
     }
 }
 
+// =============================================================================
+// add(a, b) -> number
+// =============================================================================
+
+define_function!(
+    AddFn,
+    vec![ArgumentType::Number, ArgumentType::Number],
+    None
+);
+
+impl Function for AddFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let a = args[0].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        let b = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(a + b).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+// =============================================================================
+// subtract(a, b) -> number
+// =============================================================================
+
+define_function!(
+    SubtractFn,
+    vec![ArgumentType::Number, ArgumentType::Number],
+    None
+);
+
+impl Function for SubtractFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let a = args[0].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        let b = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(a - b).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+// =============================================================================
+// multiply(a, b) -> number
+// =============================================================================
+
+define_function!(
+    MultiplyFn,
+    vec![ArgumentType::Number, ArgumentType::Number],
+    None
+);
+
+impl Function for MultiplyFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let a = args[0].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        let b = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(a * b).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+// =============================================================================
+// divide(a, b) -> number
+// =============================================================================
+
+define_function!(
+    DivideFn,
+    vec![ArgumentType::Number, ArgumentType::Number],
+    None
+);
+
+impl Function for DivideFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let a = args[0].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        let b = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number".to_owned()),
+            )
+        })?;
+        if b == 0.0 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Division by zero".to_owned()),
+            ));
+        }
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(a / b).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+// =============================================================================
+// mode(array) -> any (most common value)
+// =============================================================================
+
+define_function!(ModeFn, vec![ArgumentType::Array], None);
+
+impl Function for ModeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        // Count occurrences - use JSON string representation as key
+        let mut counts: std::collections::HashMap<String, (usize, Rcvar)> =
+            std::collections::HashMap::new();
+
+        for item in arr.iter() {
+            let key = serde_json::to_string(&**item).unwrap_or_default();
+            counts
+                .entry(key)
+                .and_modify(|(count, _)| *count += 1)
+                .or_insert((1, item.clone()));
+        }
+
+        // Find the value with highest count
+        let (_, (_, mode_value)) = counts
+            .into_iter()
+            .max_by_key(|(_, (count, _))| *count)
+            .unwrap();
+
+        Ok(mode_value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1045,5 +1300,63 @@ mod tests {
         let expr = runtime.compile("clamp(`5`, `0`, `3`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
         assert_eq!(result.as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_add() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("add(`1`, `2`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_subtract() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("subtract(`10`, `3`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 7);
+    }
+
+    #[test]
+    fn test_multiply() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("multiply(`4`, `5`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 20);
+    }
+
+    #[test]
+    fn test_divide() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("divide(`10`, `4`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 2.5);
+    }
+
+    #[test]
+    fn test_mode_numbers() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("mode(`[1, 2, 2, 3]`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_mode_strings() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("mode(`[\"a\", \"b\", \"a\", \"c\"]`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "a");
+    }
+
+    #[test]
+    fn test_mode_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("mode(`[]`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.is_null());
     }
 }
