@@ -28,7 +28,12 @@
 //! | [`kebab_case`](#kebab_case) | `kebab_case(string) → string` | Convert to kebab-case |
 //! | [`truncate`](#truncate) | `truncate(string, length, suffix?) → string` | Truncate with suffix |
 //! | [`wrap`](#wrap) | `wrap(string, width) → string` | Word-wrap to width |
-//! | [`format`](#format) | `format(template, ...args) → string` | Format with placeholders |
+//! | [`format`](#format) | `format(template, args) → string` | Format with placeholders |
+//! | [`sprintf`](#sprintf) | `sprintf(format, ...args) → string` | Printf-style formatting |
+//! | [`ltrimstr`](#ltrimstr) | `ltrimstr(string, prefix) → string` | Remove prefix if present |
+//! | [`rtrimstr`](#rtrimstr) | `rtrimstr(string, suffix) → string` | Remove suffix if present |
+//! | [`indices`](#indices) | `indices(string, search) → array` | Find all occurrence indices |
+//! | [`inside`](#inside) | `inside(string, search) → boolean` | Check if search is contained |
 //!
 //! # Examples
 //!
@@ -327,14 +332,113 @@
 //!
 //! ## format
 //!
-//! Formats a string by replacing `{0}`, `{1}`, etc. with arguments.
+//! Formats a string using positional or named placeholders.
+//! Supports three modes:
+//! - Positional with array: `format('Hello {0}', ['World'])`
+//! - Named with object: `format('Hello {name}', {name: 'World'})`
+//! - Variadic: `format('Hello {0}', 'World')`
 //!
 //! ```text
-//! format(template, ...args) → string
+//! format(template, args) → string
 //!
-//! format('Hello, {0}!', 'World')           → "Hello, World!"
-//! format('{0} + {1} = {2}', 1, 2, 3)       → "1 + 2 = 3"
+//! # Positional with array
+//! format('Hello {0}, you have {1} messages', ['Alice', 5])
+//! → "Hello Alice, you have 5 messages"
+//!
+//! # Named with object
+//! format('Hello {name}!', {name: 'World'})
+//! → "Hello World!"
+//!
+//! # Variadic
 //! format('Name: {0}, Age: {1}', 'Alice', 30) → "Name: Alice, Age: 30"
+//! ```
+//!
+//! ## sprintf
+//!
+//! Printf-style formatting with format specifiers.
+//!
+//! ```text
+//! sprintf(format, ...args) → string
+//!
+//! Supported format specifiers:
+//!   %s  - String
+//!   %d  - Integer (decimal)
+//!   %i  - Integer (decimal)
+//!   %f  - Floating point (default 6 decimal places)
+//!   %e  - Scientific notation
+//!   %x  - Hexadecimal (lowercase)
+//!   %X  - Hexadecimal (uppercase)
+//!   %o  - Octal
+//!   %b  - Binary
+//!   %c  - Character (from number or first char of string)
+//!   %%  - Literal percent sign
+//!
+//! Width and precision:
+//!   %10s   - Right-pad to 10 characters
+//!   %-10s  - Left-pad to 10 characters
+//!   %.2f   - 2 decimal places
+//!   %8.2f  - 8 wide, 2 decimal places
+//!
+//! sprintf('Hello, %s!', 'World')        → "Hello, World!"
+//! sprintf('%d + %d = %d', 1, 2, 3)     → "1 + 2 = 3"
+//! sprintf('Pi is %.2f', 3.14159)       → "Pi is 3.14"
+//! sprintf('Hex: %x, Bin: %b', 255, 10) → "Hex: ff, Bin: 1010"
+//! sprintf('%10s', 'hi')                → "        hi"
+//! sprintf('100%% done')                → "100% done"
+//! ```
+//!
+//! ## ltrimstr
+//!
+//! Removes a prefix from a string if it starts with that prefix.
+//!
+//! ```text
+//! ltrimstr(string, prefix) → string
+//!
+//! ltrimstr('hello world', 'hello ')  → "world"
+//! ltrimstr('foobar', 'foo')          → "bar"
+//! ltrimstr('foobar', 'bar')          → "foobar"  // No change, doesn't start with 'bar'
+//! ltrimstr('', 'foo')                → ""
+//! ```
+//!
+//! ## rtrimstr
+//!
+//! Removes a suffix from a string if it ends with that suffix.
+//!
+//! ```text
+//! rtrimstr(string, suffix) → string
+//!
+//! rtrimstr('hello world', ' world')  → "hello"
+//! rtrimstr('foobar', 'bar')          → "foo"
+//! rtrimstr('foobar', 'foo')          → "foobar"  // No change, doesn't end with 'foo'
+//! rtrimstr('', 'foo')                → ""
+//! ```
+//!
+//! ## indices
+//!
+//! Finds all indices where a substring occurs in a string.
+//! Returns an array of indices (0-based).
+//!
+//! ```text
+//! indices(string, search) → array
+//!
+//! indices('abcabc', 'bc')      → [1, 4]
+//! indices('hello', 'l')        → [2, 3]
+//! indices('hello', 'x')        → []
+//! indices('aaa', 'aa')         → [0, 1]  // Overlapping matches
+//! ```
+//!
+//! ## inside
+//!
+//! Checks if a string contains another string.
+//! This is the inverse of `contains` - useful when the search string is the subject.
+//!
+//! ```text
+//! inside(search, string) → boolean
+//!
+//! inside('world', 'hello world')  → true
+//! inside('foo', 'hello world')    → false
+//! inside('', 'hello')             → true   // Empty string is in any string
+//! inside('hello', '')             → false  // Non-empty can't be in empty
 //! ```
 
 use std::rc::Rc;
@@ -372,6 +476,11 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("truncate", Box::new(TruncateFn::new()));
     runtime.register_function("wrap", Box::new(WrapFn::new()));
     runtime.register_function("format", Box::new(FormatFn::new()));
+    runtime.register_function("sprintf", Box::new(SprintfFn::new()));
+    runtime.register_function("ltrimstr", Box::new(LtrimstrFn::new()));
+    runtime.register_function("rtrimstr", Box::new(RtrimstrFn::new()));
+    runtime.register_function("indices", Box::new(IndicesFn::new()));
+    runtime.register_function("inside", Box::new(InsideFn::new()));
 }
 
 // =============================================================================
@@ -1342,7 +1451,11 @@ impl Function for WrapFn {
 }
 
 // =============================================================================
-// format(template, ...args) -> string
+// format(template, args) -> string
+// Supports:
+//   - Positional with array: format('Hello {0}', ['World'])
+//   - Named with object: format('Hello {name}', {name: 'World'})
+//   - Variadic: format('Hello {0}', 'World')
 // =============================================================================
 
 define_function!(
@@ -1350,6 +1463,17 @@ define_function!(
     vec![ArgumentType::String],
     Some(ArgumentType::Any)
 );
+
+/// Convert a Variable to its string representation for formatting
+fn var_to_format_string(v: &Variable) -> String {
+    match v {
+        Variable::String(s) => s.clone(),
+        Variable::Number(n) => n.to_string(),
+        Variable::Bool(b) => b.to_string(),
+        Variable::Null => "null".to_string(),
+        _ => serde_json::to_string(v).unwrap_or_else(|_| "null".to_string()),
+    }
+}
 
 impl Function for FormatFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
@@ -1365,19 +1489,377 @@ impl Function for FormatFn {
 
         let mut result = template.to_string();
 
+        // Check if second arg is an array or object for unified formatting
+        if args.len() == 2 {
+            if let Some(arr) = args[1].as_array() {
+                // Array-based positional: format('Hello {0}', ['World'])
+                for (i, item) in arr.iter().enumerate() {
+                    let placeholder = format!("{{{}}}", i);
+                    let value = var_to_format_string(item);
+                    result = result.replace(&placeholder, &value);
+                }
+                return Ok(Rc::new(Variable::String(result)));
+            } else if let Some(obj) = args[1].as_object() {
+                // Object-based named: format('Hello {name}', {name: 'World'})
+                for (key, val) in obj.iter() {
+                    let placeholder = format!("{{{}}}", key);
+                    let value = var_to_format_string(val);
+                    result = result.replace(&placeholder, &value);
+                }
+                return Ok(Rc::new(Variable::String(result)));
+            }
+        }
+
+        // Fallback: variadic arguments format('Hello {0}', 'World')
         for (i, arg) in args.iter().skip(1).enumerate() {
             let placeholder = format!("{{{}}}", i);
-            let value = match &**arg {
-                Variable::String(s) => s.clone(),
-                Variable::Number(n) => n.to_string(),
-                Variable::Bool(b) => b.to_string(),
-                Variable::Null => "null".to_string(),
-                _ => serde_json::to_string(&**arg).unwrap_or_else(|_| "null".to_string()),
-            };
+            let value = var_to_format_string(arg);
             result = result.replace(&placeholder, &value);
         }
 
         Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// sprintf(format_string, ...args) -> string
+// Printf-style formatting with %s, %d, %f, etc.
+// =============================================================================
+
+define_function!(
+    SprintfFn,
+    vec![ArgumentType::String],
+    Some(ArgumentType::Any)
+);
+
+impl Function for SprintfFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let format_str = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected format string".to_owned()),
+            )
+        })?;
+
+        // Get arguments - either from array or variadic
+        let format_args: Vec<&Variable> = if args.len() == 2 {
+            if let Some(arr) = args[1].as_array() {
+                arr.iter().map(|v| v.as_ref()).collect()
+            } else {
+                args.iter().skip(1).map(|v| v.as_ref()).collect()
+            }
+        } else {
+            args.iter().skip(1).map(|v| v.as_ref()).collect()
+        };
+
+        let mut result = String::new();
+        let mut arg_index = 0;
+        let mut chars = format_str.chars().peekable();
+
+        while let Some(c) = chars.next() {
+            if c == '%' {
+                if let Some(&next) = chars.peek() {
+                    if next == '%' {
+                        // Escaped %
+                        result.push('%');
+                        chars.next();
+                        continue;
+                    }
+
+                    // Parse format specifier
+                    let mut width = String::new();
+                    let mut precision = String::new();
+                    let mut in_precision = false;
+
+                    // Parse width and precision
+                    while let Some(&ch) = chars.peek() {
+                        if ch == '.' {
+                            in_precision = true;
+                            chars.next();
+                        } else if ch.is_ascii_digit() || ch == '-' || ch == '+' {
+                            if in_precision {
+                                precision.push(ch);
+                            } else {
+                                width.push(ch);
+                            }
+                            chars.next();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Get the format type
+                    if let Some(fmt_type) = chars.next() {
+                        if arg_index < format_args.len() {
+                            let arg = format_args[arg_index];
+                            arg_index += 1;
+
+                            let formatted = match fmt_type {
+                                's' => var_to_format_string(arg),
+                                'd' | 'i' => {
+                                    if let Some(n) = arg.as_number() {
+                                        format!("{}", n as i64)
+                                    } else {
+                                        "0".to_string()
+                                    }
+                                }
+                                'f' => {
+                                    if let Some(n) = arg.as_number() {
+                                        let prec: usize = precision.parse().unwrap_or(6);
+                                        format!("{:.prec$}", n, prec = prec)
+                                    } else {
+                                        "0.0".to_string()
+                                    }
+                                }
+                                'e' => {
+                                    if let Some(n) = arg.as_number() {
+                                        let prec: usize = precision.parse().unwrap_or(6);
+                                        format!("{:.prec$e}", n, prec = prec)
+                                    } else {
+                                        "0e0".to_string()
+                                    }
+                                }
+                                'x' => {
+                                    if let Some(n) = arg.as_number() {
+                                        format!("{:x}", n as i64)
+                                    } else {
+                                        "0".to_string()
+                                    }
+                                }
+                                'X' => {
+                                    if let Some(n) = arg.as_number() {
+                                        format!("{:X}", n as i64)
+                                    } else {
+                                        "0".to_string()
+                                    }
+                                }
+                                'o' => {
+                                    if let Some(n) = arg.as_number() {
+                                        format!("{:o}", n as i64)
+                                    } else {
+                                        "0".to_string()
+                                    }
+                                }
+                                'b' => {
+                                    if let Some(n) = arg.as_number() {
+                                        format!("{:b}", n as i64)
+                                    } else {
+                                        "0".to_string()
+                                    }
+                                }
+                                'c' => {
+                                    if let Some(n) = arg.as_number() {
+                                        char::from_u32(n as u32)
+                                            .map(|c| c.to_string())
+                                            .unwrap_or_default()
+                                    } else if let Some(s) = arg.as_string() {
+                                        s.chars().next().map(|c| c.to_string()).unwrap_or_default()
+                                    } else {
+                                        String::new()
+                                    }
+                                }
+                                _ => {
+                                    // Unknown format, just output as-is
+                                    format!("%{}{}", width, fmt_type)
+                                }
+                            };
+
+                            // Apply width if specified
+                            if !width.is_empty() {
+                                let w: i32 = width.parse().unwrap_or(0);
+                                if w < 0 {
+                                    // Left-align
+                                    result.push_str(&format!(
+                                        "{:<width$}",
+                                        formatted,
+                                        width = w.unsigned_abs() as usize
+                                    ));
+                                } else {
+                                    // Right-align
+                                    result.push_str(&format!(
+                                        "{:>width$}",
+                                        formatted,
+                                        width = w as usize
+                                    ));
+                                }
+                            } else {
+                                result.push_str(&formatted);
+                            }
+                        } else {
+                            // Not enough arguments, output placeholder
+                            result.push('%');
+                            result.push_str(&width);
+                            if !precision.is_empty() {
+                                result.push('.');
+                                result.push_str(&precision);
+                            }
+                            result.push(fmt_type);
+                        }
+                    }
+                } else {
+                    // % at end of string
+                    result.push('%');
+                }
+            } else {
+                result.push(c);
+            }
+        }
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// ltrimstr(string, prefix) -> string
+// =============================================================================
+
+define_function!(
+    LtrimstrFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    None
+);
+
+impl Function for LtrimstrFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let prefix = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected prefix string".to_owned()),
+            )
+        })?;
+
+        let result = s.strip_prefix(prefix).unwrap_or(s).to_string();
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// rtrimstr(string, suffix) -> string
+// =============================================================================
+
+define_function!(
+    RtrimstrFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    None
+);
+
+impl Function for RtrimstrFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let suffix = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected suffix string".to_owned()),
+            )
+        })?;
+
+        let result = s.strip_suffix(suffix).unwrap_or(s).to_string();
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// indices(string, search) -> array of indices
+// =============================================================================
+
+define_function!(
+    IndicesFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    None
+);
+
+impl Function for IndicesFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let search = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected search string".to_owned()),
+            )
+        })?;
+
+        // Find all indices (including overlapping matches)
+        let mut indices: Vec<Rcvar> = Vec::new();
+        if !search.is_empty() {
+            let mut start = 0;
+            while let Some(pos) = s[start..].find(search) {
+                let actual_pos = start + pos;
+                indices.push(Rc::new(Variable::Number(serde_json::Number::from(
+                    actual_pos as i64,
+                ))));
+                start = actual_pos + 1; // Move by 1 to find overlapping matches
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(indices)))
+    }
+}
+
+// =============================================================================
+// inside(search, string) -> boolean
+// =============================================================================
+
+define_function!(
+    InsideFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    None
+);
+
+impl Function for InsideFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let search = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected search string".to_owned()),
+            )
+        })?;
+
+        let s = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::Bool(s.contains(search))))
     }
 }
 
@@ -1474,5 +1956,170 @@ mod tests {
         let data = Variable::String("hello world".to_string());
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_ltrimstr() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("ltrimstr(@, 'hello ')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_ltrimstr_no_match() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("ltrimstr(@, 'foo')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_rtrimstr() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("rtrimstr(@, ' world')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_rtrimstr_no_match() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("rtrimstr(@, 'foo')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_indices() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("indices(@, 'l')").unwrap();
+        let data = Variable::String("hello".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_indices_no_match() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("indices(@, 'x')").unwrap();
+        let data = Variable::String("hello".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_indices_overlapping() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("indices(@, 'aa')").unwrap();
+        let data = Variable::String("aaa".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_inside() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("inside('world', @)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_inside_not_found() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("inside('foo', @)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(!result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_format_with_array() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("format('Hello {0}, you have {1} messages', @)")
+            .unwrap();
+        let data: Variable = serde_json::from_str(r#"["Alice", 5]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "Hello Alice, you have 5 messages"
+        );
+    }
+
+    #[test]
+    fn test_format_with_object() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("format('Hello {name}!', @)").unwrap();
+        let data: Variable = serde_json::from_str(r#"{"name": "World"}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello World!");
+    }
+
+    #[test]
+    fn test_sprintf_string() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("sprintf('Hello, %s!', @)").unwrap();
+        let data = Variable::String("World".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello, World!");
+    }
+
+    #[test]
+    fn test_sprintf_integer() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("sprintf('%d + %d = %d', @)").unwrap();
+        let data: Variable = serde_json::from_str("[1, 2, 3]").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1 + 2 = 3");
+    }
+
+    #[test]
+    fn test_sprintf_float_precision() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("sprintf('Pi is %.2f', @)").unwrap();
+        let data: Variable = serde_json::from_str("3.14159").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Pi is 3.14");
+    }
+
+    #[test]
+    fn test_sprintf_hex() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("sprintf('Hex: %x', @)").unwrap();
+        let data: Variable = serde_json::from_str("255").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hex: ff");
+    }
+
+    #[test]
+    fn test_sprintf_width() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("sprintf('%10s', @)").unwrap();
+        let data = Variable::String("hi".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "        hi");
+    }
+
+    #[test]
+    fn test_sprintf_escaped_percent() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("sprintf('100%% done', @)").unwrap();
+        let data = Variable::Null;
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "100% done");
     }
 }
