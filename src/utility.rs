@@ -15,6 +15,7 @@
 //! | `coalesce` | `(...values: any)` | `any` | Return first non-null value |
 //! | `json_encode` | `(value: any)` | `string` | Serialize value to JSON string |
 //! | `json_decode` | `(json: string)` | `any` | Parse JSON string to value |
+//! | `json_pointer` | `(value: any, pointer: string)` | `any` | Access value using JSON Pointer (RFC 6901) |
 //!
 //! # Examples
 //!
@@ -119,6 +120,20 @@
 //! json_decode(`"{\"a\":1}"`)         // {a: 1}
 //! json_decode(`"true"`)              // true
 //! ```
+//!
+//! ### `json_pointer(value: any, pointer: string) -> any`
+//!
+//! Access a value using JSON Pointer syntax (RFC 6901). Returns null if the pointer
+//! doesn't resolve to a value.
+//!
+//! ```text
+//! json_pointer({foo: {bar: [1,2,3]}}, '/foo/bar/1')   // 2
+//! json_pointer({a: {b: 1}}, '/a/b')                   // 1
+//! json_pointer([1, 2, 3], '/0')                       // 1
+//! json_pointer({}, '/missing')                        // null
+//! json_pointer({'a/b': 1}, '/a~1b')                   // 1 (/ escaped as ~1)
+//! json_pointer({'a~b': 1}, '/a~0b')                   // 1 (~ escaped as ~0)
+//! ```
 
 use std::rc::Rc;
 
@@ -136,6 +151,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("coalesce", Box::new(CoalesceFn::new()));
     runtime.register_function("json_encode", Box::new(JsonEncodeFn::new()));
     runtime.register_function("json_decode", Box::new(JsonDecodeFn::new()));
+    runtime.register_function("json_pointer", Box::new(JsonPointerFn::new()));
 }
 
 // =============================================================================
@@ -312,6 +328,69 @@ impl Function for JsonDecodeFn {
     }
 }
 
+// =============================================================================
+// json_pointer(any, string) -> any (RFC 6901 JSON Pointer)
+// =============================================================================
+
+define_function!(
+    JsonPointerFn,
+    vec![ArgumentType::Any, ArgumentType::String],
+    None
+);
+
+impl Function for JsonPointerFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let pointer = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string pointer argument".to_owned()),
+            )
+        })?;
+
+        // Convert Variable to serde_json::Value for pointer resolution
+        let json_str = serde_json::to_string(&*args[0]).map_err(|_| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Failed to serialize value".to_owned()),
+            )
+        })?;
+
+        let json_value: serde_json::Value = serde_json::from_str(&json_str).map_err(|_| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Failed to parse value".to_owned()),
+            )
+        })?;
+
+        // Use serde_json's built-in pointer method
+        match json_value.pointer(pointer) {
+            Some(result) => {
+                let result_str = serde_json::to_string(result).map_err(|_| {
+                    JmespathError::new(
+                        ctx.expression,
+                        0,
+                        ErrorReason::Parse("Failed to serialize result".to_owned()),
+                    )
+                })?;
+                let var = Variable::from_json(&result_str).map_err(|_| {
+                    JmespathError::new(
+                        ctx.expression,
+                        0,
+                        ErrorReason::Parse("Failed to convert result".to_owned()),
+                    )
+                })?;
+                Ok(Rc::new(var))
+            }
+            None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -388,5 +467,41 @@ mod tests {
         let data = Variable::String("not valid json".to_string());
         let result = expr.search(&data).unwrap();
         assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_json_pointer_nested() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("json_pointer(@, '/foo/bar/1')").unwrap();
+        let data = Variable::from_json(r#"{"foo": {"bar": [1, 2, 3]}}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_json_pointer_root() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("json_pointer(@, '')").unwrap();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_object());
+    }
+
+    #[test]
+    fn test_json_pointer_missing() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("json_pointer(@, '/missing')").unwrap();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_json_pointer_array() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("json_pointer(@, '/0')").unwrap();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
     }
 }

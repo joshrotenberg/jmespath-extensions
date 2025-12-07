@@ -1438,6 +1438,24 @@ fn utility_functions() -> Vec<FunctionInfo> {
             is_standard: false,
             jep: None,
         },
+        FunctionInfo {
+            name: "json_encode",
+            category: Category::Utility,
+            description: "Serialize value to JSON string",
+            signature: "any -> string",
+            example: "json_encode({a: 1}) -> \"{\\\"a\\\":1}\"",
+            is_standard: false,
+            jep: None,
+        },
+        FunctionInfo {
+            name: "json_pointer",
+            category: Category::Utility,
+            description: "Access value using JSON Pointer (RFC 6901)",
+            signature: "any, string -> any",
+            example: "json_pointer({foo: {bar: 1}}, '/foo/bar') -> 1",
+            is_standard: false,
+            jep: None,
+        },
     ]
 }
 

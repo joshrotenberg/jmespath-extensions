@@ -27,6 +27,14 @@ struct Args {
     #[arg(short, long)]
     compact: bool,
 
+    /// Null input - don't read input, use null as the input value
+    #[arg(short = 'n', long)]
+    null_input: bool,
+
+    /// Slurp - read all inputs into an array
+    #[arg(short = 's', long)]
+    slurp: bool,
+
     /// List available extension functions
     #[arg(long)]
     list_functions: bool,
@@ -66,22 +74,33 @@ fn main() -> Result<()> {
         .expression
         .ok_or_else(|| anyhow::anyhow!("Expression required. Use --help for usage."))?;
 
-    // Read input JSON
-    let input = match &args.file {
-        Some(path) => std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read file: {}", path))?,
-        None => {
-            let mut buf = String::new();
-            io::stdin()
-                .read_to_string(&mut buf)
-                .context("Failed to read from stdin")?;
-            buf
+    // Get input data
+    let data = if args.null_input {
+        // Null input mode - don't read anything
+        Variable::Null
+    } else {
+        // Read input JSON
+        let input = match &args.file {
+            Some(path) => std::fs::read_to_string(path)
+                .with_context(|| format!("Failed to read file: {}", path))?,
+            None => {
+                let mut buf = String::new();
+                io::stdin()
+                    .read_to_string(&mut buf)
+                    .context("Failed to read from stdin")?;
+                buf
+            }
+        };
+
+        if args.slurp {
+            // Slurp mode - parse multiple JSON values into an array
+            parse_slurp(&input)?
+        } else {
+            // Normal mode - parse single JSON value
+            Variable::from_json(&input)
+                .map_err(|e| anyhow::anyhow!("Failed to parse JSON input: {}", e))?
         }
     };
-
-    // Parse JSON
-    let data = Variable::from_json(&input)
-        .map_err(|e| anyhow::anyhow!("Failed to parse JSON input: {}", e))?;
 
     // Create runtime with extensions
     let mut runtime = Runtime::new();
@@ -118,6 +137,25 @@ fn main() -> Result<()> {
 
     println!("{}", output);
     Ok(())
+}
+
+/// Parse multiple JSON values from input into an array
+fn parse_slurp(input: &str) -> Result<Variable> {
+    use serde_json::Deserializer;
+
+    let mut values = Vec::new();
+    let stream = Deserializer::from_str(input).into_iter::<serde_json::Value>();
+
+    for result in stream {
+        let value = result.context("Failed to parse JSON in slurp mode")?;
+        let var = Variable::from_json(&value.to_string())
+            .map_err(|e| anyhow::anyhow!("Failed to convert JSON value: {}", e))?;
+        values.push(var);
+    }
+
+    // Convert Vec<Variable> to a Variable array
+    Ok(Variable::from_json(&serde_json::to_string(&values)?)
+        .map_err(|e| anyhow::anyhow!("Failed to create array: {}", e))?)
 }
 
 fn print_functions(registry: &FunctionRegistry) {
