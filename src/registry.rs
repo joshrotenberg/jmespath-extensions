@@ -1383,6 +1383,24 @@ fn math_functions() -> Vec<FunctionInfo> {
             is_standard: false,
             jep: None,
         },
+        FunctionInfo {
+            name: "to_fixed",
+            category: Category::Math,
+            description: "Format number with exact decimal places",
+            signature: "number, number -> string",
+            example: "to_fixed(`3.14159`, `2`) -> \"3.14\"",
+            is_standard: false,
+            jep: None,
+        },
+        FunctionInfo {
+            name: "format_number",
+            category: Category::Math,
+            description: "Format number with separators and optional suffix",
+            signature: "number, number?, string? -> string",
+            example: "format_number(`1234567`, `0`) -> \"1,234,567\"",
+            is_standard: false,
+            jep: None,
+        },
     ]
 }
 
