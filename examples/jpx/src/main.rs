@@ -1,9 +1,31 @@
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
 use jmespath_extensions::registry::{Category, FunctionRegistry};
 use std::io::{self, Read};
+
+/// Color output mode
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+enum ColorMode {
+    /// Automatically detect if output is a terminal
+    #[default]
+    Auto,
+    /// Always use colors
+    Always,
+    /// Never use colors
+    Never,
+}
+
+impl ColorMode {
+    fn should_colorize(self) -> bool {
+        match self {
+            ColorMode::Always => true,
+            ColorMode::Never => false,
+            ColorMode::Auto => atty::is(atty::Stream::Stdout),
+        }
+    }
+}
 
 /// JMESPath CLI with extended functions
 ///
@@ -34,6 +56,10 @@ struct Args {
     /// Slurp - read all inputs into an array
     #[arg(short = 's', long)]
     slurp: bool,
+
+    /// Colorize output (auto, always, never)
+    #[arg(long, value_enum, default_value = "auto")]
+    color: ColorMode,
 
     /// List available extension functions
     #[arg(long)]
@@ -129,10 +155,16 @@ fn main() -> Result<()> {
         }
     }
 
-    let output = if args.compact {
-        serde_json::to_string(&*result)?
+    // Convert to serde_json::Value for output formatting
+    let json_value: serde_json::Value = serde_json::from_str(&serde_json::to_string(&*result)?)?;
+
+    let output = if args.color.should_colorize() && !args.compact {
+        // Colored pretty output
+        colored_json::to_colored_json_auto(&json_value)?
+    } else if args.compact {
+        serde_json::to_string(&json_value)?
     } else {
-        serde_json::to_string_pretty(&*result)?
+        serde_json::to_string_pretty(&json_value)?
     };
 
     println!("{}", output);
