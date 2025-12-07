@@ -35,7 +35,12 @@ impl ColorMode {
 #[command(name = "jpx", version, about, long_about = None)]
 struct Args {
     /// JMESPath expression to evaluate
+    #[arg(conflicts_with = "query_file")]
     expression: Option<String>,
+
+    /// Read JMESPath expression from file
+    #[arg(short = 'Q', long = "query-file", conflicts_with = "expression")]
+    query_file: Option<String>,
 
     /// Input file (reads from stdin if not provided)
     #[arg(short, long)]
@@ -96,9 +101,16 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let expression = args
-        .expression
-        .ok_or_else(|| anyhow::anyhow!("Expression required. Use --help for usage."))?;
+    // Get expression from either positional arg or file
+    let expression = if let Some(query_path) = &args.query_file {
+        std::fs::read_to_string(query_path)
+            .with_context(|| format!("Failed to read query file: {}", query_path))?
+            .trim()
+            .to_string()
+    } else {
+        args.expression
+            .ok_or_else(|| anyhow::anyhow!("Expression required. Use --help for usage."))?
+    };
 
     // Get input data
     let data = if args.null_input {
