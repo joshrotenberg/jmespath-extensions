@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.2.2...v0.2.3) - 2025-12-07
+
+### Added
+
+- add JEP reference field and improve documentation ([#24](https://github.com/joshrotenberg/jmespath-extensions/pull/24))
+- add FunctionRegistry for runtime control and introspection ([#22](https://github.com/joshrotenberg/jmespath-extensions/pull/22))
+
 ## [0.2.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.2.1...v0.2.2) - 2025-12-06
 
 ### Other
