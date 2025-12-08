@@ -91,6 +91,10 @@ struct Args {
     /// Show detailed info for a specific function
     #[arg(long, value_name = "FUNCTION")]
     describe: Option<String>,
+
+    /// Strict mode - only use standard JMESPath functions (no extensions)
+    #[arg(long)]
+    strict: bool,
 }
 
 fn main() -> Result<()> {
@@ -169,13 +173,18 @@ fn main() -> Result<()> {
         }
     };
 
-    // Create runtime with extensions
+    // Create runtime with extensions (unless strict mode)
     let mut runtime = Runtime::new();
     runtime.register_builtin_functions();
-    register_all(&mut runtime);
+    if !args.strict {
+        register_all(&mut runtime);
+    }
 
     // Verbose mode: show input info
     if args.verbose {
+        if args.strict {
+            eprintln!("Mode: strict (standard JMESPath only)");
+        }
         eprintln!("Input: {}", describe_value(&Rc::new(data.clone())));
         if expressions.len() > 1 {
             eprintln!("Expressions: {} (chained)", expressions.len());
@@ -197,9 +206,20 @@ fn main() -> Result<()> {
             .with_context(|| format!("Failed to compile expression: {}", expression))?;
 
         let step_start = Instant::now();
-        result = expr
-            .search(&result)
-            .context("Failed to evaluate expression")?;
+        result = match expr.search(&result) {
+            Ok(r) => r,
+            Err(e) => {
+                let err_msg = e.to_string();
+                // Provide helpful hint if using strict mode and function is undefined
+                if args.strict && err_msg.contains("undefined function") {
+                    return Err(anyhow::anyhow!(
+                        "{}\n\nHint: You are using --strict mode which only allows standard JMESPath functions.\nRemove --strict to use extension functions.",
+                        err_msg
+                    ));
+                }
+                return Err(anyhow::anyhow!("Failed to evaluate expression: {}", e));
+            }
+        };
         let step_elapsed = step_start.elapsed();
 
         if args.verbose {
