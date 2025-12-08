@@ -1389,8 +1389,8 @@ fn add_thousand_separators(s: &str) -> String {
     let dec_part = parts.get(1);
 
     // Handle negative sign
-    let (sign, digits) = if int_part.starts_with('-') {
-        ("-", &int_part[1..])
+    let (sign, digits) = if let Some(stripped) = int_part.strip_prefix('-') {
+        ("-", stripped)
     } else {
         ("", int_part)
     };
