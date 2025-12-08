@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.2.3...v0.3.0) - 2025-12-08
+
+### Added
+
+- add cargo-dist for binary releases ([#83](https://github.com/joshrotenberg/jmespath-extensions/pull/83))
+- promote jpx to workspace member for crates.io publishing ([#80](https://github.com/joshrotenberg/jmespath-extensions/pull/80))
+- *(jpx)* add environment variable configuration support ([#79](https://github.com/joshrotenberg/jmespath-extensions/pull/79))
+- *(jpx)* add --strict mode for spec-only JMESPath ([#78](https://github.com/joshrotenberg/jmespath-extensions/pull/78))
+- add alias and feature metadata to function registry ([#77](https://github.com/joshrotenberg/jmespath-extensions/pull/77))
+- add lodash-style FP functions ([#73](https://github.com/joshrotenberg/jmespath-extensions/pull/73))
+- add deep_equals and deep_diff functions ([#72](https://github.com/joshrotenberg/jmespath-extensions/pull/72))
+- *(jpx)* add verbose mode, query chaining, and shell completions ([#70](https://github.com/joshrotenberg/jmespath-extensions/pull/70))
+- *(jpx)* add -o/--output and -q/--quiet flags ([#53](https://github.com/joshrotenberg/jmespath-extensions/pull/53))
+- add to_fixed and format_number functions ([#52](https://github.com/joshrotenberg/jmespath-extensions/pull/52))
+- *(jpx)* add --query-file / -Q flag ([#51](https://github.com/joshrotenberg/jmespath-extensions/pull/51))
+- add new math and string functions ([#50](https://github.com/joshrotenberg/jmespath-extensions/pull/50))
+- *(jpx)* customize color scheme for better visibility ([#42](https://github.com/joshrotenberg/jmespath-extensions/pull/42))
+- *(jpx)* add colored JSON output ([#41](https://github.com/joshrotenberg/jmespath-extensions/pull/41))
+- add jpx CLI enhancements and json_pointer function ([#40](https://github.com/joshrotenberg/jmespath-extensions/pull/40))
+
+### Fixed
+
+- use correct [[package]] array syntax in release-plz.toml ([#86](https://github.com/joshrotenberg/jmespath-extensions/pull/86))
+- remove invalid allow_dirty option from release-plz.toml ([#85](https://github.com/joshrotenberg/jmespath-extensions/pull/85))
+- correct rust-toolchain action name in release-plz.yml ([#84](https://github.com/joshrotenberg/jmespath-extensions/pull/84))
+- specify benchmark name to avoid --noplot being passed to lib tests ([#26](https://github.com/joshrotenberg/jmespath-extensions/pull/26))
+
+### Other
+
+- enhance expression function descriptions in registry ([#82](https://github.com/joshrotenberg/jmespath-extensions/pull/82))
+- comprehensive documentation audit fixes ([#81](https://github.com/joshrotenberg/jmespath-extensions/pull/81))
+
 ## [0.2.3](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.2.2...v0.2.3) - 2025-12-07
 
 ### Added

@@ -25,7 +25,7 @@ allow-dirty = ["ci"]
 
 [package]
 name = "jmespath_extensions"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2024"
 authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
 description = "Extended functions for JMESPath queries - 150+ functions for strings, arrays, dates, hashing, encoding, geo, and more"

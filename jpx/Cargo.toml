@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 jmespath = "0.4"
-jmespath_extensions = { path = "..", version = "0.2.3", features = ["full"] }
+jmespath_extensions = { path = "..", version = "0.3.0", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
 serde = "1.0"
