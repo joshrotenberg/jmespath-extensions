@@ -1430,11 +1430,12 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_round() {
         let runtime = setup_runtime();
         let expr = runtime.compile("round(`3.14159`, `2`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert!((result.as_number().unwrap() - 3.14).abs() < 0.001);
+        assert!((result.as_number().unwrap() - 3.14_f64).abs() < 0.001);
     }
 
     #[test]
