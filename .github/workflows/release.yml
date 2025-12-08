@@ -222,7 +222,7 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          # Convert jpx-v0.1.0 to v0.1.0
+          # Convert jpx-v0.1.1 to v0.1.1 for homebrew action
           VERSION="${GITHUB_REF_NAME#jpx-}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Update Homebrew formula
@@ -231,7 +231,8 @@ jobs:
           formula-name: jpx
           formula-path: Formula/jpx.rb
           homebrew-tap: joshrotenberg/homebrew-brew
-          tag-name: ${{ github.ref_name }}
+          # Use clean version (v0.1.1) not full tag (jpx-v0.1.1) for version comparison
+          tag-name: ${{ steps.version.outputs.version }}
           # cargo-dist names assets as jpx-<target>.tar.xz (no version in filename)
           download-url: https://github.com/joshrotenberg/jmespath-extensions/releases/download/${{ github.ref_name }}/jpx-x86_64-apple-darwin.tar.xz
         env:
