@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.0...v0.3.1) - 2025-12-08
+
+### Fixed
+
+- enable GitHub release creation for jmespath_extensions library ([#91](https://github.com/joshrotenberg/jmespath-extensions/pull/91))
+- only trigger binary release workflow for jpx tags ([#90](https://github.com/joshrotenberg/jmespath-extensions/pull/90))
+- correct homebrew asset URL to match cargo-dist naming ([#88](https://github.com/joshrotenberg/jmespath-extensions/pull/88))
+
+### Other
+
+- add crates.io badges to jpx README ([#89](https://github.com/joshrotenberg/jmespath-extensions/pull/89))
+
 ## [0.3.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.2.3...v0.3.0) - 2025-12-08
 
 ### Added
