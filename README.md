@@ -104,30 +104,43 @@ This enables:
 - **ACL support**: Disable specific functions for security policies
 - **Introspection**: Query available functions with signatures, descriptions, examples, and whether they are standard JMESPath or extensions
 
-## CLI Tool
+## CLI Tool: jpx
 
-The `jpx` CLI tool in `examples/jpx/` lets you experiment with all functions from the command line:
+The `jpx` CLI tool lets you experiment with all functions from the command line:
 
 ```bash
-cd examples/jpx && cargo install --path .
+# Install from crates.io
+cargo install jpx
 
+# Or from source
+cd jpx && cargo install --path .
+```
+
+```bash
 # String functions
 echo '{"name": "hello"}' | jpx 'upper(name)'
 # "HELLO"
+
+# Expression functions (the novel stuff!)
+echo '{"users": [{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]}' \
+  | jpx 'filter_expr(users, &age > `26`) | [].name'
+# ["alice"]
 
 # Duration parsing
 echo '{"d": "1h30m"}' | jpx 'parse_duration(d)'
 # 5400.0
 
-# Color manipulation
-echo '{"c": "#ff5500"}' | jpx 'hex_to_rgb(c)'
-# {"r": 255, "g": 85, "b": 0}
+# Strict mode - only standard JMESPath functions
+echo '[1, 2, 3]' | jpx --strict 'length(@)'
+# 3
 
-# List all available functions
-jpx --list-functions
+# Function discovery
+jpx --list-functions           # List all 189+ functions
+jpx --list-category expression # List expression functions
+jpx --describe map_expr        # Detailed function info
 ```
 
-See [examples/jpx/README.md](examples/jpx/README.md) for full documentation and example queries.
+See [jpx/README.md](jpx/README.md) for full documentation.
 
 ## Features
 

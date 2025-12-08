@@ -86,6 +86,20 @@ pub fn register(runtime: &mut Runtime) {
 // map_expr(expr, array) -> array
 // =============================================================================
 
+/// Apply a JMESPath expression to each element of an array.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string to evaluate against each element
+/// * `array` - The array to map over
+///
+/// # Returns
+/// A new array containing the result of applying the expression to each element.
+///
+/// # Example
+/// ```text
+/// map_expr('name', [{"name": "Alice"}, {"name": "Bob"}]) -> ["Alice", "Bob"]
+/// map_expr('@ * `2`', [1, 2, 3]) -> [2, 4, 6]
+/// ```
 pub struct MapExprFn {
     signature: Signature,
 }
@@ -132,6 +146,20 @@ impl Function for MapExprFn {
 // filter_expr(expr, array) -> array
 // =============================================================================
 
+/// Filter an array, keeping elements where the expression evaluates to a truthy value.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to filter
+///
+/// # Returns
+/// A new array containing only elements where the expression was truthy.
+///
+/// # Example
+/// ```text
+/// filter_expr('age >= `18`', [{"age": 25}, {"age": 17}]) -> [{"age": 25}]
+/// filter_expr('@ > `2`', [1, 2, 3, 4]) -> [3, 4]
+/// ```
 pub struct FilterExprFn {
     signature: Signature,
 }
@@ -181,6 +209,20 @@ impl Function for FilterExprFn {
 // any_expr(expr, array) -> bool
 // =============================================================================
 
+/// Check if any element in the array matches the expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to check
+///
+/// # Returns
+/// `true` if at least one element produces a truthy result, `false` otherwise.
+///
+/// # Example
+/// ```text
+/// any_expr('@ > `5`', [1, 2, 10]) -> true
+/// any_expr('@ > `5`', [1, 2, 3]) -> false
+/// ```
 pub struct AnyExprFn {
     signature: Signature,
 }
@@ -229,6 +271,21 @@ impl Function for AnyExprFn {
 // all_expr(expr, array) -> bool
 // =============================================================================
 
+/// Check if all elements in the array match the expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to check
+///
+/// # Returns
+/// `true` if every element produces a truthy result, `false` otherwise.
+/// Returns `true` for empty arrays.
+///
+/// # Example
+/// ```text
+/// all_expr('@ > `0`', [1, 2, 3]) -> true
+/// all_expr('@ > `0`', [1, -1, 3]) -> false
+/// ```
 pub struct AllExprFn {
     signature: Signature,
 }
@@ -282,6 +339,20 @@ impl Function for AllExprFn {
 // find_expr(expr, array) -> element | null
 // =============================================================================
 
+/// Find the first element in the array that matches the expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to search
+///
+/// # Returns
+/// The first element where the expression is truthy, or `null` if none match.
+///
+/// # Example
+/// ```text
+/// find_expr('@ > `5`', [1, 3, 7, 9]) -> 7
+/// find_expr('@ > `10`', [1, 3, 7, 9]) -> null
+/// ```
 pub struct FindExprFn {
     signature: Signature,
 }
@@ -330,6 +401,20 @@ impl Function for FindExprFn {
 // find_index_expr(expr, array) -> number | null
 // =============================================================================
 
+/// Find the index of the first element that matches the expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to search
+///
+/// # Returns
+/// The zero-based index of the first matching element, or `-1` if none match.
+///
+/// # Example
+/// ```text
+/// find_index_expr('@ > `5`', [1, 3, 7, 9]) -> 2
+/// find_index_expr('@ > `10`', [1, 3, 7, 9]) -> -1
+/// ```
 pub struct FindIndexExprFn {
     signature: Signature,
 }
@@ -382,6 +467,20 @@ impl Function for FindIndexExprFn {
 // count_expr(expr, array) -> number
 // =============================================================================
 
+/// Count elements in the array where the expression is truthy.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to count matches in
+///
+/// # Returns
+/// The number of elements where the expression evaluated to a truthy value.
+///
+/// # Example
+/// ```text
+/// count_expr('@ > `2`', [1, 2, 3, 4, 5]) -> 3
+/// count_expr('active', [{"active": true}, {"active": false}]) -> 1
+/// ```
 pub struct CountExprFn {
     signature: Signature,
 }
@@ -433,6 +532,20 @@ impl Function for CountExprFn {
 // sort_by_expr(expr, array) -> array
 // =============================================================================
 
+/// Sort an array by the result of applying an expression to each element.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that extracts a sort key from each element
+/// * `array` - The array to sort
+///
+/// # Returns
+/// A new array sorted by the expression result in ascending order.
+///
+/// # Example
+/// ```text
+/// sort_by_expr('age', [{"age": 30}, {"age": 20}]) -> [{"age": 20}, {"age": 30}]
+/// sort_by_expr('name', [{"name": "Bob"}, {"name": "Alice"}]) -> [{"name": "Alice"}, {"name": "Bob"}]
+/// ```
 pub struct SortByExprFn {
     signature: Signature,
 }
@@ -485,6 +598,20 @@ impl Function for SortByExprFn {
 // group_by_expr(expr, array) -> object
 // =============================================================================
 
+/// Group array elements by the result of applying an expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that extracts a grouping key from each element
+/// * `array` - The array to group
+///
+/// # Returns
+/// An object where keys are the stringified expression results and values are arrays of matching elements.
+///
+/// # Example
+/// ```text
+/// group_by_expr('type', [{"type": "a", "v": 1}, {"type": "b", "v": 2}, {"type": "a", "v": 3}])
+///   -> {"a": [{"type": "a", "v": 1}, {"type": "a", "v": 3}], "b": [{"type": "b", "v": 2}]}
+/// ```
 pub struct GroupByExprFn {
     signature: Signature,
 }
@@ -546,6 +673,21 @@ impl Function for GroupByExprFn {
 // partition_expr(expr, array) -> [matches, non_matches]
 // =============================================================================
 
+/// Partition an array into two arrays based on an expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to partition
+///
+/// # Returns
+/// A two-element array: `[matches, non_matches]` where `matches` contains elements
+/// where the expression was truthy, and `non_matches` contains the rest.
+///
+/// # Example
+/// ```text
+/// partition_expr('@ > `2`', [1, 2, 3, 4]) -> [[3, 4], [1, 2]]
+/// partition_expr('active', [{active: true}, {active: false}]) -> [[{active: true}], [{active: false}]]
+/// ```
 pub struct PartitionExprFn {
     signature: Signature,
 }
@@ -602,6 +744,20 @@ impl Function for PartitionExprFn {
 // min_by_expr(expr, array) -> element | null
 // =============================================================================
 
+/// Find the element with the minimum value when applying an expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that extracts a comparable value from each element
+/// * `array` - The array to search
+///
+/// # Returns
+/// The element with the smallest expression result, or `null` for empty arrays.
+///
+/// # Example
+/// ```text
+/// min_by_expr('age', [{"age": 30}, {"age": 20}, {"age": 25}]) -> {"age": 20}
+/// min_by_expr('@', [5, 2, 8, 1]) -> 1
+/// ```
 pub struct MinByExprFn {
     signature: Signature,
 }
@@ -658,6 +814,20 @@ impl Function for MinByExprFn {
 // max_by_expr(expr, array) -> element | null
 // =============================================================================
 
+/// Find the element with the maximum value when applying an expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that extracts a comparable value from each element
+/// * `array` - The array to search
+///
+/// # Returns
+/// The element with the largest expression result, or `null` for empty arrays.
+///
+/// # Example
+/// ```text
+/// max_by_expr('age', [{"age": 30}, {"age": 20}, {"age": 25}]) -> {"age": 30}
+/// max_by_expr('@', [5, 2, 8, 1]) -> 8
+/// ```
 pub struct MaxByExprFn {
     signature: Signature,
 }
@@ -714,6 +884,20 @@ impl Function for MaxByExprFn {
 // unique_by_expr(expr, array) -> array
 // =============================================================================
 
+/// Remove duplicate elements based on the result of an expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that extracts a uniqueness key from each element
+/// * `array` - The array to deduplicate
+///
+/// # Returns
+/// A new array with duplicates removed, keeping the first occurrence of each unique key.
+///
+/// # Example
+/// ```text
+/// unique_by_expr('id', [{"id": 1, "v": "a"}, {"id": 2, "v": "b"}, {"id": 1, "v": "c"}])
+///   -> [{"id": 1, "v": "a"}, {"id": 2, "v": "b"}]
+/// ```
 pub struct UniqueByExprFn {
     signature: Signature,
 }
@@ -766,6 +950,20 @@ impl Function for UniqueByExprFn {
 // flat_map_expr(expr, array) -> array
 // =============================================================================
 
+/// Apply an expression to each element and flatten the results.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns an array for each element
+/// * `array` - The array to flat-map over
+///
+/// # Returns
+/// A single array containing all elements from the results concatenated together.
+///
+/// # Example
+/// ```text
+/// flat_map_expr('tags', [{"tags": ["a", "b"]}, {"tags": ["c"]}]) -> ["a", "b", "c"]
+/// flat_map_expr('@', [[1, 2], [3, 4]]) -> [1, 2, 3, 4]
+/// ```
 pub struct FlatMapExprFn {
     signature: Signature,
 }
@@ -834,7 +1032,10 @@ fn value_to_string(value: &Rcvar) -> String {
     }
 }
 
-/// Convert a Variable to a serde_json::Value
+/// Convert a Variable to a serde_json::Value for JSON serialization.
+///
+/// Handles all Variable types including nested arrays and objects.
+/// Expression references are converted to null.
 fn variable_to_json(value: &Rcvar) -> serde_json::Value {
     match value.as_ref() {
         Variable::String(s) => serde_json::Value::String(s.clone()),
@@ -855,7 +1056,15 @@ fn variable_to_json(value: &Rcvar) -> serde_json::Value {
     }
 }
 
-/// Check if a value is truthy (JMESPath semantics)
+/// Check if a value is truthy according to JMESPath semantics.
+///
+/// JMESPath truthiness rules:
+/// - `null` is falsy
+/// - `false` is falsy
+/// - Empty string `""` is falsy
+/// - Empty array `[]` is falsy
+/// - Empty object `{}` is falsy
+/// - All other values (numbers, non-empty strings/arrays/objects, true) are truthy
 fn is_truthy(value: &Rcvar) -> bool {
     match value.as_ref() {
         Variable::Null => false,
@@ -868,7 +1077,13 @@ fn is_truthy(value: &Rcvar) -> bool {
     }
 }
 
-/// Compare two values for sorting
+/// Compare two values for sorting purposes.
+///
+/// Comparison rules:
+/// - Numbers are compared numerically
+/// - Strings are compared lexicographically
+/// - `null` sorts before all other values
+/// - Mixed types compare as equal (stable sort preserves original order)
 fn compare_values(a: &Rcvar, b: &Rcvar) -> std::cmp::Ordering {
     use std::cmp::Ordering;
 
@@ -890,6 +1105,20 @@ fn compare_values(a: &Rcvar, b: &Rcvar) -> std::cmp::Ordering {
 // reject(expr, array) -> array (inverse of filter_expr)
 // =============================================================================
 
+/// Filter an array, keeping elements where the expression is falsy (inverse of filter_expr).
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to filter
+///
+/// # Returns
+/// A new array containing only elements where the expression was falsy.
+///
+/// # Example
+/// ```text
+/// reject('@ > `2`', [1, 2, 3, 4]) -> [1, 2]
+/// reject('active', [{"active": true}, {"active": false}]) -> [{"active": false}]
+/// ```
 pub struct RejectFn {
     signature: Signature,
 }
@@ -940,6 +1169,20 @@ impl Function for RejectFn {
 
 use std::collections::BTreeMap;
 
+/// Transform the keys of an object by applying an expression to each key.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that transforms each key (key is passed as `@`)
+/// * `object` - The object whose keys to transform
+///
+/// # Returns
+/// A new object with transformed keys and original values.
+///
+/// # Example
+/// ```text
+/// map_keys('upper(@)', {"a": 1, "b": 2}) -> {"A": 1, "B": 2}
+/// map_keys('@ & "_suffix"', {"foo": 1}) -> {"foo_suffix": 1}
+/// ```
 pub struct MapKeysFn {
     signature: Signature,
 }
@@ -994,6 +1237,20 @@ impl Function for MapKeysFn {
 // map_values(expr, object) -> object
 // =============================================================================
 
+/// Transform the values of an object by applying an expression to each value.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that transforms each value (value is passed as `@`)
+/// * `object` - The object whose values to transform
+///
+/// # Returns
+/// A new object with original keys and transformed values.
+///
+/// # Example
+/// ```text
+/// map_values('@ * `2`', {"a": 1, "b": 2}) -> {"a": 2, "b": 4}
+/// map_values('upper(@)', {"x": "hello", "y": "world"}) -> {"x": "HELLO", "y": "WORLD"}
+/// ```
 pub struct MapValuesFn {
     signature: Signature,
 }

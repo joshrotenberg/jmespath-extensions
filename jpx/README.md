@@ -23,6 +23,7 @@ Arguments:
   [EXPRESSION]  JMESPath expression to evaluate
 
 Options:
+  -e, --expression <EXPR>     Expression(s) to evaluate (can be chained)
   -Q, --query-file <FILE>     Read JMESPath expression from file
   -f, --file <FILE>           Input file (reads from stdin if not provided)
   -r, --raw                   Output raw strings without quotes
@@ -30,11 +31,40 @@ Options:
   -n, --null-input            Don't read input, use null as input value
   -s, --slurp                 Read all inputs into an array
       --color <MODE>          Colorize output (auto, always, never)
+  -o, --output <FILE>         Output file (writes to stdout if not provided)
+  -q, --quiet                 Suppress errors and warnings
+  -v, --verbose               Show expression details and timing
+      --strict                Strict mode - only standard JMESPath (no extensions)
+      --completions <SHELL>   Generate shell completions (bash, zsh, fish, powershell)
       --list-functions        List all available extension functions
       --list-category <NAME>  List functions in a specific category
       --describe <FUNCTION>   Show detailed info for a specific function
   -h, --help                  Print help
   -V, --version               Print version
+```
+
+## Environment Variables
+
+Configure jpx defaults via environment variables (CLI flags take precedence):
+
+| Variable | Description |
+|----------|-------------|
+| `JPX_VERBOSE=1` | Enable verbose mode |
+| `JPX_QUIET=1` | Enable quiet mode |
+| `JPX_STRICT=1` | Enable strict mode (standard JMESPath only) |
+| `JPX_RAW=1` | Output raw strings without quotes |
+| `JPX_COMPACT=1` | Compact output (no pretty printing) |
+
+```bash
+# Set defaults in your shell profile
+export JPX_RAW=1        # Always output raw strings
+
+# Temporarily use strict mode
+JPX_STRICT=1 jpx 'length(@)' data.json
+
+# Unset to use extensions again
+unset JPX_STRICT
+jpx 'upper(name)' data.json  # Extension functions work
 ```
 
 ## Function Discovery
