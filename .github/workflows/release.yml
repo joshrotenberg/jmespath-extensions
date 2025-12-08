@@ -232,6 +232,7 @@ jobs:
           formula-path: Formula/jpx.rb
           homebrew-tap: joshrotenberg/homebrew-brew
           tag-name: ${{ github.ref_name }}
-          download-url: https://github.com/joshrotenberg/jmespath-extensions/releases/download/${{ github.ref_name }}/jpx-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tar.gz
+          # cargo-dist names assets as jpx-<target>.tar.xz (no version in filename)
+          download-url: https://github.com/joshrotenberg/jmespath-extensions/releases/download/${{ github.ref_name }}/jpx-x86_64-apple-darwin.tar.xz
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
