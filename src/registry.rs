@@ -2062,6 +2062,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "every('@ > `0`', [1, 2, 3]) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "some",
@@ -2071,6 +2073,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "some('@ > `2`', [1, 2, 3]) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "reject",
@@ -2080,6 +2084,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "reject('@ > `2`', [1, 2, 3, 4]) -> [1, 2]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "map_keys",
@@ -2089,6 +2095,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "map_keys('upper(@)', {a: 1}) -> {A: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "map_values",
@@ -2098,6 +2106,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "map_values('@ * `2`', {a: 1, b: 2}) -> {a: 2, b: 4}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "find_expr",
@@ -3483,16 +3493,20 @@ mod tests {
         let mut registry = FunctionRegistry::new();
         registry.register_category(Category::Expression);
 
-        // Look up by alias
-        let info = registry.get_function_by_name_or_alias("some").unwrap();
-        assert_eq!(info.name, "any_expr");
+        // Look up by alias - filter_expr has alias "filter"
+        let info = registry.get_function_by_name_or_alias("filter").unwrap();
+        assert_eq!(info.name, "filter_expr");
 
-        let info = registry.get_function_by_name_or_alias("every").unwrap();
-        assert_eq!(info.name, "all_expr");
-
-        // Direct lookup still works
+        // Direct lookup works
         let info = registry.get_function_by_name_or_alias("any_expr").unwrap();
         assert_eq!(info.name, "any_expr");
+
+        // some and every are standalone functions (not just aliases)
+        let info = registry.get_function_by_name_or_alias("some").unwrap();
+        assert_eq!(info.name, "some");
+
+        let info = registry.get_function_by_name_or_alias("every").unwrap();
+        assert_eq!(info.name, "every");
     }
 
     #[test]
