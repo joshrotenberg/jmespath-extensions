@@ -4,8 +4,6 @@ changelog_update = true
 git_tag_enable = true
 # Validate semantic versioning
 semver_check = true
-# Allow dirty working directory (cargo-dist modifies CI files)
-allow_dirty = ["ci"]
 # PR configuration
 pr_labels = ["release"]
 
