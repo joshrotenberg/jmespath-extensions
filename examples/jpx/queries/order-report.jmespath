@@ -1,0 +1,16 @@
+{
+  summary: {
+    total_orders: length(@),
+    total_revenue: sum(@[].total),
+    average_order: divide(sum(@[].total), length(@))
+  },
+  by_status: {
+    pending: length(@[?status == 'pending']),
+    shipped: length(@[?status == 'shipped']),
+    delivered: length(@[?status == 'delivered'])
+  },
+  top_orders: sort_by(@, &total) | reverse(@) | [:3].{
+    id: id,
+    total: to_fixed(total, `2`)
+  }
+}

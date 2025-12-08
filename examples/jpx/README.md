@@ -22,9 +22,13 @@ Arguments:
   [EXPRESSION]  JMESPath expression to evaluate
 
 Options:
+  -Q, --query-file <FILE>     Read JMESPath expression from file
   -f, --file <FILE>           Input file (reads from stdin if not provided)
   -r, --raw                   Output raw strings without quotes
   -c, --compact               Compact output (no pretty printing)
+  -n, --null-input            Don't read input, use null as input value
+  -s, --slurp                 Read all inputs into an array
+      --color <MODE>          Colorize output (auto, always, never)
       --list-functions        List all available extension functions
       --list-category <NAME>  List functions in a specific category
       --describe <FUNCTION>   Show detailed info for a specific function
@@ -362,6 +366,36 @@ jpx -f testdata/locations.json 'haversine_km([0].lat, [0].lon, [1].lat, [1].lon)
 # Versions
 jpx -f testdata/packages.json 'sort_by_expr(@, &semver_parse(version).major)'
 ```
+
+## Using Query Files
+
+For complex queries, you can store the JMESPath expression in a file and use `-Q` / `--query-file`:
+
+```bash
+# Create a query file
+cat > transform.jmespath << 'EOF'
+{
+  users: @[?active].{
+    name: name,
+    email: contact.email,
+    joined: format_date(created_at, '%Y-%m-%d')
+  },
+  total: length(@[?active]),
+  generated: now()
+}
+EOF
+
+# Run the query
+jpx -Q transform.jmespath -f users.json
+```
+
+Benefits of query files:
+- Easier to write and edit complex expressions
+- Can be version controlled
+- Reusable across different data files
+- No shell escaping issues
+
+See the `queries/` directory for example query files.
 
 ## Tips
 
