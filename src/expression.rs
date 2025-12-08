@@ -1460,6 +1460,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "string")]
     fn test_map_values_with_string_fns() {
         // Full integration test with string functions
         let mut runtime = Runtime::new();
@@ -1476,6 +1477,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "string")]
     fn test_map_keys_with_string_fns() {
         // Full integration test with string functions
         let mut runtime = Runtime::new();
