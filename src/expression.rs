@@ -21,6 +21,11 @@
 //! | `max_by_expr(expr, array)` | Element with maximum expression value |
 //! | `unique_by_expr(expr, array)` | Dedupe by expression result |
 //! | `flat_map_expr(expr, array)` | Map and flatten results |
+//! | `some(expr, array)` | Alias for any_expr (lodash-style) |
+//! | `every(expr, array)` | Alias for all_expr (lodash-style) |
+//! | `reject(expr, array)` | Keep elements where expression is falsy |
+//! | `map_keys(expr, object)` | Transform object keys using expression |
+//! | `map_values(expr, object)` | Transform object values using expression |
 //!
 //! # Examples
 //!
@@ -68,6 +73,13 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("max_by_expr", Box::new(MaxByExprFn::new()));
     runtime.register_function("unique_by_expr", Box::new(UniqueByExprFn::new()));
     runtime.register_function("flat_map_expr", Box::new(FlatMapExprFn::new()));
+
+    // Lodash-style aliases
+    runtime.register_function("some", Box::new(AnyExprFn::new()));
+    runtime.register_function("every", Box::new(AllExprFn::new()));
+    runtime.register_function("reject", Box::new(RejectFn::new()));
+    runtime.register_function("map_keys", Box::new(MapKeysFn::new()));
+    runtime.register_function("map_values", Box::new(MapValuesFn::new()));
 }
 
 // =============================================================================
@@ -874,6 +886,157 @@ fn compare_values(a: &Rcvar, b: &Rcvar) -> std::cmp::Ordering {
     }
 }
 
+// =============================================================================
+// reject(expr, array) -> array (inverse of filter_expr)
+// =============================================================================
+
+pub struct RejectFn {
+    signature: Signature,
+}
+
+impl Default for RejectFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RejectFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Array], None),
+        }
+    }
+}
+
+impl Function for RejectFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr = args[1].as_array().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e.to_string()))
+        })?;
+
+        let mut result = Vec::new();
+        for item in arr {
+            let matched = compiled.search(item).map_err(|e| {
+                JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e.to_string()))
+            })?;
+            // Keep items where expression is falsy (inverse of filter)
+            if !is_truthy(&matched) {
+                result.push(item.clone());
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// map_keys(expr, object) -> object
+// =============================================================================
+
+use std::collections::BTreeMap;
+
+pub struct MapKeysFn {
+    signature: Signature,
+}
+
+impl Default for MapKeysFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MapKeysFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Object], None),
+        }
+    }
+}
+
+impl Function for MapKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let obj = args[1].as_object().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e.to_string()))
+        })?;
+
+        let mut result: BTreeMap<String, Rcvar> = BTreeMap::new();
+        for (key, value) in obj.iter() {
+            // Apply expression to the key
+            let key_var = Rc::new(Variable::String(key.clone()));
+            let new_key = compiled.search(&key_var).map_err(|e| {
+                JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e.to_string()))
+            })?;
+
+            let new_key_str = match &*new_key {
+                Variable::String(s) => s.clone(),
+                Variable::Number(n) => n.to_string(),
+                _ => key.clone(), // Keep original if result isn't a string/number
+            };
+
+            result.insert(new_key_str, value.clone());
+        }
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+// =============================================================================
+// map_values(expr, object) -> object
+// =============================================================================
+
+pub struct MapValuesFn {
+    signature: Signature,
+}
+
+impl Default for MapValuesFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MapValuesFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Object], None),
+        }
+    }
+}
+
+impl Function for MapValuesFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let obj = args[1].as_object().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e.to_string()))
+        })?;
+
+        let mut result: BTreeMap<String, Rcvar> = BTreeMap::new();
+        for (key, value) in obj.iter() {
+            // Apply expression to the value
+            let new_value = compiled.search(value).map_err(|e| {
+                JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e.to_string()))
+            })?;
+
+            result.insert(key.clone(), new_value);
+        }
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1217,5 +1380,116 @@ mod tests {
         let arr = result.as_array().unwrap();
         assert_eq!(arr.len(), 2);
         assert_eq!(arr[0].as_string().unwrap(), "Alice");
+    }
+
+    #[test]
+    fn test_some_alias() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("some('@ > `3`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_every_alias() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[2, 4, 6]"#).unwrap();
+        let expr = runtime.compile("every('@ > `0`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_reject() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("reject('@ > `2`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2); // 1, 2
+        assert_eq!(arr[0].as_number().unwrap(), 1.0);
+        assert_eq!(arr[1].as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_reject_objects() {
+        let runtime = setup();
+        let data =
+            Variable::from_json(r#"[{"active": true}, {"active": false}, {"active": true}]"#)
+                .unwrap();
+        let expr = runtime.compile("reject('active', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1); // Only the inactive one
+    }
+
+    #[test]
+    fn test_map_keys() {
+        let runtime = setup();
+        // Use length to transform key to its length (as string)
+        let data = Variable::from_json(r#"{"abc": 1, "de": 2}"#).unwrap();
+        let expr = runtime.compile("map_keys('length(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        // "abc" -> 3, "de" -> 2 (converted to string keys)
+        assert!(obj.contains_key("3") || obj.contains_key("2"));
+    }
+
+    #[test]
+    fn test_map_values_add() {
+        let runtime = setup();
+        // Use sum to double values - sum of array with value twice
+        let data = Variable::from_json(r#"{"a": 1, "b": 2, "c": 3}"#).unwrap();
+        let expr = runtime.compile("map_values('sum(`[1]`)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        // Each value becomes 1 (sum of [1])
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_map_values_length() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"name": "alice", "city": "boston"}"#).unwrap();
+        let expr = runtime.compile("map_values('length(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("name").unwrap().as_number().unwrap(), 5.0); // "alice" = 5 chars
+        assert_eq!(obj.get("city").unwrap().as_number().unwrap(), 6.0); // "boston" = 6 chars
+    }
+
+    #[test]
+    #[cfg(feature = "string")]
+    fn test_map_values_with_string_fns() {
+        // Full integration test with string functions
+        let mut runtime = Runtime::new();
+        runtime.register_builtin_functions();
+        register(&mut runtime);
+        crate::string::register(&mut runtime);
+
+        let data = Variable::from_json(r#"{"name": "alice", "city": "boston"}"#).unwrap();
+        let expr = runtime.compile("map_values('upper(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "ALICE");
+        assert_eq!(obj.get("city").unwrap().as_string().unwrap(), "BOSTON");
+    }
+
+    #[test]
+    #[cfg(feature = "string")]
+    fn test_map_keys_with_string_fns() {
+        // Full integration test with string functions
+        let mut runtime = Runtime::new();
+        runtime.register_builtin_functions();
+        register(&mut runtime);
+        crate::string::register(&mut runtime);
+
+        let data = Variable::from_json(r#"{"hello": 1, "world": 2}"#).unwrap();
+        let expr = runtime.compile("map_keys('upper(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("HELLO"));
+        assert!(obj.contains_key("WORLD"));
     }
 }
