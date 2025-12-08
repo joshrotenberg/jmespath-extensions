@@ -109,11 +109,15 @@ This enables:
 The `jpx` CLI tool lets you experiment with all functions from the command line:
 
 ```bash
+# Install via Homebrew (macOS/Linux)
+brew tap joshrotenberg/brew
+brew install jpx
+
 # Install from crates.io
 cargo install jpx
 
-# Or from source
-cd jpx && cargo install --path .
+# Install pre-built binaries (macOS, Linux, Windows)
+# See https://github.com/joshrotenberg/jmespath-extensions/releases
 ```
 
 ```bash

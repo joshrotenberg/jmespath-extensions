@@ -1,6 +1,28 @@
 [workspace]
 members = [".", "jpx"]
 
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI
+cargo-dist-version = "0.30.2"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell"]
+# Target platforms to build for
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# Which actions to run on pull requests
+pr-run-mode = "plan"
+# Whether to consider the binaries in a package for distribution
+# Only jpx (the CLI) should produce binaries
+install-path = "CARGO_HOME"
+# Don't generate an updater
+install-updater = false
+# Whether to auto-include files like READMEs, LICENSEs, and CHANGELOGs
+auto-includes = true
+# Allow CI scripts to be manually modified
+allow-dirty = ["ci"]
+
 [package]
 name = "jmespath_extensions"
 version = "0.2.3"
@@ -77,3 +99,8 @@ criterion = { version = "0.5", features = ["html_reports"] }
 [[bench]]
 name = "functions"
 harness = false
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

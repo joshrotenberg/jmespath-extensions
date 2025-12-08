@@ -5,6 +5,13 @@ A command-line tool for querying JSON data using JMESPath expressions with 189 a
 ## Installation
 
 ```bash
+# Homebrew (macOS/Linux)
+brew tap joshrotenberg/brew
+brew install jpx
+
+# Pre-built binaries (macOS, Linux, Windows)
+# Download from https://github.com/joshrotenberg/jmespath-extensions/releases
+
 # From crates.io
 cargo install jpx
 
