@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.1...jpx-v0.1.2) - 2025-12-08
+
+### Fixed
+
+- correct function names in registry metadata ([#92](https://github.com/joshrotenberg/jmespath-extensions/pull/92))
+
 ## [0.1.1](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.0...jpx-v0.1.1) - 2025-12-08
 
 ### Other
