@@ -17,6 +17,17 @@ on:
     tags:
       # Only build binaries for jpx releases (library has no binaries)
       - "jpx-v[0-9]+.[0-9]+.[0-9]+*"
+  # Allow manual trigger (useful when release-plz creates tags via API)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g., jpx-v0.1.2)"
+        required: true
+        type: string
+
+env:
+  # Use input tag for manual dispatch, otherwise use the pushed tag
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   # Run 'dist plan' to determine what tasks we need to do
@@ -24,13 +35,14 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       val: ${{ steps.plan.outputs.manifest }}
-      tag: ${{ github.ref_name }}
-      tag-flag: ${{ format('--tag={0}', github.ref_name) }}
+      tag: ${{ inputs.tag || github.ref_name }}
+      tag-flag: ${{ format('--tag={0}', inputs.tag || github.ref_name) }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
       - name: Install dist
         shell: bash
@@ -71,6 +83,7 @@ jobs:
         run: git config --global core.longpaths true
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
       - name: Install Rust non-interactively if not already installed
         if: ${{ matrix.container }}
@@ -122,6 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
       - name: Install cached dist
         uses: actions/download-artifact@v4
@@ -167,6 +181,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
       - name: Install cached dist
         uses: actions/download-artifact@v4
@@ -216,14 +231,16 @@ jobs:
     needs:
       - host
     # Only run for jpx releases (not library releases)
-    if: ${{ startsWith(github.ref_name, 'jpx-v') }}
+    if: ${{ startsWith(inputs.tag || github.ref_name, 'jpx-v') }}
     runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Extract version
         id: version
         run: |
           # Convert jpx-v0.1.1 to v0.1.1 for homebrew action
-          VERSION="${GITHUB_REF_NAME#jpx-}"
+          VERSION="${TAG_NAME#jpx-}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Update Homebrew formula
         uses: mislav/bump-homebrew-formula-action@v3
@@ -234,6 +251,6 @@ jobs:
           # Use clean version (v0.1.1) not full tag (jpx-v0.1.1) for version comparison
           tag-name: ${{ steps.version.outputs.version }}
           # cargo-dist names assets as jpx-<target>.tar.xz (no version in filename)
-          download-url: https://github.com/joshrotenberg/jmespath-extensions/releases/download/${{ github.ref_name }}/jpx-x86_64-apple-darwin.tar.xz
+          download-url: https://github.com/joshrotenberg/jmespath-extensions/releases/download/${{ inputs.tag || github.ref_name }}/jpx-x86_64-apple-darwin.tar.xz
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
