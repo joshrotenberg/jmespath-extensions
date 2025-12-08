@@ -130,7 +130,7 @@ echo '{"name": "Hello World"}' | jpx 'snake_case(name)'
 echo '{"text": "  trim me  "}' | jpx -r 'trim(text)'
 # trim me
 
-echo '{"words": ["hello", "world"]}' | jpx -r 'join(", ", words)'
+echo '{"words": ["hello", "world"]}' | jpx -r 'join(`", "`, words)'
 # hello, world
 ```
 
@@ -156,17 +156,17 @@ echo '[10, 20, 30, 40, 50]' | jpx 'stddev(@)'
 ### Date/Time Functions
 
 ```bash
-# Current timestamp
+# Current Unix timestamp
 echo '{}' | jpx 'now()'
-# "2024-01-15T10:30:00Z"
+# 1705312200.0
 
-# Parse and format dates
-echo '{"date": "2024-01-15"}' | jpx 'format_date(parse_date(date, `%Y-%m-%d`), `%B %d, %Y`)'
-# "January 15, 2024"
+# Format a Unix timestamp
+echo '{"ts": 1705276800}' | jpx -r 'format_date(ts, `"%Y-%m-%d"`)'
+# 2024-01-15
 
-# Date arithmetic
-echo '{"date": "2024-01-15T00:00:00Z"}' | jpx 'date_add(date, `7`, `days`)'
-# "2024-01-22T00:00:00Z"
+# Date arithmetic (add 7 days to timestamp)
+echo '{"ts": 1705276800}' | jpx 'date_add(ts, `7`, `"days"`)'
+# 1705881600.0
 ```
 
 ### Duration Functions
@@ -243,13 +243,13 @@ echo '{"query": "hello world & more"}' | jpx -r 'url_encode(query)'
 ### Geo Functions
 
 ```bash
-# Calculate distance between coordinates
-echo '{"lat1": 40.7128, "lon1": -74.0060, "lat2": 34.0522, "lon2": -118.2437}' | jpx 'haversine_km(lat1, lon1, lat2, lon2)'
+# Calculate distance between coordinates (km)
+echo '{"lat1": 40.7128, "lon1": -74.0060, "lat2": 34.0522, "lon2": -118.2437}' | jpx 'geo_distance_km(lat1, lon1, lat2, lon2)'
 # 3935.746...
 
 # Calculate bearing
-echo '{"lat1": 40.7128, "lon1": -74.0060, "lat2": 34.0522, "lon2": -118.2437}' | jpx 'bearing(lat1, lon1, lat2, lon2)'
-# 273.429...
+echo '{"lat1": 40.7128, "lon1": -74.0060, "lat2": 34.0522, "lon2": -118.2437}' | jpx 'geo_bearing(lat1, lon1, lat2, lon2)'
+# 273.687...
 ```
 
 ### Network Functions
@@ -278,7 +278,7 @@ echo '{"v1": "1.2.3", "v2": "1.3.0"}' | jpx 'semver_compare(v1, v2)'
 # -1
 
 # Check version constraints
-echo '{"version": "1.5.0", "constraint": "^1.0.0"}' | jpx 'semver_matches(version, constraint)'
+echo '{"version": "1.5.0", "constraint": "^1.0.0"}' | jpx 'semver_satisfies(version, constraint)'
 # true
 ```
 
@@ -372,16 +372,16 @@ echo '{"ip": "192.168.1.1"}' | jpx 'is_ipv4(ip)'
 ### Expression Functions (Higher-Order)
 
 ```bash
-# Filter with expression
-echo '{"nums": [1, 2, 3, 4, 5]}' | jpx 'filter_expr(nums, &@ > `2`)'
-# [3, 4, 5]
+# Filter with expression (expression string first, then array)
+echo '[{"age": 25}, {"age": 17}, {"age": 30}]' | jpx 'filter_expr(`"age >= \`18\`"`, @)'
+# [{"age": 25}, {"age": 30}]
 
-# Map with expression
-echo '{"nums": [1, 2, 3]}' | jpx 'map_expr(nums, &@ * `2`)'
-# [2, 4, 6]
+# Map with expression (extract field from each object)
+echo '[{"name": "Alice"}, {"name": "Bob"}]' | jpx 'map_expr(`"name"`, @)'
+# ["Alice", "Bob"]
 
 # Group by expression
-echo '{"items": [{"type": "a", "v": 1}, {"type": "b", "v": 2}, {"type": "a", "v": 3}]}' | jpx 'group_by_expr(items, &type)'
+echo '[{"type": "a", "v": 1}, {"type": "b", "v": 2}, {"type": "a", "v": 3}]' | jpx 'group_by_expr(`"type"`, @)'
 # {"a": [{"type": "a", "v": 1}, {"type": "a", "v": 3}], "b": [{"type": "b", "v": 2}]}
 ```
 

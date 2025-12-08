@@ -175,8 +175,8 @@ All features are opt-in. Use `default-features = false` to select only what you 
 | `datetime` | `parse_date`, `format_date`, `date_add`, `date_diff` | chrono |
 | `fuzzy` | `levenshtein`, `jaro_winkler`, `sorensen_dice`, etc. | strsim |
 | `phonetic` | `soundex`, `metaphone`, `double_metaphone`, `nysiis`, etc. | rphonetic |
-| `geo` | `haversine`, `haversine_km`, `haversine_mi`, `bearing` | geoutils |
-| `semver` | `semver_parse`, `semver_compare`, `semver_matches`, etc. | semver |
+| `geo` | `geo_distance`, `geo_distance_km`, `geo_distance_miles`, `geo_bearing` | geoutils |
+| `semver` | `semver_parse`, `semver_compare`, `semver_satisfies`, etc. | semver |
 | `network` | `ip_to_int`, `cidr_contains`, `cidr_network`, `is_private_ip` | ipnetwork |
 | `ids` | `nanoid`, `ulid`, `ulid_timestamp` | nanoid, ulid |
 | `duration` | `parse_duration`, `format_duration`, etc. | None |
@@ -242,8 +242,8 @@ sounds_like('Robert', 'Rupert')   → true
 ### Geospatial
 
 ```
-haversine_km(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) → 5570.2
-bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`)      → 51.2
+geo_distance_km(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) → 5570.2
+geo_bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`)     → 51.2
 ```
 
 ### Network
