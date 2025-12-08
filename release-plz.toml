@@ -7,11 +7,11 @@ semver_check = true
 # PR configuration
 pr_labels = ["release"]
 
-# Main library - let cargo-dist handle GitHub releases
+# Main library - release-plz creates GitHub release (no binaries needed)
 [[package]]
 name = "jmespath_extensions"
 publish = true
-git_release_enable = false
+git_release_enable = true
 git_tag_name = "v{{ version }}"
 
 # CLI tool - separate versioning, let cargo-dist handle GitHub releases
