@@ -2012,7 +2012,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "map_expr",
             category: Category::Expression,
-            description: "Map expression over array",
+            description: "Apply a JMESPath expression to each element, returning transformed array",
             signature: "array, expression -> array",
             example: "map_expr([1, 2], &@ * `2`) -> [2, 4]",
             is_standard: false,
@@ -2023,7 +2023,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "filter_expr",
             category: Category::Expression,
-            description: "Filter array by expression",
+            description: "Keep elements where JMESPath expression evaluates to truthy value",
             signature: "array, expression -> array",
             example: "filter_expr([1, 2, 3], &@ > `1`) -> [2, 3]",
             is_standard: false,
@@ -2035,7 +2035,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "any_expr",
             category: Category::Expression,
-            description: "Check if any element matches",
+            description: "Return true if any element satisfies the expression (short-circuits)",
             signature: "array, expression -> boolean",
             example: "any_expr([1, 2, 3], &@ > `2`) -> true",
             is_standard: false,
@@ -2046,7 +2046,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "all_expr",
             category: Category::Expression,
-            description: "Check if all elements match",
+            description: "Return true if every element satisfies the expression (short-circuits on false)",
             signature: "array, expression -> boolean",
             example: "all_expr([1, 2, 3], &@ > `0`) -> true",
             is_standard: false,
@@ -2112,7 +2112,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "find_expr",
             category: Category::Expression,
-            description: "Find first element matching expression",
+            description: "Return first element where expression is truthy, or null if none match",
             signature: "array, expression -> any",
             example: "find_expr([1, 2, 3], &@ > `1`) -> 2",
             is_standard: false,
@@ -2123,7 +2123,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "find_index_expr",
             category: Category::Expression,
-            description: "Find index of first matching element",
+            description: "Return zero-based index of first matching element, or -1 if none match",
             signature: "array, expression -> number | null",
             example: "find_index_expr([1, 2, 3], &@ > `1`) -> 1",
             is_standard: false,
@@ -2134,7 +2134,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "count_expr",
             category: Category::Expression,
-            description: "Count elements matching expression",
+            description: "Count how many elements satisfy the expression",
             signature: "array, expression -> number",
             example: "count_expr([1, 2, 3], &@ > `1`) -> 2",
             is_standard: false,
@@ -2145,7 +2145,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "sort_by_expr",
             category: Category::Expression,
-            description: "Sort array by expression",
+            description: "Sort array by expression result in ascending order",
             signature: "array, expression -> array",
             example: "sort_by_expr([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]",
             is_standard: false,
@@ -2156,7 +2156,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "group_by_expr",
             category: Category::Expression,
-            description: "Group array by expression result",
+            description: "Group elements into object keyed by expression result",
             signature: "array, expression -> object",
             example: "group_by_expr([{t: 'a'}, {t: 'b'}], &t) -> {a: [...], b: [...]}",
             is_standard: false,
@@ -2167,7 +2167,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "partition_expr",
             category: Category::Expression,
-            description: "Partition array by expression",
+            description: "Split array into [matches, non-matches] based on expression",
             signature: "array, expression -> array",
             example: "partition_expr([1, 2, 3], &@ > `1`) -> [[2, 3], [1]]",
             is_standard: false,
@@ -2178,7 +2178,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "min_by_expr",
             category: Category::Expression,
-            description: "Find minimum by expression",
+            description: "Return element with smallest expression result, or null for empty array",
             signature: "array, expression -> any",
             example: "min_by_expr([{a: 2}, {a: 1}], &a) -> {a: 1}",
             is_standard: false,
@@ -2189,7 +2189,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "max_by_expr",
             category: Category::Expression,
-            description: "Find maximum by expression",
+            description: "Return element with largest expression result, or null for empty array",
             signature: "array, expression -> any",
             example: "max_by_expr([{a: 2}, {a: 1}], &a) -> {a: 2}",
             is_standard: false,
@@ -2200,7 +2200,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "unique_by_expr",
             category: Category::Expression,
-            description: "Remove duplicates by expression",
+            description: "Remove duplicates by expression result, keeping first occurrence",
             signature: "array, expression -> array",
             example: "unique_by_expr([{a: 1}, {a: 1}], &a) -> [{a: 1}]",
             is_standard: false,
@@ -2211,7 +2211,7 @@ fn expression_functions() -> Vec<FunctionInfo> {
         FunctionInfo {
             name: "flat_map_expr",
             category: Category::Expression,
-            description: "Map and flatten results",
+            description: "Apply expression to each element and flatten all results into one array",
             signature: "array, expression -> array",
             example: "flat_map_expr([[1], [2]], &@) -> [1, 2]",
             is_standard: false,
