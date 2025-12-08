@@ -9,6 +9,36 @@ use std::io::{self, Read, Write};
 use std::rc::Rc;
 use std::time::Instant;
 
+/// Check if an environment variable is set to a "truthy" value
+fn env_is_true(var: &str) -> bool {
+    std::env::var(var)
+        .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
+        .unwrap_or(false)
+}
+
+/// Apply environment variable defaults to args
+/// CLI args take precedence over env vars (if CLI flag is set, don't override)
+fn apply_env_defaults(args: &mut Args) {
+    // Only apply env var if CLI flag wasn't explicitly set
+    // Since clap sets bool flags to false by default, we check env vars
+    // and set to true if the env var is truthy
+    if !args.verbose && env_is_true("JPX_VERBOSE") {
+        args.verbose = true;
+    }
+    if !args.quiet && env_is_true("JPX_QUIET") {
+        args.quiet = true;
+    }
+    if !args.strict && env_is_true("JPX_STRICT") {
+        args.strict = true;
+    }
+    if !args.raw && env_is_true("JPX_RAW") {
+        args.raw = true;
+    }
+    if !args.compact && env_is_true("JPX_COMPACT") {
+        args.compact = true;
+    }
+}
+
 /// Color output mode
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 enum ColorMode {
@@ -45,10 +75,12 @@ struct Args {
     file: Option<String>,
 
     /// Output raw strings without quotes
+    /// Can also be set with JPX_RAW=1
     #[arg(short = 'r', long)]
     raw: bool,
 
     /// Compact output (no pretty printing)
+    /// Can also be set with JPX_COMPACT=1
     #[arg(short, long)]
     compact: bool,
 
@@ -69,12 +101,19 @@ struct Args {
     output: Option<String>,
 
     /// Quiet mode - suppress errors and warnings
+    /// Can also be set with JPX_QUIET=1
     #[arg(short = 'q', long)]
     quiet: bool,
 
     /// Verbose mode - show expression details and timing
+    /// Can also be set with JPX_VERBOSE=1
     #[arg(short = 'v', long)]
     verbose: bool,
+
+    /// Strict mode - only use standard JMESPath functions (no extensions)
+    /// Can also be set with JPX_STRICT=1
+    #[arg(long)]
+    strict: bool,
 
     /// Generate shell completions
     #[arg(long, value_name = "SHELL")]
@@ -91,14 +130,11 @@ struct Args {
     /// Show detailed info for a specific function
     #[arg(long, value_name = "FUNCTION")]
     describe: Option<String>,
-
-    /// Strict mode - only use standard JMESPath functions (no extensions)
-    #[arg(long)]
-    strict: bool,
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let mut args = Args::parse();
+    apply_env_defaults(&mut args);
 
     // Handle shell completions
     if let Some(shell) = args.completions {
@@ -210,10 +246,9 @@ fn main() -> Result<()> {
             Ok(r) => r,
             Err(e) => {
                 let err_msg = e.to_string();
-                // Provide helpful hint if using strict mode and function is undefined
                 if args.strict && err_msg.contains("undefined function") {
                     return Err(anyhow::anyhow!(
-                        "{}\n\nHint: You are using --strict mode which only allows standard JMESPath functions.\nRemove --strict to use extension functions.",
+                        "{}\n\nHint: You are using --strict mode which only allows standard JMESPath functions.\nRemove --strict or unset JPX_STRICT to use extension functions.",
                         err_msg
                     ));
                 }
