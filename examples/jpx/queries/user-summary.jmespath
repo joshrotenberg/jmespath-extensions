@@ -1,0 +1,8 @@
+{
+  active_users: @[?active].{
+    name: name,
+    email: contact.email
+  },
+  inactive_count: length(@[?!active]),
+  total: length(@)
+}
