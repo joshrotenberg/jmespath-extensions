@@ -34,6 +34,8 @@
 //! | [`multiply`](#multiply) | `multiply(a, b) → number` | Multiplication |
 //! | [`divide`](#divide) | `divide(a, b) → number` | Division |
 //! | [`mode`](#mode) | `mode(array) → any` | Most common value |
+//! | [`to_fixed`](#to_fixed) | `to_fixed(n, precision) → string` | Fixed decimal places |
+//! | [`format_number`](#format_number) | `format_number(n, precision?, suffix?) → string` | Format with separators |
 //!
 //! # Examples
 //!
@@ -362,6 +364,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("multiply", Box::new(MultiplyFn::new()));
     runtime.register_function("divide", Box::new(DivideFn::new()));
     runtime.register_function("mode", Box::new(ModeFn::new()));
+    runtime.register_function("to_fixed", Box::new(ToFixedFn::new()));
+    runtime.register_function("format_number", Box::new(FormatNumberFn::new()));
 }
 
 // =============================================================================
@@ -1266,6 +1270,153 @@ impl Function for ModeFn {
     }
 }
 
+// =============================================================================
+// to_fixed(number, precision) -> string
+// Like JavaScript's Number.toFixed() - returns string with exact decimal places
+// =============================================================================
+
+define_function!(
+    ToFixedFn,
+    vec![ArgumentType::Number, ArgumentType::Number],
+    None
+);
+
+impl Function for ToFixedFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let num = args[0].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number argument".to_owned()),
+            )
+        })?;
+
+        let precision = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected precision argument".to_owned()),
+            )
+        })? as usize;
+
+        let result = format!("{:.prec$}", num, prec = precision);
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// format_number(number, precision?, suffix?) -> string
+// Format a number with thousand separators and optional suffix (k, M, B, etc.)
+// =============================================================================
+
+define_function!(
+    FormatNumberFn,
+    vec![ArgumentType::Number],
+    Some(ArgumentType::Any)
+);
+
+impl Function for FormatNumberFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let num = args[0].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number argument".to_owned()),
+            )
+        })?;
+
+        let precision = args
+            .get(1)
+            .and_then(|v| v.as_number())
+            .map(|n| n as usize)
+            .unwrap_or(0);
+
+        let suffix = args
+            .get(2)
+            .and_then(|v| v.as_string())
+            .map(|s| s.to_string());
+
+        // Handle suffix scaling (k, M, B, T)
+        let (scaled_num, auto_suffix) = if let Some(ref s) = suffix {
+            match s.as_str() {
+                "k" | "K" => (num / 1_000.0, "k"),
+                "M" => (num / 1_000_000.0, "M"),
+                "B" => (num / 1_000_000_000.0, "B"),
+                "T" => (num / 1_000_000_000_000.0, "T"),
+                "auto" => {
+                    // Auto-detect best suffix
+                    let abs_num = num.abs();
+                    if abs_num >= 1_000_000_000_000.0 {
+                        (num / 1_000_000_000_000.0, "T")
+                    } else if abs_num >= 1_000_000_000.0 {
+                        (num / 1_000_000_000.0, "B")
+                    } else if abs_num >= 1_000_000.0 {
+                        (num / 1_000_000.0, "M")
+                    } else if abs_num >= 1_000.0 {
+                        (num / 1_000.0, "k")
+                    } else {
+                        (num, "")
+                    }
+                }
+                _ => (num, s.as_str()),
+            }
+        } else {
+            (num, "")
+        };
+
+        // Format with precision
+        let formatted = format!("{:.prec$}", scaled_num, prec = precision);
+
+        // Add thousand separators to the integer part
+        let result = if suffix.is_none() || suffix.as_deref() == Some("") {
+            add_thousand_separators(&formatted)
+        } else {
+            format!("{}{}", formatted, auto_suffix)
+        };
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+/// Add thousand separators (commas) to a number string
+fn add_thousand_separators(s: &str) -> String {
+    let parts: Vec<&str> = s.split('.').collect();
+    let int_part = parts[0];
+    let dec_part = parts.get(1);
+
+    // Handle negative sign
+    let (sign, digits) = if let Some(stripped) = int_part.strip_prefix('-') {
+        ("-", stripped)
+    } else {
+        ("", int_part)
+    };
+
+    // Add commas every 3 digits from the right
+    let digit_chars: Vec<char> = digits.chars().collect();
+    let len = digit_chars.len();
+    let with_commas: String = digit_chars
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let pos_from_right = len - 1 - i;
+            if pos_from_right > 0 && pos_from_right % 3 == 0 {
+                format!("{},", c)
+            } else {
+                c.to_string()
+            }
+        })
+        .collect();
+
+    match dec_part {
+        Some(dec) => format!("{}{}.{}", sign, with_commas, dec),
+        None => format!("{}{}", sign, with_commas),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1358,5 +1509,57 @@ mod tests {
         let expr = runtime.compile("mode(`[]`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
         assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_to_fixed() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("to_fixed(`3.14159`, `2`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "3.14");
+    }
+
+    #[test]
+    fn test_to_fixed_padding() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("to_fixed(`3.1`, `3`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "3.100");
+    }
+
+    #[test]
+    fn test_format_number_with_separators() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("format_number(`1234567.89`, `2`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1,234,567.89");
+    }
+
+    #[test]
+    fn test_format_number_with_k_suffix() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("format_number(`1500`, `1`, 'k')").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1.5k");
+    }
+
+    #[test]
+    fn test_format_number_with_m_suffix() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("format_number(`1500000`, `1`, 'M')")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1.5M");
+    }
+
+    #[test]
+    fn test_format_number_auto_suffix() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("format_number(`1500000000`, `2`, 'auto')")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1.50B");
     }
 }
