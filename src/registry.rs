@@ -223,6 +223,36 @@ impl Category {
     }
 }
 
+/// Feature tags for function classification
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Feature {
+    /// Standard JMESPath spec functions
+    Spec,
+    /// Core jmespath-extensions functions
+    Core,
+    /// Functional programming style functions
+    Fp,
+    /// JEP-aligned functions
+    Jep,
+}
+
+impl Feature {
+    /// Returns all features
+    pub fn all() -> &'static [Feature] {
+        &[Feature::Spec, Feature::Core, Feature::Fp, Feature::Jep]
+    }
+
+    /// Returns the feature name as a string
+    pub fn name(&self) -> &'static str {
+        match self {
+            Feature::Spec => "spec",
+            Feature::Core => "core",
+            Feature::Fp => "fp",
+            Feature::Jep => "jep",
+        }
+    }
+}
+
 /// Metadata about a function
 #[derive(Debug, Clone)]
 pub struct FunctionInfo {
@@ -241,6 +271,10 @@ pub struct FunctionInfo {
     /// JMESPath Enhancement Proposal reference (e.g., "JEP-014")
     /// See: <https://github.com/jmespath-community/jmespath.spec>
     pub jep: Option<&'static str>,
+    /// Alternative names for this function (e.g., "some" for "any_expr")
+    pub aliases: &'static [&'static str],
+    /// Feature tags for classification (e.g., "fp", "core")
+    pub features: &'static [Feature],
 }
 
 /// Registry for managing function availability at runtime
@@ -347,6 +381,45 @@ impl FunctionRegistry {
     /// Check if registry is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Iterate over functions with a specific feature tag
+    pub fn functions_with_feature(&self, feature: Feature) -> impl Iterator<Item = &FunctionInfo> {
+        self.registered
+            .values()
+            .filter(move |f| f.features.contains(&feature) && !self.disabled.contains(f.name))
+    }
+
+    /// Get all spec-only (standard JMESPath) function names
+    pub fn spec_function_names(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.functions_with_feature(Feature::Spec).map(|f| f.name)
+    }
+
+    /// Check if a function is a standard JMESPath spec function
+    pub fn is_spec_function(&self, name: &str) -> bool {
+        self.registered
+            .get(name)
+            .map(|f| f.features.contains(&Feature::Spec))
+            .unwrap_or(false)
+    }
+
+    /// Get function info by name or alias
+    pub fn get_function_by_name_or_alias(&self, name: &str) -> Option<&FunctionInfo> {
+        // First try direct lookup
+        if let Some(info) = self.get_function(name) {
+            return Some(info);
+        }
+        // Then search aliases
+        self.registered
+            .values()
+            .find(|f| f.aliases.contains(&name) && !self.disabled.contains(f.name))
+    }
+
+    /// Get all aliases for all functions as (alias, canonical_name) pairs
+    pub fn all_aliases(&self) -> impl Iterator<Item = (&'static str, &'static str)> + '_ {
+        self.registered
+            .values()
+            .flat_map(|f| f.aliases.iter().map(move |alias| (*alias, f.name)))
     }
 
     /// Apply the registry to a JMESPath runtime
@@ -480,6 +553,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "abs(`-5`) -> 5",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "avg",
@@ -489,6 +564,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "avg([1, 2, 3]) -> 2",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "ceil",
@@ -498,6 +575,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "ceil(`1.5`) -> 2",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "contains",
@@ -507,6 +586,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "contains([1, 2, 3], `2`) -> true",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "ends_with",
@@ -516,6 +597,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "ends_with('hello', 'lo') -> true",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "floor",
@@ -525,6 +608,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "floor(`1.9`) -> 1",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "join",
@@ -534,6 +619,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "join(', ', ['a', 'b', 'c']) -> \"a, b, c\"",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "keys",
@@ -543,6 +630,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "keys({a: 1, b: 2}) -> [\"a\", \"b\"]",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "length",
@@ -552,6 +641,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "length([1, 2, 3]) -> 3",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "map",
@@ -561,6 +652,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "map(&a, [{a: 1}, {a: 2}]) -> [1, 2]",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "max",
@@ -570,6 +663,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "max([1, 3, 2]) -> 3",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "max_by",
@@ -579,6 +674,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "max_by([{a: 1}, {a: 2}], &a) -> {a: 2}",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "merge",
@@ -588,6 +685,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "merge({a: 1}, {b: 2}) -> {a: 1, b: 2}",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "min",
@@ -597,6 +696,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "min([1, 3, 2]) -> 1",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "min_by",
@@ -606,6 +707,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "min_by([{a: 1}, {a: 2}], &a) -> {a: 1}",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "not_null",
@@ -615,6 +718,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "not_null(`null`, 'a', 'b') -> \"a\"",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "reverse",
@@ -624,6 +729,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "reverse([1, 2, 3]) -> [3, 2, 1]",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "sort",
@@ -633,6 +740,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "sort([3, 1, 2]) -> [1, 2, 3]",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "sort_by",
@@ -642,6 +751,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "sort_by([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "starts_with",
@@ -651,6 +762,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "starts_with('hello', 'he') -> true",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "sum",
@@ -660,6 +773,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "sum([1, 2, 3]) -> 6",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "to_array",
@@ -669,6 +784,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "to_array('hello') -> [\"hello\"]",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "to_number",
@@ -678,6 +795,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "to_number('42') -> 42",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "to_string",
@@ -687,6 +806,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "to_string(`42`) -> \"42\"",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "type",
@@ -696,6 +817,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "type('hello') -> \"string\"",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
         FunctionInfo {
             name: "values",
@@ -705,6 +828,8 @@ fn standard_functions() -> Vec<FunctionInfo> {
             example: "values({a: 1, b: 2}) -> [1, 2]",
             is_standard: true,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Spec],
         },
     ]
 }
@@ -719,6 +844,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "upper('hello') -> \"HELLO\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "lower",
@@ -728,6 +855,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "lower('HELLO') -> \"hello\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "trim",
@@ -737,6 +866,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "trim('  hello  ') -> \"hello\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "trim_left",
@@ -746,6 +877,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "trim_left('  hello') -> \"hello\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "trim_right",
@@ -755,6 +888,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "trim_right('hello  ') -> \"hello\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "split",
@@ -764,6 +899,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "split('a,b,c', ',') -> [\"a\", \"b\", \"c\"]",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "replace",
@@ -773,6 +910,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "replace('hello', 'l', 'L') -> \"heLLo\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "repeat",
@@ -782,6 +921,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "repeat('ab', `3`) -> \"ababab\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "pad_left",
@@ -791,6 +932,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "pad_left('5', `3`, '0') -> \"005\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "pad_right",
@@ -800,6 +943,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "pad_right('5', `3`, '0') -> \"500\"",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "capitalize",
@@ -809,6 +954,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "capitalize('hello') -> \"Hello\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "title",
@@ -818,6 +965,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "title('hello world') -> \"Hello World\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "camel_case",
@@ -827,6 +976,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "camel_case('hello_world') -> \"helloWorld\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "snake_case",
@@ -836,6 +987,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "snake_case('helloWorld') -> \"hello_world\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "kebab_case",
@@ -845,6 +998,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "kebab_case('helloWorld') -> \"hello-world\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "substr",
@@ -854,6 +1009,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "substr('hello', `1`, `3`) -> \"ell\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "slice",
@@ -863,6 +1020,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "slice('hello', `1`, `4`) -> \"ell\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "find_first",
@@ -872,6 +1031,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "find_first('hello', 'l') -> 2",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "find_last",
@@ -881,6 +1042,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "find_last('hello', 'l') -> 3",
             is_standard: false,
             jep: Some("JEP-014"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "concat",
@@ -890,6 +1053,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "concat('hello', ' ', 'world') -> \"hello world\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "wrap",
@@ -899,6 +1064,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "wrap('hello world', `5`) -> \"hello\\nworld\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "ltrimstr",
@@ -908,6 +1075,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "ltrimstr('foobar', 'foo') -> \"bar\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "rtrimstr",
@@ -917,6 +1086,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "rtrimstr('foobar', 'bar') -> \"foo\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "indices",
@@ -926,6 +1097,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "indices('hello', 'l') -> [2, 3]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "inside",
@@ -935,6 +1108,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "inside('world', 'hello world') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sprintf",
@@ -944,6 +1119,8 @@ fn string_functions() -> Vec<FunctionInfo> {
             example: "sprintf('Pi is %.2f', `3.14159`) -> \"Pi is 3.14\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -958,6 +1135,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "first([1, 2, 3]) -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "last",
@@ -967,6 +1146,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "last([1, 2, 3]) -> 3",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "unique",
@@ -976,6 +1157,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "unique([1, 2, 1, 3]) -> [1, 2, 3]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "take",
@@ -985,6 +1168,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "take([1, 2, 3, 4], `2`) -> [1, 2]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "drop",
@@ -994,6 +1179,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "drop([1, 2, 3, 4], `2`) -> [3, 4]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "chunk",
@@ -1003,6 +1190,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "chunk([1, 2, 3, 4], `2`) -> [[1, 2], [3, 4]]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "zip",
@@ -1012,6 +1201,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "zip([1, 2], ['a', 'b']) -> [[1, 'a'], [2, 'b']]",
             is_standard: false,
             jep: Some("JEP-013"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "flatten_deep",
@@ -1021,6 +1212,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "flatten_deep([[1, [2]], [3]]) -> [1, 2, 3]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "compact",
@@ -1030,6 +1223,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "compact([1, null, 2, null]) -> [1, 2]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "range",
@@ -1039,6 +1234,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "range(`1`, `5`) -> [1, 2, 3, 4]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "index_at",
@@ -1048,6 +1245,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "index_at([1, 2, 3], `-1`) -> 3",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "includes",
@@ -1057,6 +1256,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "includes([1, 2, 3], `2`) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "find_index",
@@ -1066,6 +1267,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "find_index([1, 2, 3], `2`) -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "difference",
@@ -1075,6 +1278,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "difference([1, 2, 3], [2]) -> [1, 3]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "intersection",
@@ -1084,6 +1289,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "intersection([1, 2], [2, 3]) -> [2]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "union",
@@ -1093,6 +1300,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "union([1, 2], [2, 3]) -> [1, 2, 3]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "group_by",
@@ -1102,6 +1311,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "group_by([{t: 'a'}, {t: 'b'}], 't') -> {a: [...], b: [...]}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "frequencies",
@@ -1111,6 +1322,8 @@ fn array_functions() -> Vec<FunctionInfo> {
             example: "frequencies(['a', 'b', 'a']) -> {a: 2, b: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1125,6 +1338,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "items({a: 1}) -> [[\"a\", 1]]",
             is_standard: false,
             jep: Some("JEP-013"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "from_items",
@@ -1134,6 +1349,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "from_items([['a', 1]]) -> {a: 1}",
             is_standard: false,
             jep: Some("JEP-013"),
+            aliases: &[],
+            features: &[Feature::Core, Feature::Jep],
         },
         FunctionInfo {
             name: "pick",
@@ -1143,6 +1360,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "pick({a: 1, b: 2}, ['a']) -> {a: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "omit",
@@ -1152,6 +1371,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "omit({a: 1, b: 2}, ['a']) -> {b: 2}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "deep_merge",
@@ -1161,6 +1382,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "deep_merge({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "deep_equals",
@@ -1170,6 +1393,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "deep_equals({a: {b: 1}}, {a: {b: 1}}) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "deep_diff",
@@ -1179,6 +1404,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "deep_diff({a: 1}, {a: 2}) -> {added: {}, removed: {}, changed: {a: {from: 1, to: 2}}}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "invert",
@@ -1188,6 +1415,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "invert({a: 'x'}) -> {x: 'a'}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "rename_keys",
@@ -1197,6 +1426,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "rename_keys({a: 1}, {a: 'b'}) -> {b: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "flatten_keys",
@@ -1206,6 +1437,8 @@ fn object_functions() -> Vec<FunctionInfo> {
             example: "flatten_keys({a: {b: 1}}) -> {\"a.b\": 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1220,6 +1453,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "round(`3.14159`, `2`) -> 3.14",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "floor_fn",
@@ -1229,6 +1464,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "floor_fn(`3.7`) -> 3",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "ceil_fn",
@@ -1238,6 +1475,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "ceil_fn(`3.2`) -> 4",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "abs_fn",
@@ -1247,6 +1486,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "abs_fn(`-5`) -> 5",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "mod_fn",
@@ -1256,6 +1497,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "mod_fn(`10`, `3`) -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "pow",
@@ -1265,6 +1508,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "pow(`2`, `3`) -> 8",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sqrt",
@@ -1274,6 +1519,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "sqrt(`16`) -> 4",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "log",
@@ -1283,6 +1530,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "log(`2.718`) -> ~1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "clamp",
@@ -1292,6 +1541,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "clamp(`15`, `0`, `10`) -> 10",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "median",
@@ -1301,6 +1552,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "median([1, 2, 3, 4, 5]) -> 3",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "percentile",
@@ -1310,6 +1563,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "percentile([1, 2, 3, 4, 5], `50`) -> 3",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "variance",
@@ -1319,6 +1574,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "variance([1, 2, 3, 4, 5]) -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "stddev",
@@ -1328,6 +1585,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "stddev([1, 2, 3, 4, 5]) -> 1.414...",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sin",
@@ -1337,6 +1596,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "sin(`0`) -> 0",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "cos",
@@ -1346,6 +1607,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "cos(`0`) -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "tan",
@@ -1355,6 +1618,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "tan(`0`) -> 0",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "add",
@@ -1364,6 +1629,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "add(`2`, `3`) -> 5",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "subtract",
@@ -1373,6 +1640,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "subtract(`5`, `3`) -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "multiply",
@@ -1382,6 +1651,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "multiply(`4`, `3`) -> 12",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "divide",
@@ -1391,6 +1662,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "divide(`10`, `2`) -> 5",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "mode",
@@ -1400,6 +1673,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "mode([1, 2, 2, 3]) -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "to_fixed",
@@ -1409,6 +1684,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "to_fixed(`3.14159`, `2`) -> \"3.14\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "format_number",
@@ -1418,6 +1695,8 @@ fn math_functions() -> Vec<FunctionInfo> {
             example: "format_number(`1234567`, `0`) -> \"1,234,567\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1432,6 +1711,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "type_of(`42`) -> \"number\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_string",
@@ -1441,6 +1722,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "is_string('hello') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_number",
@@ -1450,6 +1733,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "is_number(`42`) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_boolean",
@@ -1459,6 +1744,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "is_boolean(`true`) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_array",
@@ -1468,6 +1755,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "is_array([1, 2]) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_object",
@@ -1477,6 +1766,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "is_object({a: 1}) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_null",
@@ -1486,6 +1777,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "is_null(`null`) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_empty",
@@ -1495,6 +1788,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "is_empty([]) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "to_boolean",
@@ -1504,6 +1799,8 @@ fn type_functions() -> Vec<FunctionInfo> {
             example: "to_boolean('true') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1518,6 +1815,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "default(`null`, 'fallback') -> \"fallback\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "if",
@@ -1527,6 +1826,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "if(`true`, 'yes', 'no') -> \"yes\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "coalesce",
@@ -1536,6 +1837,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "coalesce(`null`, `null`, 'value') -> \"value\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "now",
@@ -1545,6 +1848,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "now() -> 1699900000",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "now_ms",
@@ -1554,6 +1859,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "now_ms() -> 1699900000000",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "json_decode",
@@ -1563,6 +1870,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "json_decode('{\"a\": 1}') -> {a: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "json_encode",
@@ -1572,6 +1881,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "json_encode({a: 1}) -> \"{\\\"a\\\":1}\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "json_pointer",
@@ -1581,6 +1892,8 @@ fn utility_functions() -> Vec<FunctionInfo> {
             example: "json_pointer({foo: {bar: 1}}, '/foo/bar') -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1595,6 +1908,8 @@ fn validation_functions() -> Vec<FunctionInfo> {
             example: "is_email('user@example.com') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_url",
@@ -1604,6 +1919,8 @@ fn validation_functions() -> Vec<FunctionInfo> {
             example: "is_url('https://example.com') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_uuid",
@@ -1613,6 +1930,8 @@ fn validation_functions() -> Vec<FunctionInfo> {
             example: "is_uuid('550e8400-e29b-41d4-a716-446655440000') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_ipv4",
@@ -1622,6 +1941,8 @@ fn validation_functions() -> Vec<FunctionInfo> {
             example: "is_ipv4('192.168.1.1') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_ipv6",
@@ -1631,6 +1952,8 @@ fn validation_functions() -> Vec<FunctionInfo> {
             example: "is_ipv6('::1') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1645,6 +1968,8 @@ fn path_functions() -> Vec<FunctionInfo> {
             example: "path_basename('/foo/bar.txt') -> \"bar.txt\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "path_dirname",
@@ -1654,6 +1979,8 @@ fn path_functions() -> Vec<FunctionInfo> {
             example: "path_dirname('/foo/bar.txt') -> \"/foo\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "path_ext",
@@ -1663,6 +1990,8 @@ fn path_functions() -> Vec<FunctionInfo> {
             example: "path_ext('/foo/bar.txt') -> \"txt\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "path_join",
@@ -1672,6 +2001,8 @@ fn path_functions() -> Vec<FunctionInfo> {
             example: "path_join('/foo', 'bar', 'baz') -> \"/foo/bar/baz\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1686,6 +2017,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "map_expr([1, 2], &@ * `2`) -> [2, 4]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "filter_expr",
@@ -1695,7 +2028,10 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "filter_expr([1, 2, 3], &@ > `1`) -> [2, 3]",
             is_standard: false,
             jep: None,
+            aliases: &["filter"],
+            features: &[Feature::Core, Feature::Fp],
         },
+        // Note: reject, map_keys, map_values will be added when PR #73 merges
         FunctionInfo {
             name: "any_expr",
             category: Category::Expression,
@@ -1704,6 +2040,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "any_expr([1, 2, 3], &@ > `2`) -> true",
             is_standard: false,
             jep: None,
+            aliases: &["some"],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "all_expr",
@@ -1713,6 +2051,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "all_expr([1, 2, 3], &@ > `0`) -> true",
             is_standard: false,
             jep: None,
+            aliases: &["every"],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "every",
@@ -1722,6 +2062,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "every('@ > `0`', [1, 2, 3]) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "some",
@@ -1731,6 +2073,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "some('@ > `2`', [1, 2, 3]) -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "reject",
@@ -1740,6 +2084,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "reject('@ > `2`', [1, 2, 3, 4]) -> [1, 2]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "map_keys",
@@ -1749,6 +2095,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "map_keys('upper(@)', {a: 1}) -> {A: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "map_values",
@@ -1758,6 +2106,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "map_values('@ * `2`', {a: 1, b: 2}) -> {a: 2, b: 4}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core, Feature::Fp],
         },
         FunctionInfo {
             name: "find_expr",
@@ -1767,6 +2117,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "find_expr([1, 2, 3], &@ > `1`) -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "find_index_expr",
@@ -1776,6 +2128,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "find_index_expr([1, 2, 3], &@ > `1`) -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "count_expr",
@@ -1785,6 +2139,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "count_expr([1, 2, 3], &@ > `1`) -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sort_by_expr",
@@ -1794,6 +2150,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "sort_by_expr([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "group_by_expr",
@@ -1803,6 +2161,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "group_by_expr([{t: 'a'}, {t: 'b'}], &t) -> {a: [...], b: [...]}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "partition_expr",
@@ -1812,6 +2172,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "partition_expr([1, 2, 3], &@ > `1`) -> [[2, 3], [1]]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "min_by_expr",
@@ -1821,6 +2183,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "min_by_expr([{a: 2}, {a: 1}], &a) -> {a: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "max_by_expr",
@@ -1830,6 +2194,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "max_by_expr([{a: 2}, {a: 1}], &a) -> {a: 2}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "unique_by_expr",
@@ -1839,6 +2205,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "unique_by_expr([{a: 1}, {a: 1}], &a) -> [{a: 1}]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "flat_map_expr",
@@ -1848,6 +2216,8 @@ fn expression_functions() -> Vec<FunctionInfo> {
             example: "flat_map_expr([[1], [2]], &@) -> [1, 2]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1862,6 +2232,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "word_count('hello world') -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "char_count",
@@ -1871,6 +2243,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "char_count('hello') -> 5",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sentence_count",
@@ -1880,6 +2254,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "sentence_count('Hello. World!') -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "paragraph_count",
@@ -1889,6 +2265,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "paragraph_count('A\\n\\nB') -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "reading_time",
@@ -1898,6 +2276,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "reading_time('...long text...') -> \"2 min read\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "reading_time_seconds",
@@ -1907,6 +2287,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "reading_time_seconds('...text...') -> 120",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "char_frequencies",
@@ -1916,6 +2298,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "char_frequencies('aab') -> {a: 2, b: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "word_frequencies",
@@ -1925,6 +2309,8 @@ fn text_functions() -> Vec<FunctionInfo> {
             example: "word_frequencies('a a b') -> {a: 2, b: 1}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1939,6 +2325,8 @@ fn hash_functions() -> Vec<FunctionInfo> {
             example: "md5('hello') -> \"5d41402abc4b2a76b9719d911017c592\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sha1",
@@ -1948,6 +2336,8 @@ fn hash_functions() -> Vec<FunctionInfo> {
             example: "sha1('hello') -> \"aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sha256",
@@ -1957,6 +2347,8 @@ fn hash_functions() -> Vec<FunctionInfo> {
             example: "sha256('hello') -> \"2cf24dba...\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "crc32",
@@ -1966,6 +2358,8 @@ fn hash_functions() -> Vec<FunctionInfo> {
             example: "crc32('hello') -> 907060870",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -1980,6 +2374,8 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             example: "base64_encode('hello') -> \"aGVsbG8=\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "base64_decode",
@@ -1989,6 +2385,8 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             example: "base64_decode('aGVsbG8=') -> \"hello\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "hex_encode",
@@ -1998,6 +2396,8 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             example: "hex_encode('hello') -> \"68656c6c6f\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "hex_decode",
@@ -2007,6 +2407,8 @@ fn encoding_functions() -> Vec<FunctionInfo> {
             example: "hex_decode('68656c6c6f') -> \"hello\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2021,6 +2423,8 @@ fn regex_functions() -> Vec<FunctionInfo> {
             example: "regex_match('hello', '^h.*o$') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "regex_extract",
@@ -2030,6 +2434,8 @@ fn regex_functions() -> Vec<FunctionInfo> {
             example: "regex_extract('a1b2', '\\\\d+') -> [\"1\", \"2\"]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "regex_replace",
@@ -2039,6 +2445,8 @@ fn regex_functions() -> Vec<FunctionInfo> {
             example: "regex_replace('a1b2', '\\\\d+', 'X') -> \"aXbX\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2053,6 +2461,8 @@ fn url_functions() -> Vec<FunctionInfo> {
             example: "url_encode('hello world') -> \"hello%20world\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "url_decode",
@@ -2062,6 +2472,8 @@ fn url_functions() -> Vec<FunctionInfo> {
             example: "url_decode('hello%20world') -> \"hello world\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "url_parse",
@@ -2071,6 +2483,8 @@ fn url_functions() -> Vec<FunctionInfo> {
             example: "url_parse('https://example.com/path') -> {scheme: 'https', ...}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2084,6 +2498,8 @@ fn uuid_functions() -> Vec<FunctionInfo> {
         example: "uuid() -> \"550e8400-e29b-41d4-a716-446655440000\"",
         is_standard: false,
         jep: None,
+        aliases: &[],
+        features: &[Feature::Core],
     }]
 }
 
@@ -2097,6 +2513,8 @@ fn rand_functions() -> Vec<FunctionInfo> {
             example: "random() -> 0.123456...",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "shuffle",
@@ -2106,6 +2524,8 @@ fn rand_functions() -> Vec<FunctionInfo> {
             example: "shuffle([1, 2, 3]) -> [2, 3, 1]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sample",
@@ -2115,6 +2535,8 @@ fn rand_functions() -> Vec<FunctionInfo> {
             example: "sample([1, 2, 3, 4], `2`) -> [3, 1]",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2129,6 +2551,8 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             example: "parse_date('2024-01-15', '%Y-%m-%d') -> 1705276800",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "format_date",
@@ -2138,6 +2562,8 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             example: "format_date(`1705276800`, '%Y-%m-%d') -> \"2024-01-15\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "date_add",
@@ -2147,6 +2573,8 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             example: "date_add(`0`, `1`, 'days') -> 86400",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "date_diff",
@@ -2156,6 +2584,8 @@ fn datetime_functions() -> Vec<FunctionInfo> {
             example: "date_diff(`86400`, `0`, 'days') -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2170,6 +2600,8 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             example: "levenshtein('kitten', 'sitting') -> 3",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "normalized_levenshtein",
@@ -2179,6 +2611,8 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             example: "normalized_levenshtein('ab', 'abc') -> 0.666...",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "damerau_levenshtein",
@@ -2188,6 +2622,8 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             example: "damerau_levenshtein('ab', 'ba') -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "jaro",
@@ -2197,6 +2633,8 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             example: "jaro('hello', 'hallo') -> 0.866...",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "jaro_winkler",
@@ -2206,6 +2644,8 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             example: "jaro_winkler('hello', 'hallo') -> 0.88",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sorensen_dice",
@@ -2215,6 +2655,8 @@ fn fuzzy_functions() -> Vec<FunctionInfo> {
             example: "sorensen_dice('night', 'nacht') -> 0.25",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2229,6 +2671,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "soundex('Robert') -> \"R163\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "metaphone",
@@ -2238,6 +2682,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "metaphone('Smith') -> \"SM0\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "double_metaphone",
@@ -2247,6 +2693,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "double_metaphone('Smith') -> {primary: 'SM0', secondary: 'XMT'}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "nysiis",
@@ -2256,6 +2704,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "nysiis('Smith') -> \"SNAT\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "match_rating_codex",
@@ -2265,6 +2715,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "match_rating_codex('Smith') -> \"SMTH\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "caverphone",
@@ -2274,6 +2726,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "caverphone('Smith') -> \"SMT1111111\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "caverphone2",
@@ -2283,6 +2737,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "caverphone2('Smith') -> \"SMT1111111\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "sounds_like",
@@ -2292,6 +2748,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "sounds_like('Robert', 'Rupert') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "phonetic_match",
@@ -2301,6 +2759,8 @@ fn phonetic_functions() -> Vec<FunctionInfo> {
             example: "phonetic_match('Smith', 'Smyth', 'soundex') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2315,6 +2775,8 @@ fn geo_functions() -> Vec<FunctionInfo> {
             example: "haversine(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570222",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "haversine_km",
@@ -2324,6 +2786,8 @@ fn geo_functions() -> Vec<FunctionInfo> {
             example: "haversine_km(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570.2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "haversine_mi",
@@ -2333,6 +2797,8 @@ fn geo_functions() -> Vec<FunctionInfo> {
             example: "haversine_mi(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 3461.0",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "bearing",
@@ -2342,6 +2808,8 @@ fn geo_functions() -> Vec<FunctionInfo> {
             example: "bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 51.2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2356,6 +2824,8 @@ fn semver_functions() -> Vec<FunctionInfo> {
             example: "semver_parse('1.2.3') -> {major: 1, minor: 2, patch: 3}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "semver_major",
@@ -2365,6 +2835,8 @@ fn semver_functions() -> Vec<FunctionInfo> {
             example: "semver_major('1.2.3') -> 1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "semver_minor",
@@ -2374,6 +2846,8 @@ fn semver_functions() -> Vec<FunctionInfo> {
             example: "semver_minor('1.2.3') -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "semver_patch",
@@ -2383,6 +2857,8 @@ fn semver_functions() -> Vec<FunctionInfo> {
             example: "semver_patch('1.2.3') -> 3",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "semver_compare",
@@ -2392,6 +2868,8 @@ fn semver_functions() -> Vec<FunctionInfo> {
             example: "semver_compare('1.0.0', '2.0.0') -> -1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "semver_matches",
@@ -2401,6 +2879,8 @@ fn semver_functions() -> Vec<FunctionInfo> {
             example: "semver_matches('1.2.3', '^1.0.0') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_semver",
@@ -2410,6 +2890,8 @@ fn semver_functions() -> Vec<FunctionInfo> {
             example: "is_semver('1.2.3') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2424,6 +2906,8 @@ fn network_functions() -> Vec<FunctionInfo> {
             example: "ip_to_int('192.168.1.1') -> 3232235777",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "int_to_ip",
@@ -2433,6 +2917,8 @@ fn network_functions() -> Vec<FunctionInfo> {
             example: "int_to_ip(`3232235777`) -> \"192.168.1.1\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "cidr_contains",
@@ -2442,6 +2928,8 @@ fn network_functions() -> Vec<FunctionInfo> {
             example: "cidr_contains('192.168.0.0/16', '192.168.1.1') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "cidr_network",
@@ -2451,6 +2939,8 @@ fn network_functions() -> Vec<FunctionInfo> {
             example: "cidr_network('192.168.1.0/24') -> \"192.168.1.0\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "cidr_broadcast",
@@ -2460,6 +2950,8 @@ fn network_functions() -> Vec<FunctionInfo> {
             example: "cidr_broadcast('192.168.1.0/24') -> \"192.168.1.255\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "cidr_prefix",
@@ -2469,6 +2961,8 @@ fn network_functions() -> Vec<FunctionInfo> {
             example: "cidr_prefix('192.168.1.0/24') -> 24",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "is_private_ip",
@@ -2478,6 +2972,8 @@ fn network_functions() -> Vec<FunctionInfo> {
             example: "is_private_ip('192.168.1.1') -> true",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2492,6 +2988,8 @@ fn ids_functions() -> Vec<FunctionInfo> {
             example: "nanoid() -> \"V1StGXR8_Z5jdHi6B-myT\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "ulid",
@@ -2501,6 +2999,8 @@ fn ids_functions() -> Vec<FunctionInfo> {
             example: "ulid() -> \"01ARZ3NDEKTSV4RRFFQ69G5FAV\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "ulid_timestamp",
@@ -2510,6 +3010,8 @@ fn ids_functions() -> Vec<FunctionInfo> {
             example: "ulid_timestamp('01ARZ3NDEKTSV4RRFFQ69G5FAV') -> 1469918176385",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2524,6 +3026,8 @@ fn duration_functions() -> Vec<FunctionInfo> {
             example: "parse_duration('1h30m') -> 5400",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "format_duration",
@@ -2533,6 +3037,8 @@ fn duration_functions() -> Vec<FunctionInfo> {
             example: "format_duration(`5400`) -> \"1h30m\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "duration_hours",
@@ -2542,6 +3048,8 @@ fn duration_functions() -> Vec<FunctionInfo> {
             example: "duration_hours(`7200`) -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "duration_minutes",
@@ -2551,6 +3059,8 @@ fn duration_functions() -> Vec<FunctionInfo> {
             example: "duration_minutes(`120`) -> 2",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "duration_seconds",
@@ -2560,6 +3070,8 @@ fn duration_functions() -> Vec<FunctionInfo> {
             example: "duration_seconds(`65`) -> 5",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2574,6 +3086,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "hex_to_rgb('#ff5500') -> {r: 255, g: 85, b: 0}",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "rgb_to_hex",
@@ -2583,6 +3097,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "rgb_to_hex(`255`, `85`, `0`) -> \"#ff5500\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "lighten",
@@ -2592,6 +3108,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "lighten('#3366cc', `20`) -> \"#5c85d6\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "darken",
@@ -2601,6 +3119,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "darken('#3366cc', `20`) -> \"#2952a3\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "color_mix",
@@ -2610,6 +3130,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "color_mix('#ff0000', '#0000ff', `50`) -> \"#800080\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "color_invert",
@@ -2619,6 +3141,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "color_invert('#ff0000') -> \"#00ffff\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "color_grayscale",
@@ -2628,6 +3152,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "color_grayscale('#ff0000') -> \"#4c4c4c\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "color_complement",
@@ -2637,6 +3163,8 @@ fn color_functions() -> Vec<FunctionInfo> {
             example: "color_complement('#ff0000') -> \"#00ffff\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2651,6 +3179,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "parse_bytes('1.5 GB') -> 1500000000",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "format_bytes",
@@ -2660,6 +3190,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "format_bytes(`1500000000`) -> \"1.50 GB\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "format_bytes_binary",
@@ -2669,6 +3201,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "format_bytes_binary(`1073741824`) -> \"1.00 GiB\"",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "bit_and",
@@ -2678,6 +3212,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "bit_and(`12`, `10`) -> 8",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "bit_or",
@@ -2687,6 +3223,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "bit_or(`12`, `10`) -> 14",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "bit_xor",
@@ -2696,6 +3234,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "bit_xor(`12`, `10`) -> 6",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "bit_not",
@@ -2705,6 +3245,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "bit_not(`0`) -> -1",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "bit_shift_left",
@@ -2714,6 +3256,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "bit_shift_left(`1`, `4`) -> 16",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
         FunctionInfo {
             name: "bit_shift_right",
@@ -2723,6 +3267,8 @@ fn computing_functions() -> Vec<FunctionInfo> {
             example: "bit_shift_right(`16`, `2`) -> 4",
             is_standard: false,
             jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
         },
     ]
 }
@@ -2835,5 +3381,165 @@ mod tests {
         let data = jmespath::Variable::Null;
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "HELLO");
+    }
+
+    #[test]
+    fn test_functions_with_feature_spec() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Standard);
+
+        let spec_fns: Vec<_> = registry.functions_with_feature(Feature::Spec).collect();
+        assert_eq!(spec_fns.len(), 26); // All 26 standard functions have Spec feature
+        assert!(spec_fns.iter().all(|f| f.is_standard));
+    }
+
+    #[test]
+    fn test_is_spec_function() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_all();
+
+        // Standard functions should be spec
+        assert!(registry.is_spec_function("abs"));
+        assert!(registry.is_spec_function("length"));
+        assert!(registry.is_spec_function("sort"));
+
+        // Extension functions should not be spec
+        #[cfg(feature = "string")]
+        assert!(!registry.is_spec_function("upper"));
+        #[cfg(feature = "array")]
+        assert!(!registry.is_spec_function("unique"));
+    }
+
+    #[test]
+    fn test_spec_function_names() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Standard);
+
+        let names: Vec<_> = registry.spec_function_names().collect();
+        assert!(names.contains(&"abs"));
+        assert!(names.contains(&"length"));
+        assert!(names.contains(&"sort"));
+        assert_eq!(names.len(), 26);
+    }
+
+    #[test]
+    fn test_function_features() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Standard);
+
+        let abs_info = registry.get_function("abs").unwrap();
+        assert!(abs_info.features.contains(&Feature::Spec));
+        assert!(!abs_info.features.contains(&Feature::Fp));
+    }
+
+    #[test]
+    #[cfg(feature = "string")]
+    fn test_jep_functions_have_jep_feature() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::String);
+
+        let upper_info = registry.get_function("upper").unwrap();
+        assert!(upper_info.features.contains(&Feature::Jep));
+        assert!(upper_info.jep.is_some());
+    }
+
+    #[test]
+    fn test_function_aliases_field() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Standard);
+
+        // Standard functions have no aliases by default
+        let abs_info = registry.get_function("abs").unwrap();
+        assert!(abs_info.aliases.is_empty());
+    }
+
+    #[test]
+    fn test_feature_all() {
+        let features = Feature::all();
+        assert!(features.contains(&Feature::Spec));
+        assert!(features.contains(&Feature::Core));
+        assert!(features.contains(&Feature::Fp));
+        assert!(features.contains(&Feature::Jep));
+    }
+
+    #[test]
+    fn test_feature_name() {
+        assert_eq!(Feature::Spec.name(), "spec");
+        assert_eq!(Feature::Core.name(), "core");
+        assert_eq!(Feature::Fp.name(), "fp");
+        assert_eq!(Feature::Jep.name(), "jep");
+    }
+
+    #[test]
+    #[cfg(feature = "expression")]
+    fn test_function_with_aliases() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Expression);
+
+        // any_expr has alias "some"
+        let any_expr_info = registry.get_function("any_expr").unwrap();
+        assert!(any_expr_info.aliases.contains(&"some"));
+        assert!(any_expr_info.features.contains(&Feature::Fp));
+
+        // all_expr has alias "every"
+        let all_expr_info = registry.get_function("all_expr").unwrap();
+        assert!(all_expr_info.aliases.contains(&"every"));
+        assert!(all_expr_info.features.contains(&Feature::Fp));
+    }
+
+    #[test]
+    #[cfg(feature = "expression")]
+    fn test_get_function_by_alias() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Expression);
+
+        // Look up by alias - filter_expr has alias "filter"
+        let info = registry.get_function_by_name_or_alias("filter").unwrap();
+        assert_eq!(info.name, "filter_expr");
+
+        // Direct lookup works
+        let info = registry.get_function_by_name_or_alias("any_expr").unwrap();
+        assert_eq!(info.name, "any_expr");
+
+        // some and every are standalone functions (not just aliases)
+        let info = registry.get_function_by_name_or_alias("some").unwrap();
+        assert_eq!(info.name, "some");
+
+        let info = registry.get_function_by_name_or_alias("every").unwrap();
+        assert_eq!(info.name, "every");
+    }
+
+    #[test]
+    #[cfg(feature = "expression")]
+    fn test_all_aliases() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Expression);
+
+        let aliases: Vec<_> = registry.all_aliases().collect();
+        assert!(
+            aliases
+                .iter()
+                .any(|(alias, name)| *alias == "some" && *name == "any_expr")
+        );
+        assert!(
+            aliases
+                .iter()
+                .any(|(alias, name)| *alias == "every" && *name == "all_expr")
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "expression")]
+    fn test_fp_functions() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_category(Category::Expression);
+
+        let fp_fns: Vec<_> = registry.functions_with_feature(Feature::Fp).collect();
+        let fp_names: Vec<_> = fp_fns.iter().map(|f| f.name).collect();
+
+        assert!(fp_names.contains(&"any_expr"));
+        assert!(fp_names.contains(&"all_expr"));
+        assert!(fp_names.contains(&"filter_expr"));
+        // reject will be added when PR #73 merges
     }
 }
