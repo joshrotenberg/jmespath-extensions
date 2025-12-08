@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser, ValueEnum};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
 use jmespath_extensions::registry::{Category, FunctionRegistry};
@@ -165,10 +165,12 @@ fn main() -> Result<()> {
 
     // Get expressions from positional arg, -e flags, or file
     let expressions: Vec<String> = if let Some(query_path) = &args.query_file {
-        vec![std::fs::read_to_string(query_path)
-            .with_context(|| format!("Failed to read query file: {}", query_path))?
-            .trim()
-            .to_string()]
+        vec![
+            std::fs::read_to_string(query_path)
+                .with_context(|| format!("Failed to read query file: {}", query_path))?
+                .trim()
+                .to_string(),
+        ]
     } else if !args.expressions.is_empty() {
         args.expressions.clone()
     } else if let Some(expr) = &args.expression {
