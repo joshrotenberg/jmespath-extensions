@@ -1,5 +1,9 @@
 # jpx - JMESPath CLI with Extended Functions
 
+[![Crates.io](https://img.shields.io/crates/v/jpx.svg)](https://crates.io/crates/jpx)
+[![Downloads](https://img.shields.io/crates/d/jpx.svg)](https://crates.io/crates/jpx)
+[![License](https://img.shields.io/crates/l/jpx.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
+
 A command-line tool for querying JSON data using JMESPath expressions with 189 additional functions beyond the standard JMESPath specification. Also includes the 26 standard JMESPath built-in functions.
 
 ## Installation
