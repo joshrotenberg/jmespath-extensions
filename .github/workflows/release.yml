@@ -210,3 +210,28 @@ jobs:
         run: |
           echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+
+  # Update Homebrew formula for jpx releases
+  update-homebrew:
+    needs:
+      - host
+    # Only run for jpx releases (not library releases)
+    if: ${{ startsWith(github.ref_name, 'jpx-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          # Convert jpx-v0.1.0 to v0.1.0
+          VERSION="${GITHUB_REF_NAME#jpx-}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Update Homebrew formula
+        uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: jpx
+          formula-path: Formula/jpx.rb
+          homebrew-tap: joshrotenberg/homebrew-brew
+          tag-name: ${{ github.ref_name }}
+          download-url: https://github.com/joshrotenberg/jmespath-extensions/releases/download/${{ github.ref_name }}/jpx-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tar.gz
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
