@@ -3,7 +3,8 @@ use clap::{Parser, ValueEnum};
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
 use jmespath_extensions::registry::{Category, FunctionRegistry};
-use std::io::{self, Read};
+use std::fs::File;
+use std::io::{self, Read, Write};
 
 /// Color output mode
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
@@ -15,16 +16,6 @@ enum ColorMode {
     Always,
     /// Never use colors
     Never,
-}
-
-impl ColorMode {
-    fn should_colorize(self) -> bool {
-        match self {
-            ColorMode::Always => true,
-            ColorMode::Never => false,
-            ColorMode::Auto => atty::is(atty::Stream::Stdout),
-        }
-    }
 }
 
 /// JMESPath CLI with extended functions
@@ -65,6 +56,14 @@ struct Args {
     /// Colorize output (auto, always, never)
     #[arg(long, value_enum, default_value = "auto")]
     color: ColorMode,
+
+    /// Output file (writes to stdout if not provided)
+    #[arg(short = 'o', long)]
+    output: Option<String>,
+
+    /// Quiet mode - suppress errors and warnings
+    #[arg(short = 'q', long)]
+    quiet: bool,
 
     /// List available extension functions
     #[arg(long)]
@@ -170,7 +169,14 @@ fn main() -> Result<()> {
     // Convert to serde_json::Value for output formatting
     let json_value: serde_json::Value = serde_json::from_str(&serde_json::to_string(&*result)?)?;
 
-    let output = if args.color.should_colorize() && !args.compact {
+    // When writing to file, don't colorize unless explicitly requested
+    let should_colorize = match args.color {
+        ColorMode::Always => true,
+        ColorMode::Never => false,
+        ColorMode::Auto => args.output.is_none() && atty::is(atty::Stream::Stdout),
+    };
+
+    let output = if should_colorize && !args.compact {
         // Colored pretty output with custom color scheme
         use colored_json::{ColoredFormatter, PrettyFormatter, Style, Styler};
 
@@ -196,7 +202,16 @@ fn main() -> Result<()> {
         serde_json::to_string_pretty(&json_value)?
     };
 
-    println!("{}", output);
+    // Write output to file or stdout
+    if let Some(output_path) = &args.output {
+        let mut file = File::create(output_path)
+            .with_context(|| format!("Failed to create output file: {}", output_path))?;
+        writeln!(file, "{}", output)
+            .with_context(|| format!("Failed to write to output file: {}", output_path))?;
+    } else {
+        println!("{}", output);
+    }
+
     Ok(())
 }
 
