@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.1...v0.3.2) - 2025-12-08
+
+### Fixed
+
+- pass clean version tag to homebrew action ([#93](https://github.com/joshrotenberg/jmespath-extensions/pull/93))
+- correct function names in registry metadata ([#92](https://github.com/joshrotenberg/jmespath-extensions/pull/92))
+
 ## [0.3.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.0...v0.3.1) - 2025-12-08
 
 ### Fixed
