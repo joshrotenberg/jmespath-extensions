@@ -5,12 +5,13 @@ A command-line tool for querying JSON data using JMESPath expressions with 189 a
 ## Installation
 
 ```bash
-# From the jmespath_extensions repository
-cd examples/jpx
-cargo install --path .
+# From crates.io
+cargo install jpx
 
-# Or run directly
-cargo run -- '<expression>'
+# From source
+git clone https://github.com/joshrotenberg/jmespath-extensions
+cd jmespath-extensions/jpx
+cargo install --path .
 ```
 
 ## Usage
