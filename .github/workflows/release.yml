@@ -35,11 +35,17 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       val: ${{ steps.plan.outputs.manifest }}
-      tag: ${{ inputs.tag || github.ref_name }}
-      tag-flag: ${{ format('--tag={0}', inputs.tag || github.ref_name) }}
+      tag: ${{ steps.get-tag.outputs.tag }}
+      tag-flag: ${{ steps.get-tag.outputs.tag-flag }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Determine tag
+        id: get-tag
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tag-flag=--tag=$TAG" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
