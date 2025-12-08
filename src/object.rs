@@ -15,6 +15,8 @@
 //! | [`flatten_keys`](#flatten_keys) | `flatten_keys(object, sep?) → object` | Flatten nested object |
 //! | [`unflatten_keys`](#unflatten_keys) | `unflatten_keys(object, sep?) → object` | Unflatten to nested |
 //! | [`deep_merge`](#deep_merge) | `deep_merge(obj1, obj2) → object` | Deep merge two objects |
+//! | [`deep_equals`](#deep_equals) | `deep_equals(a, b) → boolean` | Deep equality check |
+//! | [`deep_diff`](#deep_diff) | `deep_diff(a, b) → object` | Structural diff between values |
 //!
 //! # Examples
 //!
@@ -139,6 +141,41 @@
 //! deep_merge({a: {b: 1}}, {a: {c: 2}})           → {a: {b: 1, c: 2}}
 //! deep_merge({a: {b: 1}}, {a: {b: 2}})           → {a: {b: 2}}
 //! ```
+//!
+//! ## deep_equals
+//!
+//! Deep equality check for any two values (objects, arrays, primitives).
+//!
+//! ```text
+//! deep_equals(a, b) → boolean
+//!
+//! deep_equals({a: {b: 1}}, {a: {b: 1}})   → true
+//! deep_equals([1, [2, 3]], [1, [2, 3]])   → true
+//! deep_equals({a: 1}, {a: 2})             → false
+//! deep_equals([1, 2], [2, 1])             → false  // Order matters for arrays
+//! ```
+//!
+//! ## deep_diff
+//!
+//! Returns a structural diff between two objects, showing added, removed, and changed keys.
+//!
+//! ```text
+//! deep_diff(a, b) → object
+//!
+//! deep_diff({a: 1, b: 2}, {a: 1, b: 3, c: 4})
+//! → {
+//!     added: {c: 4},
+//!     removed: {},
+//!     changed: {b: {from: 2, to: 3}}
+//!   }
+//!
+//! deep_diff({x: {y: 1}}, {x: {y: 2, z: 3}})
+//! → {
+//!     added: {},
+//!     removed: {},
+//!     changed: {x: {added: {z: 3}, removed: {}, changed: {y: {from: 1, to: 2}}}}
+//!   }
+//! ```
 
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
@@ -159,6 +196,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("flatten_keys", Box::new(FlattenKeysFn::new()));
     runtime.register_function("unflatten_keys", Box::new(UnflattenKeysFn::new()));
     runtime.register_function("deep_merge", Box::new(DeepMergeFn::new()));
+    runtime.register_function("deep_equals", Box::new(DeepEqualsFn::new()));
+    runtime.register_function("deep_diff", Box::new(DeepDiffFn::new()));
 }
 
 // =============================================================================
@@ -577,6 +616,116 @@ impl Function for DeepMergeFn {
     }
 }
 
+// =============================================================================
+// deep_equals(a, b) -> boolean
+// =============================================================================
+
+define_function!(
+    DeepEqualsFn,
+    vec![ArgumentType::Any, ArgumentType::Any],
+    None
+);
+
+impl Function for DeepEqualsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        // Use JSON serialization for deep comparison (same approach as includes())
+        let a_json = serde_json::to_string(&*args[0]).unwrap_or_default();
+        let b_json = serde_json::to_string(&*args[1]).unwrap_or_default();
+
+        Ok(Rc::new(Variable::Bool(a_json == b_json)))
+    }
+}
+
+// =============================================================================
+// deep_diff(a, b) -> object with added, removed, changed
+// =============================================================================
+
+define_function!(
+    DeepDiffFn,
+    vec![ArgumentType::Object, ArgumentType::Object],
+    None
+);
+
+fn compute_deep_diff(
+    a: &BTreeMap<String, Rcvar>,
+    b: &BTreeMap<String, Rcvar>,
+) -> BTreeMap<String, Rcvar> {
+    let mut added: BTreeMap<String, Rcvar> = BTreeMap::new();
+    let mut removed: BTreeMap<String, Rcvar> = BTreeMap::new();
+    let mut changed: BTreeMap<String, Rcvar> = BTreeMap::new();
+
+    // Find removed and changed keys
+    for (key, a_value) in a.iter() {
+        match b.get(key) {
+            None => {
+                // Key was removed
+                removed.insert(key.clone(), a_value.clone());
+            }
+            Some(b_value) => {
+                // Key exists in both - check if changed
+                let a_json = serde_json::to_string(&**a_value).unwrap_or_default();
+                let b_json = serde_json::to_string(&**b_value).unwrap_or_default();
+
+                if a_json != b_json {
+                    // Values are different
+                    if let (Some(a_obj), Some(b_obj)) = (a_value.as_object(), b_value.as_object()) {
+                        // Both are objects - recurse
+                        let nested_diff = compute_deep_diff(a_obj, b_obj);
+                        changed.insert(key.clone(), Rc::new(Variable::Object(nested_diff)));
+                    } else {
+                        // Not both objects - show from/to
+                        let mut change_obj: BTreeMap<String, Rcvar> = BTreeMap::new();
+                        change_obj.insert("from".to_string(), a_value.clone());
+                        change_obj.insert("to".to_string(), b_value.clone());
+                        changed.insert(key.clone(), Rc::new(Variable::Object(change_obj)));
+                    }
+                }
+            }
+        }
+    }
+
+    // Find added keys
+    for (key, b_value) in b.iter() {
+        if !a.contains_key(key) {
+            added.insert(key.clone(), b_value.clone());
+        }
+    }
+
+    let mut result: BTreeMap<String, Rcvar> = BTreeMap::new();
+    result.insert("added".to_string(), Rc::new(Variable::Object(added)));
+    result.insert("removed".to_string(), Rc::new(Variable::Object(removed)));
+    result.insert("changed".to_string(), Rc::new(Variable::Object(changed)));
+
+    result
+}
+
+impl Function for DeepDiffFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let obj_a = args[0].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected object argument".to_owned()),
+            )
+        })?;
+
+        let obj_b = args[1].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected object argument".to_owned()),
+            )
+        })?;
+
+        let diff = compute_deep_diff(obj_a, obj_b);
+        Ok(Rc::new(Variable::Object(diff)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -622,5 +771,124 @@ mod tests {
         let result_obj = result.as_object().unwrap();
         assert_eq!(result_obj.len(), 1);
         assert!(result_obj.contains_key("a"));
+    }
+
+    #[test]
+    fn test_deep_equals_objects() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1}, "c": {"b": 1}}"#).unwrap();
+        let expr = runtime.compile("deep_equals(a, c)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_deep_equals_objects_different() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1}, "c": {"b": 2}}"#).unwrap();
+        let expr = runtime.compile("deep_equals(a, c)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_deep_equals_arrays() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, [2, 3]], "b": [1, [2, 3]]}"#).unwrap();
+        let expr = runtime.compile("deep_equals(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_deep_equals_arrays_order_matters() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2], "b": [2, 1]}"#).unwrap();
+        let expr = runtime.compile("deep_equals(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_deep_equals_primitives() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": "hello", "b": "hello", "c": "world"}"#).unwrap();
+
+        let expr = runtime.compile("deep_equals(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+
+        let expr = runtime.compile("deep_equals(a, c)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_deep_diff_added() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1}, "b": {"x": 1, "y": 2}}"#).unwrap();
+        let expr = runtime.compile("deep_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let diff = result.as_object().unwrap();
+
+        let added = diff.get("added").unwrap().as_object().unwrap();
+        assert!(added.contains_key("y"));
+        assert!(diff.get("removed").unwrap().as_object().unwrap().is_empty());
+        assert!(diff.get("changed").unwrap().as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_deep_diff_removed() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1, "y": 2}, "b": {"x": 1}}"#).unwrap();
+        let expr = runtime.compile("deep_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let diff = result.as_object().unwrap();
+
+        let removed = diff.get("removed").unwrap().as_object().unwrap();
+        assert!(removed.contains_key("y"));
+        assert!(diff.get("added").unwrap().as_object().unwrap().is_empty());
+        assert!(diff.get("changed").unwrap().as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_deep_diff_changed() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1}, "b": {"x": 2}}"#).unwrap();
+        let expr = runtime.compile("deep_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let diff = result.as_object().unwrap();
+
+        let changed = diff.get("changed").unwrap().as_object().unwrap();
+        assert!(changed.contains_key("x"));
+        let x_change = changed.get("x").unwrap().as_object().unwrap();
+        assert!(x_change.contains_key("from"));
+        assert!(x_change.contains_key("to"));
+    }
+
+    #[test]
+    fn test_deep_diff_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": {"y": 1}}, "b": {"x": {"y": 2}}}"#).unwrap();
+        let expr = runtime.compile("deep_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let diff = result.as_object().unwrap();
+
+        // The change should be nested under x
+        let changed = diff.get("changed").unwrap().as_object().unwrap();
+        assert!(changed.contains_key("x"));
+    }
+
+    #[test]
+    fn test_deep_diff_no_changes() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1}, "b": {"x": 1}}"#).unwrap();
+        let expr = runtime.compile("deep_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let diff = result.as_object().unwrap();
+
+        assert!(diff.get("added").unwrap().as_object().unwrap().is_empty());
+        assert!(diff.get("removed").unwrap().as_object().unwrap().is_empty());
+        assert!(diff.get("changed").unwrap().as_object().unwrap().is_empty());
     }
 }
