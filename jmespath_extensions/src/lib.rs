@@ -6,6 +6,16 @@
 //!
 //! A comprehensive collection of 150+ extension functions for [JMESPath](https://jmespath.org/) queries.
 //!
+//! ## Built on jmespath.rs
+//!
+//! This crate extends the [`jmespath`](https://crates.io/crates/jmespath) crate by
+//! [@mtdowling](https://github.com/mtdowling), which provides the complete Rust implementation
+//! of the [JMESPath specification](https://jmespath.org/specification.html). All spec-compliant
+//! parsing, evaluation, and the 26 built-in functions come from that foundational library—we
+//! simply add extra functions on top.
+//!
+//! **If you only need standard JMESPath functionality, use [`jmespath`](https://crates.io/crates/jmespath) directly.**
+//!
 //! ## Non-Standard Extension Warning
 //!
 //! > **These functions are NOT part of the [JMESPath specification](https://jmespath.org/specification.html).**
