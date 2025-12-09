@@ -48,7 +48,7 @@ json-patch = "4.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 # Internal crate
-jmespath_extensions = { path = "jmespath_extensions", version = "0.3.4" }
+jmespath_extensions = { path = "jmespath_extensions", version = "0.3.5" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.4...v0.3.5) - 2025-12-09
+
+### Added
+
+- add JSON Patch and Merge Patch functions (Issue #60) ([#108](https://github.com/joshrotenberg/jmespath-extensions/pull/108))
+- add array utility functions (Issue #62) ([#107](https://github.com/joshrotenberg/jmespath-extensions/pull/107))
+- add statistical functions (histogram, normalize, z_score, correlation) ([#104](https://github.com/joshrotenberg/jmespath-extensions/pull/104))
+
 ## [0.3.4](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.3...v0.3.4) - 2025-12-09
 
 ### Added
