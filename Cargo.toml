@@ -35,6 +35,7 @@ uuid = { version = "1", features = ["v4"] }
 hex = "0.4"
 rand = "0.8"
 chrono = "0.4"
+chrono-tz = "0.10"
 strsim = "0.11"
 rphonetic = "3.0"
 geoutils = "0.5"
