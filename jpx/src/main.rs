@@ -280,11 +280,12 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    if args.raw
-        && let Some(s) = result.as_string()
-    {
-        println!("{}", s);
-        return Ok(());
+    #[allow(clippy::collapsible_if)]
+    if args.raw {
+        if let Some(s) = result.as_string() {
+            println!("{}", s);
+            return Ok(());
+        }
     }
 
     // Convert to serde_json::Value for output formatting
