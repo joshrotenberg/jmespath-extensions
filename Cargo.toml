@@ -47,7 +47,7 @@ ulid = "1.1"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 # Internal crate
-jmespath_extensions = { path = "jmespath_extensions", version = "0.3.2" }
+jmespath_extensions = { path = "jmespath_extensions", version = "0.3.3" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

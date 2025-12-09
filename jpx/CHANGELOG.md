@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.2...jpx-v0.1.3) - 2025-12-09
+
+### Other
+
+- move library to jmespath_extensions/ subdirectory ([#98](https://github.com/joshrotenberg/jmespath-extensions/pull/98))
+
 ## [0.1.2](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.1...jpx-v0.1.2) - 2025-12-08
 
 ### Fixed
