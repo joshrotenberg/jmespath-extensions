@@ -280,11 +280,11 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    if args.raw {
-        if let Some(s) = result.as_string() {
-            println!("{}", s);
-            return Ok(());
-        }
+    if args.raw
+        && let Some(s) = result.as_string()
+    {
+        println!("{}", s);
+        return Ok(());
     }
 
     // Convert to serde_json::Value for output formatting
@@ -351,8 +351,8 @@ fn parse_slurp(input: &str) -> Result<Variable> {
     }
 
     // Convert Vec<Variable> to a Variable array
-    Ok(Variable::from_json(&serde_json::to_string(&values)?)
-        .map_err(|e| anyhow::anyhow!("Failed to create array: {}", e))?)
+    Variable::from_json(&serde_json::to_string(&values)?)
+        .map_err(|e| anyhow::anyhow!("Failed to create array: {}", e))
 }
 
 fn print_functions(registry: &FunctionRegistry) {
