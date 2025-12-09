@@ -31,6 +31,8 @@
 //! | `scan_expr(expr, array, init)` | Cumulative reduce (running totals) |
 //! | `fold(expr, array, init)` | Alias for reduce_expr |
 //! | `count_by(expr, array)` | Count occurrences by expression result |
+//! | `partial(fn_name, ...args)` | Create a partial function with pre-filled args |
+//! | `apply(partial_or_fn, ...args)` | Invoke a partial or function by name |
 //!
 //! # Examples
 //!
@@ -1702,7 +1704,8 @@ impl Function for ScanExprFn {
 /// Create a partial function with some arguments pre-filled.
 ///
 /// Returns an object that can be used with `apply()` to invoke the function
-/// with the remaining arguments.
+/// with the remaining arguments. This enables currying and reusable function
+/// configurations.
 ///
 /// # Arguments
 /// * `fn_name` - The name of the function to partially apply
@@ -1711,13 +1714,34 @@ impl Function for ScanExprFn {
 /// # Returns
 /// A partial object: `{"__partial__": true, "fn": "fn_name", "args": [...]}`
 ///
-/// # Example
-/// ```text
-/// partial('add', `10`)  // Create a function that adds 10
-/// apply(partial('add', `10`), `5`)  // -> 15
+/// # Examples
 ///
-/// // With map_expr - add 10 to each element
-/// map_expr('apply(partial(`"add"`, `10`), @)', [1, 2, 3])  // Note: requires creative use
+/// ## Basic Usage
+/// ```text
+/// partial('join', `"-"`)  // Create a dash-joiner
+/// // -> {"__partial__": true, "fn": "join", "args": ["-"]}
+/// ```
+///
+/// ## Reusable String Operations
+/// ```text
+/// // Create a comma-joiner for CSV-like output
+/// csv_joiner = partial('join', `","`)
+/// apply(csv_joiner, `["name", "age", "city"]`)  // -> "name,age,city"
+/// ```
+///
+/// ## Pre-configured Search
+/// ```text
+/// // Create a contains checker with pre-filled haystack
+/// has_hello = partial('contains', `"hello world"`)
+/// apply(has_hello, `"world"`)  // -> true
+/// apply(has_hello, `"xyz"`)    // -> false
+/// ```
+///
+/// ## Date Formatting
+/// ```text
+/// // Create a reusable ISO date formatter
+/// iso_formatter = partial('format_date', `"%Y-%m-%d"`)
+/// apply(iso_formatter, `"2024-01-15T10:30:00Z"`)  // -> "2024-01-15"
 /// ```
 pub struct PartialFn {
     #[allow(dead_code)]
@@ -1788,6 +1812,9 @@ impl Function for PartialFn {
 /// the pre-filled arguments with the provided arguments and invokes the function.
 /// If it's a string, treats it as a function name and invokes directly.
 ///
+/// This function is the complement to `partial()` - use `partial()` to create
+/// reusable function configurations, then `apply()` to execute them.
+///
 /// # Arguments
 /// * `partial_or_fn` - Either a partial object or a function name string
 /// * `...args` - Additional arguments to pass to the function
@@ -1795,10 +1822,41 @@ impl Function for PartialFn {
 /// # Returns
 /// The result of invoking the function with all arguments.
 ///
-/// # Example
+/// # Examples
+///
+/// ## Apply a Partial
 /// ```text
-/// apply(partial('add', `10`), `5`)  // -> 15
+/// // Create and apply a dash-joiner
+/// apply(partial('join', `"-"`), `["a", "b", "c"]`)  // -> "a-b-c"
+/// ```
+///
+/// ## Direct Function Call by Name
+/// ```text
+/// // Call any function by its string name
 /// apply('length', `"hello"`)  // -> 5
+/// apply('upper', `"hello"`)   // -> "HELLO"
+/// ```
+///
+/// ## Dynamic Function Dispatch
+/// ```text
+/// // Useful when the function name comes from data or configuration
+/// fn_name = 'sum'
+/// apply(fn_name, `[1, 2, 3, 4]`)  // -> 10
+/// ```
+///
+/// ## Combining with Partials
+/// ```text
+/// // Pre-configure a contains check, then apply multiple times
+/// checker = partial('contains', `"The quick brown fox"`)
+/// apply(checker, `"quick"`)  // -> true
+/// apply(checker, `"slow"`)   // -> false
+/// ```
+///
+/// ## Building Pipelines
+/// ```text
+/// // Create specialized validators
+/// email_pattern = partial('regex_match', `"^[a-z]+@[a-z]+\\.[a-z]+$"`)
+/// apply(email_pattern, `"test@example.com"`)  // -> true
 /// ```
 pub struct ApplyFn {
     #[allow(dead_code)]
