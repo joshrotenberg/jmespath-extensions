@@ -6,8 +6,8 @@
 //!
 //! | Function | Signature | Description |
 //! |----------|-----------|-------------|
-//! | [`items`](#items) | `items(object) → array` | Convert to [{key, value}, ...] |
-//! | [`from_items`](#from_items) | `from_items(array) → object` | Convert [{key, value}, ...] to object |
+//! | [`items`](#items) | `items(object) → array` | Convert to [[key, value], ...] (JEP-013) |
+//! | [`from_items`](#from_items) | `from_items(array) → object` | Convert [[key, value], ...] to object (JEP-013) |
 //! | [`pick`](#pick) | `pick(object, keys) → object` | Select specific keys |
 //! | [`omit`](#omit) | `omit(object, keys) → object` | Remove specific keys |
 //! | [`invert`](#invert) | `invert(object) → object` | Swap keys and values |
@@ -43,24 +43,33 @@
 //!
 //! ## items
 //!
-//! Converts an object to an array of `{key, value}` objects.
+//! Converts an object to an array of key-value pairs (2-element arrays).
+//! Implements [JEP-013](https://github.com/jmespath-community/jmespath.spec/discussions/47).
+//!
+//! This function is the inverse of [`from_items`](#from_items).
 //!
 //! ```text
-//! items(object) → array
+//! items(object) → array[array[any]]
 //!
-//! items({a: 1, b: 2})     → [{key: "a", value: 1}, {key: "b", value: 2}]
+//! items({a: 1, b: 2})     → [["a", 1], ["b", 2]]
 //! items({})               → []
+//! items({x: "hello"})     → [["x", "hello"]]
 //! ```
 //!
 //! ## from_items
 //!
-//! Converts an array of `{key, value}` objects back to an object.
+//! Converts an array of key-value pairs (2-element arrays) back to an object.
+//! Implements [JEP-013](https://github.com/jmespath-community/jmespath.spec/discussions/47).
+//!
+//! This function is the inverse of [`items`](#items). When duplicate keys exist,
+//! the last occurrence takes precedence.
 //!
 //! ```text
-//! from_items(array) → object
+//! from_items(array[array[any]]) → object
 //!
-//! from_items([{key: 'a', value: 1}, {key: 'b', value: 2}])   → {a: 1, b: 2}
-//! from_items([])                                              → {}
+//! from_items([['a', 1], ['b', 2]])   → {a: 1, b: 2}
+//! from_items([])                      → {}
+//! from_items([['x', 1], ['x', 2]])   → {x: 2}  // Last value wins
 //! ```
 //!
 //! ## pick
@@ -209,7 +218,7 @@ pub fn register(runtime: &mut Runtime) {
 }
 
 // =============================================================================
-// entries(object) -> array of {key, value} objects
+// items(object) -> array of [key, value] pairs (JEP-013)
 // =============================================================================
 
 define_function!(EntriesFn, vec![ArgumentType::Object], None);
@@ -226,13 +235,12 @@ impl Function for EntriesFn {
             )
         })?;
 
+        // JEP-013: Return array of [key, value] pairs (2-element arrays)
         let entries: Vec<Rcvar> = obj
             .iter()
             .map(|(k, v)| {
-                let mut entry = BTreeMap::new();
-                entry.insert("key".to_string(), Rc::new(Variable::String(k.clone())));
-                entry.insert("value".to_string(), v.clone());
-                Rc::new(Variable::Object(entry)) as Rcvar
+                let pair = vec![Rc::new(Variable::String(k.clone())) as Rcvar, v.clone()];
+                Rc::new(Variable::Array(pair)) as Rcvar
             })
             .collect();
 
@@ -241,7 +249,7 @@ impl Function for EntriesFn {
 }
 
 // =============================================================================
-// from_entries(array) -> object from array of {key, value}
+// from_items(array) -> object from array of [key, value] pairs (JEP-013)
 // =============================================================================
 
 define_function!(FromEntriesFn, vec![ArgumentType::Array], None);
@@ -261,10 +269,12 @@ impl Function for FromEntriesFn {
         let mut result = BTreeMap::new();
 
         for item in arr {
-            if let Some(obj) = item.as_object() {
-                if let (Some(key), Some(value)) = (obj.get("key"), obj.get("value")) {
-                    if let Some(key_str) = key.as_string() {
-                        result.insert(key_str.to_string(), value.clone());
+            // JEP-013: Each item should be a 2-element array [key, value]
+            if let Some(pair) = item.as_array() {
+                if pair.len() >= 2 {
+                    // Key must be a string
+                    if let Some(key_str) = pair[0].as_string() {
+                        result.insert(key_str.to_string(), pair[1].clone());
                     }
                 }
             }
@@ -1106,15 +1116,72 @@ mod tests {
     fn test_items() {
         let runtime = setup_runtime();
         let expr = runtime.compile("items(@)").unwrap();
-        let mut obj = BTreeMap::new();
-        obj.insert(
-            "a".to_string(),
-            Rc::new(Variable::Number(serde_json::Number::from(1))),
-        );
-        let data = Variable::Object(obj);
+        let data = Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
         let result = expr.search(&data).unwrap();
         let arr = result.as_array().unwrap();
-        assert_eq!(arr.len(), 1);
+        assert_eq!(arr.len(), 2);
+        // JEP-013: Each item should be a [key, value] pair
+        let first = arr[0].as_array().unwrap();
+        assert_eq!(first.len(), 2);
+        assert_eq!(first[0].as_string().unwrap(), "a");
+        assert_eq!(first[1].as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_items_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("items(@)").unwrap();
+        let data = Variable::from_json(r#"{}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_from_items() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("from_items(@)").unwrap();
+        let data = Variable::from_json(r#"[["a", 1], ["b", 2]]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 1);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_from_items_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("from_items(@)").unwrap();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 0);
+    }
+
+    #[test]
+    fn test_from_items_duplicate_keys() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("from_items(@)").unwrap();
+        let data = Variable::from_json(r#"[["x", 1], ["x", 2]]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 1);
+        // Last value wins
+        assert_eq!(obj.get("x").unwrap().as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_items_from_items_roundtrip() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("from_items(items(@))").unwrap();
+        let data = Variable::from_json(r#"{"a": 1, "b": "hello", "c": true}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 3);
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 1);
+        assert_eq!(obj.get("b").unwrap().as_string().unwrap(), "hello");
+        assert!(obj.get("c").unwrap().as_boolean().unwrap());
     }
 
     #[test]
