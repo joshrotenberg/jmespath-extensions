@@ -19,8 +19,8 @@
 //! | [`capitalize`](#capitalize) | `capitalize(string) → string` | Capitalize first letter |
 //! | [`title`](#title) | `title(string) → string` | Title Case Each Word |
 //! | [`repeat`](#repeat) | `repeat(string, count) → string` | Repeat string N times |
-//! | [`find_first`](#find_first) | `find_first(string, search) → number` | Find first occurrence |
-//! | [`find_last`](#find_last) | `find_last(string, search) → number` | Find last occurrence |
+//! | [`find_first`](#find_first) | `find_first(string, search, start?, end?) → number\|null` | Find first occurrence (JEP-014) |
+//! | [`find_last`](#find_last) | `find_last(string, search, start?, end?) → number\|null` | Find last occurrence (JEP-014) |
 //! | [`slice`](#slice) | `slice(string, start, end?) → string` | Extract slice |
 //! | [`concat`](#concat) | `concat(array, separator?) → string` | Join array of strings |
 //! | [`camel_case`](#camel_case) | `camel_case(string) → string` | Convert to camelCase |
@@ -224,26 +224,39 @@
 //!
 //! ## find_first
 //!
-//! Finds the first occurrence of a substring. Returns -1 if not found.
+//! Finds the first occurrence of a substring. Returns `null` if not found.
+//! Implements [JEP-014](https://github.com/jmespath-community/jmespath.spec/blob/main/jep-014-string-functions.md).
+//!
+//! Optional `start` and `end` parameters restrict the search to a slice of the string.
+//! Negative indices count from the end of the string.
 //!
 //! ```text
-//! find_first(string, search) → number
+//! find_first(string, search, start?, end?) → number | null
 //!
-//! find_first('hello world', 'world') → 6
-//! find_first('hello world', 'o')     → 4
-//! find_first('hello', 'x')           → -1
+//! find_first('hello world', 'world')       → 6
+//! find_first('hello world', 'o')           → 4
+//! find_first('hello', 'x')                 → null
+//! find_first('hello world', 'o', 5)        → 7      // Search from index 5
+//! find_first('hello world', 'o', 0, 5)     → 4      // Search in range [0, 5)
+//! find_first('hello world', 'o', -5)       → 7      // Search from 5th-to-last char
 //! ```
 //!
 //! ## find_last
 //!
-//! Finds the last occurrence of a substring. Returns -1 if not found.
+//! Finds the last occurrence of a substring. Returns `null` if not found.
+//! Implements [JEP-014](https://github.com/jmespath-community/jmespath.spec/blob/main/jep-014-string-functions.md).
+//!
+//! Optional `start` and `end` parameters restrict the search to a slice of the string.
+//! Negative indices count from the end of the string.
 //!
 //! ```text
-//! find_last(string, search) → number
+//! find_last(string, search, start?, end?) → number | null
 //!
-//! find_last('hello world', 'o') → 7
-//! find_last('abcabc', 'abc')    → 3
-//! find_last('hello', 'x')       → -1
+//! find_last('hello world', 'o')            → 7
+//! find_last('abcabc', 'abc')               → 3
+//! find_last('hello', 'x')                  → null
+//! find_last('hello world', 'o', 0, 6)      → 4      // Search in range [0, 6)
+//! find_last('hello world', 'l', 0, -1)     → 9      // Exclude last char
 //! ```
 //!
 //! ## slice
@@ -955,14 +968,23 @@ impl Function for RepeatFn {
 }
 
 // =============================================================================
-// index_of(string, search) -> number (-1 if not found)
+// index_of(string, search, start?, end?) -> number | null (JEP-014)
 // =============================================================================
 
 define_function!(
     IndexOfFn,
     vec![ArgumentType::String, ArgumentType::String],
-    None
+    Some(ArgumentType::Number)
 );
+
+/// Helper to normalize an index (handling negative values) within a string length
+fn normalize_index(idx: i64, len: usize) -> usize {
+    if idx < 0 {
+        (len as i64 + idx).max(0) as usize
+    } else {
+        (idx as usize).min(len)
+    }
+}
 
 impl Function for IndexOfFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
@@ -984,20 +1006,59 @@ impl Function for IndexOfFn {
             )
         })?;
 
-        let result = s.find(search).map(|i| i as i64).unwrap_or(-1);
+        let len = s.len();
 
-        Ok(Rc::new(Variable::Number(serde_json::Number::from(result))))
+        // Get optional start parameter (default: 0)
+        let start = if args.len() > 2 {
+            let start_val = args[2].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for start".to_owned()),
+                )
+            })? as i64;
+            normalize_index(start_val, len)
+        } else {
+            0
+        };
+
+        // Get optional end parameter (default: string length)
+        let end = if args.len() > 3 {
+            let end_val = args[3].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for end".to_owned()),
+                )
+            })? as i64;
+            normalize_index(end_val, len)
+        } else {
+            len
+        };
+
+        // Search within the slice [start, end)
+        if start >= end || start >= len {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let slice = &s[start..end.min(len)];
+        match slice.find(search) {
+            Some(idx) => Ok(Rc::new(Variable::Number(serde_json::Number::from(
+                (start + idx) as i64,
+            )))),
+            None => Ok(Rc::new(Variable::Null)),
+        }
     }
 }
 
 // =============================================================================
-// last_index_of(string, search) -> number (-1 if not found)
+// last_index_of(string, search, start?, end?) -> number | null (JEP-014)
 // =============================================================================
 
 define_function!(
     LastIndexOfFn,
     vec![ArgumentType::String, ArgumentType::String],
-    None
+    Some(ArgumentType::Number)
 );
 
 impl Function for LastIndexOfFn {
@@ -1020,9 +1081,48 @@ impl Function for LastIndexOfFn {
             )
         })?;
 
-        let result = s.rfind(search).map(|i| i as i64).unwrap_or(-1);
+        let len = s.len();
 
-        Ok(Rc::new(Variable::Number(serde_json::Number::from(result))))
+        // Get optional start parameter (default: 0)
+        let start = if args.len() > 2 {
+            let start_val = args[2].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for start".to_owned()),
+                )
+            })? as i64;
+            normalize_index(start_val, len)
+        } else {
+            0
+        };
+
+        // Get optional end parameter (default: string length)
+        let end = if args.len() > 3 {
+            let end_val = args[3].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for end".to_owned()),
+                )
+            })? as i64;
+            normalize_index(end_val, len)
+        } else {
+            len
+        };
+
+        // Search within the slice [start, end)
+        if start >= end || start >= len {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let slice = &s[start..end.min(len)];
+        match slice.rfind(search) {
+            Some(idx) => Ok(Rc::new(Variable::Number(serde_json::Number::from(
+                (start + idx) as i64,
+            )))),
+            None => Ok(Rc::new(Variable::Null)),
+        }
     }
 }
 
@@ -2585,5 +2685,88 @@ mod tests {
         let data = Variable::String("helloWorld".to_string());
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "Hello World");
+    }
+
+    // JEP-014 find_first tests
+    #[test]
+    fn test_find_first_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_first(@, 'world')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 6);
+    }
+
+    #[test]
+    fn test_find_first_not_found() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_first(@, 'xyz')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_find_first_with_start() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_first(@, 'o', `5`)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 7);
+    }
+
+    #[test]
+    fn test_find_first_with_start_and_end() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_first(@, 'o', `0`, `5`)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 4);
+    }
+
+    #[test]
+    fn test_find_first_with_negative_start() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_first(@, 'o', `-5`)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 7);
+    }
+
+    // JEP-014 find_last tests
+    #[test]
+    fn test_find_last_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_last(@, 'o')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 7);
+    }
+
+    #[test]
+    fn test_find_last_not_found() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_last(@, 'xyz')").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_find_last_with_start_and_end() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_last(@, 'o', `0`, `6`)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 4);
+    }
+
+    #[test]
+    fn test_find_last_with_negative_end() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("find_last(@, 'l', `0`, `-1`)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 9);
     }
 }

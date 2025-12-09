@@ -34,6 +34,44 @@
 //! - You need functionality beyond standard JMESPath
 //! - Cross-implementation compatibility is not required
 //!
+//! ## JEP Alignment
+//!
+//! Some functions in this library align with [JMESPath Enhancement Proposals (JEPs)](https://github.com/jmespath/jmespath.jep),
+//! which are draft specifications for extending JMESPath. While JEPs are not yet part of the
+//! official specification, aligning with them improves compatibility with other implementations
+//! that adopt the same proposals.
+//!
+//! ### JEP-013: Object Manipulation Functions
+//!
+//! The following functions implement [JEP-013](https://github.com/jmespath-community/jmespath.spec/discussions/47):
+//!
+//! | Function | Signature | Description |
+//! |----------|-----------|-------------|
+//! | `items` | `items(object) → array[array]` | Returns `[[key, value], ...]` pairs |
+//! | `from_items` | `from_items(array) → object` | Converts `[[key, value], ...]` to object |
+//! | `zip` | `zip(array1, array2) → array` | Zips two arrays into pairs |
+//!
+//! ### JEP-014: String Functions
+//!
+//! The following functions implement [JEP-014](https://github.com/jmespath-community/jmespath.spec/blob/main/jep-014-string-functions.md):
+//!
+//! | Function | Signature | Description |
+//! |----------|-----------|-------------|
+//! | `find_first` | `find_first(string, sub, start?, end?) → number\|null` | Find first occurrence |
+//! | `find_last` | `find_last(string, sub, start?, end?) → number\|null` | Find last occurrence |
+//! | `lower` | `lower(string) → string` | Convert to lowercase |
+//! | `upper` | `upper(string) → string` | Convert to uppercase |
+//! | `trim` | `trim(string, chars?) → string` | Remove leading/trailing chars |
+//! | `trim_left` | `trim_left(string, chars?) → string` | Remove leading chars |
+//! | `trim_right` | `trim_right(string, chars?) → string` | Remove trailing chars |
+//! | `pad_left` | `pad_left(string, width, pad?) → string` | Left-pad to width |
+//! | `pad_right` | `pad_right(string, width, pad?) → string` | Right-pad to width |
+//! | `replace` | `replace(string, old, new, count?) → string` | Replace occurrences |
+//! | `split` | `split(string, sep, count?) → array` | Split into array |
+//!
+//! **Note**: Some JEP-014 functions in this library have slight signature differences
+//! (e.g., required vs optional parameters). See individual function documentation for details.
+//!
 //! ## Quick Start
 //!
 //! ```rust
