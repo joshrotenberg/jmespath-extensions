@@ -36,6 +36,10 @@
 //! | [`mode`](#mode) | `mode(array) → any` | Most common value |
 //! | [`to_fixed`](#to_fixed) | `to_fixed(n, precision) → string` | Fixed decimal places |
 //! | [`format_number`](#format_number) | `format_number(n, precision?, suffix?) → string` | Format with separators |
+//! | [`histogram`](#histogram) | `histogram(array, bins) → array` | Bucket values into bins |
+//! | [`normalize`](#normalize) | `normalize(array) → array` | Normalize to 0-1 range |
+//! | [`z_score`](#z_score) | `z_score(array) → array` | Calculate z-scores |
+//! | [`correlation`](#correlation) | `correlation(arr1, arr2) → number` | Pearson correlation |
 //!
 //! # Examples
 //!
@@ -366,6 +370,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("mode", Box::new(ModeFn::new()));
     runtime.register_function("to_fixed", Box::new(ToFixedFn::new()));
     runtime.register_function("format_number", Box::new(FormatNumberFn::new()));
+    runtime.register_function("histogram", Box::new(HistogramFn::new()));
+    runtime.register_function("normalize", Box::new(NormalizeFn::new()));
+    runtime.register_function("z_score", Box::new(ZScoreFn::new()));
+    runtime.register_function("correlation", Box::new(CorrelationFn::new()));
 }
 
 // =============================================================================
@@ -1417,6 +1425,292 @@ fn add_thousand_separators(s: &str) -> String {
     }
 }
 
+// =============================================================================
+// histogram(array, bins) -> array
+// Bucket values into histogram bins
+// =============================================================================
+
+define_function!(
+    HistogramFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    None
+);
+
+impl Function for HistogramFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let num_bins = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number of bins".to_owned()),
+            )
+        })? as usize;
+
+        if num_bins == 0 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Number of bins must be greater than 0".to_owned()),
+            ));
+        }
+
+        // Extract numeric values
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let min_val = values.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_val = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+
+        // Handle case where all values are the same
+        let bin_width = if (max_val - min_val).abs() < f64::EPSILON {
+            1.0
+        } else {
+            (max_val - min_val) / num_bins as f64
+        };
+
+        // Initialize bins
+        let mut bins: Vec<(f64, f64, usize)> = (0..num_bins)
+            .map(|i| {
+                let bin_min = min_val + (i as f64 * bin_width);
+                let bin_max = if i == num_bins - 1 {
+                    max_val
+                } else {
+                    min_val + ((i + 1) as f64 * bin_width)
+                };
+                (bin_min, bin_max, 0)
+            })
+            .collect();
+
+        // Count values in each bin
+        for val in &values {
+            let bin_idx = if (max_val - min_val).abs() < f64::EPSILON {
+                0
+            } else {
+                let idx = ((val - min_val) / bin_width) as usize;
+                idx.min(num_bins - 1)
+            };
+            bins[bin_idx].2 += 1;
+        }
+
+        // Convert to array of objects
+        let result: Vec<Rcvar> = bins
+            .into_iter()
+            .map(|(bin_min, bin_max, count)| {
+                let mut map = std::collections::BTreeMap::new();
+                map.insert(
+                    "min".to_string(),
+                    Rc::new(Variable::Number(
+                        serde_json::Number::from_f64(bin_min)
+                            .unwrap_or_else(|| serde_json::Number::from(0)),
+                    )) as Rcvar,
+                );
+                map.insert(
+                    "max".to_string(),
+                    Rc::new(Variable::Number(
+                        serde_json::Number::from_f64(bin_max)
+                            .unwrap_or_else(|| serde_json::Number::from(0)),
+                    )) as Rcvar,
+                );
+                map.insert(
+                    "count".to_string(),
+                    Rc::new(Variable::Number(serde_json::Number::from(count))) as Rcvar,
+                );
+                Rc::new(Variable::Object(map)) as Rcvar
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// normalize(array) -> array
+// Normalize values to 0-1 range
+// =============================================================================
+
+define_function!(NormalizeFn, vec![ArgumentType::Array], None);
+
+impl Function for NormalizeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        // Extract numeric values
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let min_val = values.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_val = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let range = max_val - min_val;
+
+        let result: Vec<Rcvar> = values
+            .iter()
+            .map(|v| {
+                let normalized = if range.abs() < f64::EPSILON {
+                    0.0 // All values are the same
+                } else {
+                    (v - min_val) / range
+                };
+                Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(normalized)
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                )) as Rcvar
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// z_score(array) -> array
+// Calculate z-scores (standard scores) for values
+// =============================================================================
+
+define_function!(ZScoreFn, vec![ArgumentType::Array], None);
+
+impl Function for ZScoreFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        // Extract numeric values
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let n = values.len() as f64;
+        let mean = values.iter().sum::<f64>() / n;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
+        let stddev = variance.sqrt();
+
+        let result: Vec<Rcvar> = values
+            .iter()
+            .map(|v| {
+                let z = if stddev.abs() < f64::EPSILON {
+                    0.0 // All values are the same
+                } else {
+                    (v - mean) / stddev
+                };
+                Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(z).unwrap_or_else(|| serde_json::Number::from(0)),
+                )) as Rcvar
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// correlation(arr1, arr2) -> number
+// Pearson correlation coefficient between two arrays
+// =============================================================================
+
+define_function!(
+    CorrelationFn,
+    vec![ArgumentType::Array, ArgumentType::Array],
+    None
+);
+
+impl Function for CorrelationFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr1 = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let arr2 = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        // Extract numeric values
+        let values1: Vec<f64> = arr1.iter().filter_map(|v| v.as_number()).collect();
+        let values2: Vec<f64> = arr2.iter().filter_map(|v| v.as_number()).collect();
+
+        if values1.is_empty() || values2.is_empty() {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        // Use the shorter length
+        let n = values1.len().min(values2.len());
+        if n == 0 {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let values1 = &values1[..n];
+        let values2 = &values2[..n];
+
+        let mean1 = values1.iter().sum::<f64>() / n as f64;
+        let mean2 = values2.iter().sum::<f64>() / n as f64;
+
+        let mut cov = 0.0;
+        let mut var1 = 0.0;
+        let mut var2 = 0.0;
+
+        for i in 0..n {
+            let d1 = values1[i] - mean1;
+            let d2 = values2[i] - mean2;
+            cov += d1 * d2;
+            var1 += d1 * d1;
+            var2 += d2 * d2;
+        }
+
+        let denom = (var1 * var2).sqrt();
+        let correlation = if denom.abs() < f64::EPSILON {
+            0.0 // No variance in one or both arrays
+        } else {
+            cov / denom
+        };
+
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(correlation)
+                .unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1562,5 +1856,67 @@ mod tests {
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
         assert_eq!(result.as_string().unwrap(), "1.50B");
+    }
+
+    #[test]
+    fn test_histogram() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("histogram(@, `3`)").unwrap();
+        let data: Variable = serde_json::from_str("[1, 2, 3, 4, 5, 6, 7, 8, 9]").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // Each bin should have 3 values
+        for bin in arr {
+            let obj = bin.as_object().unwrap();
+            assert!(obj.contains_key("min"));
+            assert!(obj.contains_key("max"));
+            assert!(obj.contains_key("count"));
+        }
+    }
+
+    #[test]
+    fn test_normalize() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("normalize(@)").unwrap();
+        let data: Variable = serde_json::from_str("[0, 50, 100]").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert!((arr[0].as_number().unwrap() - 0.0).abs() < 0.001);
+        assert!((arr[1].as_number().unwrap() - 0.5).abs() < 0.001);
+        assert!((arr[2].as_number().unwrap() - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_z_score() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("z_score(@)").unwrap();
+        let data: Variable = serde_json::from_str("[1, 2, 3, 4, 5]").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+        // Middle value (3) should have z-score of 0
+        assert!((arr[2].as_number().unwrap() - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_correlation_positive() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("correlation(`[1, 2, 3]`, `[1, 2, 3]`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!((result.as_number().unwrap() - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_correlation_negative() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("correlation(`[1, 2, 3]`, `[3, 2, 1]`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!((result.as_number().unwrap() - (-1.0)).abs() < 0.001);
     }
 }
