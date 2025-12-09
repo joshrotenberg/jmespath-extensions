@@ -2165,6 +2165,17 @@ fn expression_functions() -> Vec<FunctionInfo> {
             features: &[Feature::Core],
         },
         FunctionInfo {
+            name: "count_by",
+            category: Category::Expression,
+            description: "Count occurrences grouped by expression result",
+            signature: "string, array -> object",
+            example: "count_by('type', [{type: 'a'}, {type: 'b'}, {type: 'a'}]) -> {a: 2, b: 1}",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+        FunctionInfo {
             name: "partition_expr",
             category: Category::Expression,
             description: "Split array into [matches, non-matches] based on expression",
