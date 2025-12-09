@@ -744,14 +744,14 @@ impl Function for DeepDiffFn {
 ///
 /// # Arguments
 /// * `object` - The object to query
-/// * `path` - Dot-separated path string (e.g., "a.b.c" or "a[0].b")
+/// * `path` - Dot-separated path string (e.g., "a.b.c" or "a\[0\].b")
 /// * `default` - Optional default value if path doesn't exist
 ///
 /// # Examples
 /// ```text
 /// get({a: {b: {c: 1}}}, 'a.b.c') -> 1
 /// get({a: 1}, 'b.c', 'default') -> 'default'
-/// get({a: [{b: 1}]}, 'a[0].b') -> 1
+/// get({a: [{b: 1}]}, 'a\[0\].b') -> 1
 /// ```
 pub struct GetFn {
     signature: crate::Signature,
@@ -774,7 +774,7 @@ impl GetFn {
     }
 }
 
-/// Navigate to a value using a path string like "a.b.c" or "a[0].b"
+// Navigate to a value using a path string like "a.b.c" or "a[0].b"
 fn get_at_path(value: &Variable, path: &str) -> Option<Rcvar> {
     if path.is_empty() {
         return Some(Rc::new(value.clone()));
