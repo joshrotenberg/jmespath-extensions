@@ -30,6 +30,7 @@
 //! | `reduce_expr(expr, array, init)` | Reduce array to single value |
 //! | `scan_expr(expr, array, init)` | Cumulative reduce (running totals) |
 //! | `fold(expr, array, init)` | Alias for reduce_expr |
+//! | `count_by(expr, array)` | Count occurrences by expression result |
 //!
 //! # Examples
 //!
@@ -89,6 +90,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("scan_expr", Box::new(ScanExprFn::new()));
     // Alias for reduce_expr (lodash-style)
     runtime.register_function("fold", Box::new(ReduceExprFn::new()));
+    runtime.register_function("count_by", Box::new(CountByFn::new()));
 }
 
 // =============================================================================
@@ -670,6 +672,80 @@ impl Function for GroupByExprFn {
                     v.into_iter().map(|item| variable_to_json(&item)).collect();
                 (k, serde_json::Value::Array(arr))
             })
+            .collect();
+
+        Ok(Rc::new(
+            Variable::from_json(&serde_json::to_string(&result).unwrap()).unwrap(),
+        ))
+    }
+}
+
+// =============================================================================
+// count_by(expr, array) -> object (count occurrences by expression result)
+// =============================================================================
+
+/// Count occurrences of elements grouped by an expression result.
+///
+/// Similar to `frequencies` but allows extracting a key via expression.
+/// Similar to `group_by_expr` but returns counts instead of grouped elements.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string to extract the grouping key
+/// * `array` - The array to count
+///
+/// # Returns
+/// An object mapping each unique key to its count.
+///
+/// # Example
+/// ```text
+/// count_by('type', [{"type": "a"}, {"type": "b"}, {"type": "a"}])
+///   -> {"a": 2, "b": 1}
+/// count_by('@', ['a', 'b', 'a', 'c', 'a']) -> {"a": 3, "b": 1, "c": 1}
+/// ```
+pub struct CountByFn {
+    signature: Signature,
+}
+
+impl Default for CountByFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CountByFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Array], None),
+        }
+    }
+}
+
+impl Function for CountByFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr = args[1].as_array().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in count_by: {}", e)),
+            )
+        })?;
+
+        let mut counts: std::collections::BTreeMap<String, i64> = std::collections::BTreeMap::new();
+
+        for item in arr {
+            let key_val = compiled.search(item.clone())?;
+            let key = value_to_string(&key_val);
+            *counts.entry(key).or_insert(0) += 1;
+        }
+
+        let result: serde_json::Map<String, serde_json::Value> = counts
+            .into_iter()
+            .map(|(k, v)| (k, serde_json::Value::Number(serde_json::Number::from(v))))
             .collect();
 
         Ok(Rc::new(
@@ -2289,5 +2365,52 @@ mod tests {
         let result = expr.search(&data).unwrap();
         // 0 + 1 + 2 = 3
         assert_eq!(result.as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_count_by_objects() {
+        let runtime = setup();
+        let data =
+            Variable::from_json(r#"[{"type": "a"}, {"type": "b"}, {"type": "a"}, {"type": "a"}]"#)
+                .unwrap();
+        let expr = runtime.compile("count_by('type', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap(), 3.0);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_count_by_strings() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"["a", "b", "a", "c", "a"]"#).unwrap();
+        let expr = runtime.compile("count_by('@', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap(), 3.0);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap(), 1.0);
+        assert_eq!(obj.get("c").unwrap().as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_count_by_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("count_by('type', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.is_empty());
+    }
+
+    #[test]
+    fn test_count_by_numbers() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 1, 3, 1, 2]"#).unwrap();
+        let expr = runtime.compile("count_by('@', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("1").unwrap().as_number().unwrap(), 3.0);
+        assert_eq!(obj.get("2").unwrap().as_number().unwrap(), 2.0);
+        assert_eq!(obj.get("3").unwrap().as_number().unwrap(), 1.0);
     }
 }
