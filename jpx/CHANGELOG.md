@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.6...jpx-v0.1.7) - 2025-12-09
+
+### Added
+
+- *(jpx)* add --explain flag to show parsed AST ([#118](https://github.com/joshrotenberg/jmespath-extensions/pull/118))
+- *(jpx)* add cargo-style colored help output ([#116](https://github.com/joshrotenberg/jmespath-extensions/pull/116))
+
 ## [0.1.6](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.5...jpx-v0.1.6) - 2025-12-09
 
 ### Other

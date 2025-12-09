@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.6...v0.4.0) - 2025-12-09
+
+### Added
+
+- [**breaking**] align functions with JEP-013 and JEP-014 specs ([#125](https://github.com/joshrotenberg/jmespath-extensions/pull/125))
+- add partial application functions (partial, apply) ([#124](https://github.com/joshrotenberg/jmespath-extensions/pull/124))
+
 ## [0.3.6](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.5...v0.3.6) - 2025-12-09
 
 ### Added
