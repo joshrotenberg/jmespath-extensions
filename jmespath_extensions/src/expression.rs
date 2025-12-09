@@ -1305,7 +1305,7 @@ impl Function for MapValuesFn {
 /// # Arguments
 /// * `array` - The array to sort
 /// * `criteria` - Array of [field, direction] pairs where direction is "asc" or "desc"
-///               Use JMESPath literal syntax with backticks: `` `[["field", "asc"]]` ``
+///   Use JMESPath literal syntax with backticks: `` `[["field", "asc"]]` ``
 ///
 /// # Returns
 /// A new sorted array.

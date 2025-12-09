@@ -1632,8 +1632,8 @@ impl Function for FillFn {
 
         let mut result: Vec<Rcvar> = arr.clone();
 
-        for i in start..end.min(len) {
-            result[i] = fill_value.clone();
+        for item in result.iter_mut().take(end.min(len)).skip(start) {
+            *item = fill_value.clone();
         }
 
         Ok(Rc::new(Variable::Array(result)))
