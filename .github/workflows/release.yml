@@ -242,19 +242,78 @@ jobs:
     env:
       TAG_NAME: ${{ inputs.tag || github.ref_name }}
     steps:
-      - name: Extract version
-        id: version
-        run: |
-          # Convert jpx-v0.1.1 to v0.1.1 for homebrew action
-          VERSION="${TAG_NAME#jpx-}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-      - name: Update Homebrew formula
-        uses: mislav/bump-homebrew-formula-action@v3
+      - name: Checkout homebrew tap
+        uses: actions/checkout@v4
         with:
-          formula-name: jpx
-          formula-path: Formula/jpx.rb
-          homebrew-tap: joshrotenberg/homebrew-brew
-          base-branch: main
-          tag-name: ${{ steps.version.outputs.version }}
+          repository: joshrotenberg/homebrew-brew
+          token: ${{ secrets.COMMITTER_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update formula
         env:
-          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract version from tag (jpx-v0.1.5 -> 0.1.5)
+          VERSION="${TAG_NAME#jpx-v}"
+          echo "Updating formula to version $VERSION"
+
+          # Download SHA256 sums from release
+          gh release download "$TAG_NAME" \
+            --repo joshrotenberg/jmespath-extensions \
+            --pattern "*.sha256" \
+            --dir /tmp/shas
+
+          # Extract SHA256 for each platform
+          SHA_AARCH64_DARWIN=$(cat /tmp/shas/jpx-aarch64-apple-darwin.tar.xz.sha256 | awk '{print $1}')
+          SHA_X86_64_DARWIN=$(cat /tmp/shas/jpx-x86_64-apple-darwin.tar.xz.sha256 | awk '{print $1}')
+          SHA_X86_64_LINUX=$(cat /tmp/shas/jpx-x86_64-unknown-linux-gnu.tar.xz.sha256 | awk '{print $1}')
+
+          echo "SHA256 aarch64-darwin: $SHA_AARCH64_DARWIN"
+          echo "SHA256 x86_64-darwin: $SHA_X86_64_DARWIN"
+          echo "SHA256 x86_64-linux: $SHA_X86_64_LINUX"
+
+          # Generate updated formula
+          cat > homebrew-tap/Formula/jpx.rb << EOF
+          class Jpx < Formula
+            desc "JMESPath CLI with 150+ extended functions - a powerful jq alternative"
+            homepage "https://github.com/joshrotenberg/jmespath-extensions"
+            version "$VERSION"
+            license any_of: ["MIT", "Apache-2.0"]
+
+            on_macos do
+              on_arm do
+                url "https://github.com/joshrotenberg/jmespath-extensions/releases/download/$TAG_NAME/jpx-aarch64-apple-darwin.tar.xz"
+                sha256 "$SHA_AARCH64_DARWIN"
+              end
+              on_intel do
+                url "https://github.com/joshrotenberg/jmespath-extensions/releases/download/$TAG_NAME/jpx-x86_64-apple-darwin.tar.xz"
+                sha256 "$SHA_X86_64_DARWIN"
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/joshrotenberg/jmespath-extensions/releases/download/$TAG_NAME/jpx-x86_64-unknown-linux-gnu.tar.xz"
+                sha256 "$SHA_X86_64_LINUX"
+              end
+            end
+
+            def install
+              bin.install "jpx"
+            end
+
+            test do
+              assert_match "jpx", shell_output("#{bin}/jpx --version")
+            end
+          end
+          EOF
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          VERSION="${TAG_NAME#jpx-v}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/jpx.rb
+          git commit -m "jpx $VERSION"
+          git push
