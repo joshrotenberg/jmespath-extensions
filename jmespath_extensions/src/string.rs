@@ -34,6 +34,13 @@
 //! | [`rtrimstr`](#rtrimstr) | `rtrimstr(string, suffix) → string` | Remove suffix if present |
 //! | [`indices`](#indices) | `indices(string, search) → array` | Find all occurrence indices |
 //! | [`inside`](#inside) | `inside(string, search) → boolean` | Check if search is contained |
+//! | [`humanize`](#humanize) | `humanize(string) → string` | Convert to human-readable form |
+//! | [`deburr`](#deburr) | `deburr(string) → string` | Remove diacritical marks |
+//! | [`words`](#words) | `words(string) → array` | Split into array of words |
+//! | [`escape`](#escape) | `escape(string) → string` | Escape HTML entities |
+//! | [`unescape`](#unescape) | `unescape(string) → string` | Unescape HTML entities |
+//! | [`escape_regex`](#escape_regex) | `escape_regex(string) → string` | Escape regex special chars |
+//! | [`start_case`](#start_case) | `start_case(string) → string` | Convert To Start Case |
 //!
 //! # Examples
 //!
@@ -481,6 +488,13 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("rtrimstr", Box::new(RtrimstrFn::new()));
     runtime.register_function("indices", Box::new(IndicesFn::new()));
     runtime.register_function("inside", Box::new(InsideFn::new()));
+    runtime.register_function("humanize", Box::new(HumanizeFn::new()));
+    runtime.register_function("deburr", Box::new(DeburrrFn::new()));
+    runtime.register_function("words", Box::new(WordsFn::new()));
+    runtime.register_function("escape", Box::new(EscapeFn::new()));
+    runtime.register_function("unescape", Box::new(UnescapeFn::new()));
+    runtime.register_function("escape_regex", Box::new(EscapeRegexFn::new()));
+    runtime.register_function("start_case", Box::new(StartCaseFn::new()));
 }
 
 // =============================================================================
@@ -1863,6 +1877,318 @@ impl Function for InsideFn {
     }
 }
 
+// =============================================================================
+// humanize(string) -> string
+// Converts a camelCase, snake_case, or kebab-case string to a human-readable form
+// =============================================================================
+
+define_function!(HumanizeFn, vec![ArgumentType::String], None);
+
+impl Function for HumanizeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Split on underscores, hyphens, and camelCase boundaries
+        let mut result = String::new();
+        let mut prev_was_lower = false;
+        let mut word_start = true;
+
+        for c in s.chars() {
+            if c == '_' || c == '-' {
+                if !result.is_empty() && !result.ends_with(' ') {
+                    result.push(' ');
+                }
+                word_start = true;
+                prev_was_lower = false;
+            } else if c.is_uppercase() && prev_was_lower {
+                // camelCase boundary
+                result.push(' ');
+                if word_start {
+                    result.push(c); // Keep first letter of sentence uppercase
+                } else {
+                    result.push(c.to_lowercase().next().unwrap_or(c));
+                }
+                word_start = false;
+                prev_was_lower = false;
+            } else {
+                if word_start && result.is_empty() {
+                    // First character of the string - capitalize it
+                    result.push(c.to_uppercase().next().unwrap_or(c));
+                } else {
+                    result.push(c.to_lowercase().next().unwrap_or(c));
+                }
+                prev_was_lower = c.is_lowercase();
+                word_start = false;
+            }
+        }
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// deburr(string) -> string
+// Removes diacritical marks (accents) from characters
+// =============================================================================
+
+define_function!(DeburrrFn, vec![ArgumentType::String], None);
+
+impl Function for DeburrrFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Remove diacritical marks by mapping accented characters to ASCII
+        let result: String = s
+            .chars()
+            .map(|c| match c {
+                'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' => 'A',
+                'Æ' => 'A', // Could be "AE" but keeping single char
+                'Ç' => 'C',
+                'È' | 'É' | 'Ê' | 'Ë' => 'E',
+                'Ì' | 'Í' | 'Î' | 'Ï' => 'I',
+                'Ð' => 'D',
+                'Ñ' => 'N',
+                'Ò' | 'Ó' | 'Ô' | 'Õ' | 'Ö' | 'Ø' => 'O',
+                'Ù' | 'Ú' | 'Û' | 'Ü' => 'U',
+                'Ý' => 'Y',
+                'Þ' => 'T', // Thorn
+                'ß' => 's', // German sharp s
+                'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' => 'a',
+                'æ' => 'a', // Could be "ae" but keeping single char
+                'ç' => 'c',
+                'è' | 'é' | 'ê' | 'ë' => 'e',
+                'ì' | 'í' | 'î' | 'ï' => 'i',
+                'ð' => 'd',
+                'ñ' => 'n',
+                'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' => 'o',
+                'ù' | 'ú' | 'û' | 'ü' => 'u',
+                'ý' | 'ÿ' => 'y',
+                'þ' => 't', // Thorn
+                _ => c,
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// words(string) -> array
+// Splits string into an array of words
+// =============================================================================
+
+define_function!(WordsFn, vec![ArgumentType::String], None);
+
+impl Function for WordsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Split on word boundaries: spaces, underscores, hyphens, and camelCase
+        let mut words = Vec::new();
+        let mut current_word = String::new();
+        let mut prev_was_lower = false;
+
+        for c in s.chars() {
+            if c.is_whitespace() || c == '_' || c == '-' {
+                if !current_word.is_empty() {
+                    words.push(Rc::new(Variable::String(current_word.clone())) as Rcvar);
+                    current_word.clear();
+                }
+                prev_was_lower = false;
+            } else if c.is_uppercase() && prev_was_lower {
+                // camelCase boundary
+                if !current_word.is_empty() {
+                    words.push(Rc::new(Variable::String(current_word.clone())) as Rcvar);
+                    current_word.clear();
+                }
+                current_word.push(c);
+                prev_was_lower = false;
+            } else {
+                current_word.push(c);
+                prev_was_lower = c.is_lowercase();
+            }
+        }
+
+        if !current_word.is_empty() {
+            words.push(Rc::new(Variable::String(current_word)) as Rcvar);
+        }
+
+        Ok(Rc::new(Variable::Array(words)))
+    }
+}
+
+// =============================================================================
+// escape(string) -> string
+// Escapes HTML entities: &, <, >, ", '
+// =============================================================================
+
+define_function!(EscapeFn, vec![ArgumentType::String], None);
+
+impl Function for EscapeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let result = s
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#39;");
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// unescape(string) -> string
+// Unescapes HTML entities: &amp;, &lt;, &gt;, &quot;, &#39;
+// =============================================================================
+
+define_function!(UnescapeFn, vec![ArgumentType::String], None);
+
+impl Function for UnescapeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let result = s
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'");
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// escape_regex(string) -> string
+// Escapes special regex characters
+// =============================================================================
+
+define_function!(EscapeRegexFn, vec![ArgumentType::String], None);
+
+impl Function for EscapeRegexFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Escape regex special characters: \ ^ $ . | ? * + ( ) [ ] { }
+        let mut result = String::with_capacity(s.len() * 2);
+        for c in s.chars() {
+            match c {
+                '\\' | '^' | '$' | '.' | '|' | '?' | '*' | '+' | '(' | ')' | '[' | ']' | '{'
+                | '}' => {
+                    result.push('\\');
+                    result.push(c);
+                }
+                _ => result.push(c),
+            }
+        }
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// start_case(string) -> string
+// Converts string to Start Case (capitalize first letter of each word)
+// =============================================================================
+
+define_function!(StartCaseFn, vec![ArgumentType::String], None);
+
+impl Function for StartCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Split on word boundaries and capitalize each word
+        let mut result = String::new();
+        let mut prev_was_lower = false;
+        let mut word_start = true;
+
+        for c in s.chars() {
+            if c.is_whitespace() || c == '_' || c == '-' {
+                if !result.is_empty() && !result.ends_with(' ') {
+                    result.push(' ');
+                }
+                word_start = true;
+                prev_was_lower = false;
+            } else if c.is_uppercase() && prev_was_lower {
+                // camelCase boundary - start new word
+                result.push(' ');
+                result.push(c); // Keep uppercase
+                word_start = false;
+                prev_was_lower = false;
+            } else {
+                if word_start {
+                    result.push(c.to_uppercase().next().unwrap_or(c));
+                } else {
+                    result.push(c.to_lowercase().next().unwrap_or(c));
+                }
+                prev_was_lower = c.is_lowercase();
+                word_start = false;
+            }
+        }
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2121,5 +2447,143 @@ mod tests {
         let data = Variable::Null;
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "100% done");
+    }
+
+    #[test]
+    fn test_humanize_snake_case() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("humanize(@)").unwrap();
+        let data = Variable::String("hello_world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello world");
+    }
+
+    #[test]
+    fn test_humanize_camel_case() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("humanize(@)").unwrap();
+        let data = Variable::String("helloWorld".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello world");
+    }
+
+    #[test]
+    fn test_humanize_kebab_case() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("humanize(@)").unwrap();
+        let data = Variable::String("hello-world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello world");
+    }
+
+    #[test]
+    fn test_deburr() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("deburr(@)").unwrap();
+        let data = Variable::String("déjà vu".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "deja vu");
+    }
+
+    #[test]
+    fn test_deburr_accents() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("deburr(@)").unwrap();
+        let data = Variable::String("àéîõü".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "aeiou");
+    }
+
+    #[test]
+    fn test_words() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("words(@)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "hello");
+        assert_eq!(arr[1].as_string().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_words_camel_case() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("words(@)").unwrap();
+        let data = Variable::String("helloWorld".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "hello");
+        assert_eq!(arr[1].as_string().unwrap(), "World");
+    }
+
+    #[test]
+    fn test_escape() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("escape(@)").unwrap();
+        let data = Variable::String("<div class=\"test\">Hello & World</div>".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "&lt;div class=&quot;test&quot;&gt;Hello &amp; World&lt;/div&gt;"
+        );
+    }
+
+    #[test]
+    fn test_unescape() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("unescape(@)").unwrap();
+        let data = Variable::String("&lt;div&gt;Hello &amp; World&lt;/div&gt;".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "<div>Hello & World</div>");
+    }
+
+    #[test]
+    fn test_escape_unescape_roundtrip() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("unescape(escape(@))").unwrap();
+        let data = Variable::String("<div>Hello & World</div>".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "<div>Hello & World</div>");
+    }
+
+    #[test]
+    fn test_escape_regex() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("escape_regex(@)").unwrap();
+        let data = Variable::String("hello.world?".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello\\.world\\?");
+    }
+
+    #[test]
+    fn test_escape_regex_special_chars() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("escape_regex(@)").unwrap();
+        let data = Variable::String("[a-z]+(foo|bar)*".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "\\[a-z\\]\\+\\(foo\\|bar\\)\\*"
+        );
+    }
+
+    #[test]
+    fn test_start_case() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("start_case(@)").unwrap();
+        let data = Variable::String("hello_world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello World");
+    }
+
+    #[test]
+    fn test_start_case_camel() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("start_case(@)").unwrap();
+        let data = Variable::String("helloWorld".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello World");
     }
 }

@@ -30,6 +30,12 @@
 //! | [`frequencies`](#frequencies) | `frequencies(array) → object` | Count occurrences |
 //! | [`mode`](#mode) | `mode(array) → any` | Most frequent element |
 //! | [`cartesian`](#cartesian) | `cartesian(array1, array2) → array` | Cartesian product |
+//! | [`initial`](#initial) | `initial(array) → array` | All but last element |
+//! | [`tail`](#tail) | `tail(array) → array` | All but first element |
+//! | [`without`](#without) | `without(array, ...values) → array` | Remove specified values |
+//! | [`xor`](#xor) | `xor(array1, array2) → array` | Symmetric difference |
+//! | [`fill`](#fill) | `fill(array, value, start?, end?) → array` | Fill with value |
+//! | [`pull_at`](#pull_at) | `pull_at(array, indices) → array` | Get elements at indices |
 //!
 //! # Examples
 //!
@@ -382,6 +388,12 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("frequencies", Box::new(FrequenciesFn::new()));
     runtime.register_function("mode", Box::new(ModeFn::new()));
     runtime.register_function("cartesian", Box::new(CartesianFn::new()));
+    runtime.register_function("initial", Box::new(InitialFn::new()));
+    runtime.register_function("tail", Box::new(TailFn::new()));
+    runtime.register_function("without", Box::new(WithoutFn::new()));
+    runtime.register_function("xor", Box::new(XorFn::new()));
+    runtime.register_function("fill", Box::new(FillFn::new()));
+    runtime.register_function("pull_at", Box::new(PullAtFn::new()));
 }
 
 // =============================================================================
@@ -1390,6 +1402,302 @@ impl Function for CartesianFn {
     }
 }
 
+// =============================================================================
+// initial(array) -> array (all elements except the last)
+// =============================================================================
+
+define_function!(InitialFn, vec![ArgumentType::Array], None);
+
+impl Function for InitialFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let result: Vec<Rcvar> = arr[..arr.len() - 1].to_vec();
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// tail(array) -> array (all elements except the first)
+// =============================================================================
+
+define_function!(TailFn, vec![ArgumentType::Array], None);
+
+impl Function for TailFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let result: Vec<Rcvar> = arr[1..].to_vec();
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// without(array, values_array) -> array (remove specified values)
+// =============================================================================
+
+define_function!(
+    WithoutFn,
+    vec![ArgumentType::Array, ArgumentType::Array],
+    None
+);
+
+impl Function for WithoutFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let exclude = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument for values to exclude".to_owned()),
+            )
+        })?;
+
+        // Create a set of serialized values to exclude for efficient lookup
+        let exclude_set: HashSet<String> = exclude
+            .iter()
+            .map(|v| serde_json::to_string(&**v).unwrap_or_default())
+            .collect();
+
+        let result: Vec<Rcvar> = arr
+            .iter()
+            .filter(|item| {
+                let key = serde_json::to_string(&***item).unwrap_or_default();
+                !exclude_set.contains(&key)
+            })
+            .cloned()
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// xor(array1, array2) -> array (symmetric difference)
+// =============================================================================
+
+define_function!(XorFn, vec![ArgumentType::Array, ArgumentType::Array], None);
+
+impl Function for XorFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr1 = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let arr2 = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        // Create sets of serialized values
+        let set1: HashSet<String> = arr1
+            .iter()
+            .map(|v| serde_json::to_string(&**v).unwrap_or_default())
+            .collect();
+
+        let set2: HashSet<String> = arr2
+            .iter()
+            .map(|v| serde_json::to_string(&**v).unwrap_or_default())
+            .collect();
+
+        let mut result = Vec::new();
+
+        // Add elements from arr1 that are not in arr2
+        for item in arr1 {
+            let key = serde_json::to_string(&**item).unwrap_or_default();
+            if !set2.contains(&key) {
+                result.push(item.clone());
+            }
+        }
+
+        // Add elements from arr2 that are not in arr1
+        for item in arr2 {
+            let key = serde_json::to_string(&**item).unwrap_or_default();
+            if !set1.contains(&key) {
+                result.push(item.clone());
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// fill(array, value, start?, end?) -> array (fill range with value)
+// =============================================================================
+
+define_function!(
+    FillFn,
+    vec![ArgumentType::Array, ArgumentType::Any],
+    Some(ArgumentType::Number)
+);
+
+impl Function for FillFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let fill_value = args[1].clone();
+
+        let len = arr.len();
+        if len == 0 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        // Default start is 0, default end is array length
+        let start = if args.len() > 2 {
+            let s = args[2].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for start index".to_owned()),
+                )
+            })? as i64;
+            // Handle negative indices
+            if s < 0 {
+                (len as i64 + s).max(0) as usize
+            } else {
+                (s as usize).min(len)
+            }
+        } else {
+            0
+        };
+
+        let end = if args.len() > 3 {
+            let e = args[3].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for end index".to_owned()),
+                )
+            })? as i64;
+            // Handle negative indices
+            if e < 0 {
+                (len as i64 + e).max(0) as usize
+            } else {
+                (e as usize).min(len)
+            }
+        } else {
+            len
+        };
+
+        let mut result: Vec<Rcvar> = arr.clone();
+
+        for i in start..end.min(len) {
+            result[i] = fill_value.clone();
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// pull_at(array, indices_array) -> array (get elements at specified indices)
+// =============================================================================
+
+define_function!(
+    PullAtFn,
+    vec![ArgumentType::Array, ArgumentType::Array],
+    None
+);
+
+impl Function for PullAtFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let indices = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array of indices".to_owned()),
+            )
+        })?;
+
+        let len = arr.len();
+        let mut result = Vec::new();
+
+        for idx_var in indices {
+            let idx = idx_var.as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number in indices array".to_owned()),
+                )
+            })? as i64;
+
+            // Handle negative indices
+            let actual_idx = if idx < 0 {
+                (len as i64 + idx).max(0) as usize
+            } else {
+                idx as usize
+            };
+
+            if actual_idx < len {
+                result.push(arr[actual_idx].clone());
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1448,5 +1756,158 @@ mod tests {
         let result = expr.search(&data).unwrap();
         let arr = result.as_array().unwrap();
         assert_eq!(arr.len(), 5);
+    }
+
+    #[test]
+    fn test_initial() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("initial(@)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_initial_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("initial(@)").unwrap();
+        let data = Variable::Array(vec![]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_tail() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("tail(@)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_tail_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("tail(@)").unwrap();
+        let data = Variable::Array(vec![]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_without() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("without(@, `[2, 4]`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+            Rc::new(Variable::Number(serde_json::Number::from(4))),
+            Rc::new(Variable::Number(serde_json::Number::from(5))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 3);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 5);
+    }
+
+    #[test]
+    fn test_xor() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("xor(`[1, 2, 3]`, `[2, 3, 4]`)").unwrap();
+        let data = Variable::Null;
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 4);
+    }
+
+    #[test]
+    fn test_fill() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("fill(@, `0`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 0);
+    }
+
+    #[test]
+    fn test_fill_with_range() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("fill(@, `0`, `1`, `3`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+            Rc::new(Variable::Number(serde_json::Number::from(4))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[3].as_number().unwrap() as i64, 4);
+    }
+
+    #[test]
+    fn test_pull_at() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("pull_at(@, `[0, 2]`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::String("a".to_string())),
+            Rc::new(Variable::String("b".to_string())),
+            Rc::new(Variable::String("c".to_string())),
+            Rc::new(Variable::String("d".to_string())),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "a");
+        assert_eq!(arr[1].as_string().unwrap(), "c");
+    }
+
+    #[test]
+    fn test_pull_at_negative_index() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("pull_at(@, `[-1, -2]`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::String("a".to_string())),
+            Rc::new(Variable::String("b".to_string())),
+            Rc::new(Variable::String("c".to_string())),
+            Rc::new(Variable::String("d".to_string())),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "d");
+        assert_eq!(arr[1].as_string().unwrap(), "c");
     }
 }
