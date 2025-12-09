@@ -12,6 +12,12 @@
 //! | `format_date(timestamp, format)` | Format timestamp to string |
 //! | `date_add(timestamp, amount, unit)` | Add time to timestamp |
 //! | `date_diff(ts1, ts2, unit)` | Difference between timestamps |
+//! | `timezone_convert(timestamp, from_tz, to_tz)` | Convert timestamp between timezones |
+//! | `is_weekend(timestamp)` | Check if date falls on weekend |
+//! | `is_weekday(timestamp)` | Check if date falls on weekday |
+//! | `business_days_between(ts1, ts2)` | Count business days between dates |
+//! | `relative_time(timestamp)` | Human-readable relative time |
+//! | `quarter(timestamp)` | Get quarter of year (1-4) |
 //!
 //! # Format Specifiers
 //!
@@ -60,7 +66,8 @@
 
 use std::rc::Rc;
 
-use chrono::{DateTime, NaiveDateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, Datelike, NaiveDateTime, TimeDelta, TimeZone, Utc, Weekday};
+use chrono_tz::Tz;
 
 use crate::common::{Function, custom_error};
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Variable, define_function};
@@ -73,6 +80,15 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("format_date", Box::new(FormatDateFn::new()));
     runtime.register_function("date_add", Box::new(DateAddFn::new()));
     runtime.register_function("date_diff", Box::new(DateDiffFn::new()));
+    runtime.register_function("timezone_convert", Box::new(TimezoneConvertFn::new()));
+    runtime.register_function("is_weekend", Box::new(IsWeekendFn::new()));
+    runtime.register_function("is_weekday", Box::new(IsWeekdayFn::new()));
+    runtime.register_function(
+        "business_days_between",
+        Box::new(BusinessDaysBetweenFn::new()),
+    );
+    runtime.register_function("relative_time", Box::new(RelativeTimeFn::new()));
+    runtime.register_function("quarter", Box::new(QuarterFn::new()));
 }
 
 // now() -> number
@@ -248,6 +264,298 @@ impl Function for DateDiffFn {
     }
 }
 
+// timezone_convert(timestamp, from_tz, to_tz) -> string
+// Converts a timestamp from one timezone to another and returns ISO format string
+define_function!(
+    TimezoneConvertFn,
+    vec![
+        ArgumentType::String,
+        ArgumentType::String,
+        ArgumentType::String
+    ],
+    None
+);
+
+impl Function for TimezoneConvertFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let timestamp_str = args[0].as_string().unwrap();
+        let from_tz_str = args[1].as_string().unwrap();
+        let to_tz_str = args[2].as_string().unwrap();
+
+        // Parse timezone strings
+        let from_tz: Tz = from_tz_str
+            .parse()
+            .map_err(|_| custom_error(ctx, &format!("invalid timezone: {}", from_tz_str)))?;
+        let to_tz: Tz = to_tz_str
+            .parse()
+            .map_err(|_| custom_error(ctx, &format!("invalid timezone: {}", to_tz_str)))?;
+
+        // Parse the input timestamp (try multiple formats)
+        let naive_dt =
+            if let Ok(dt) = NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%dT%H:%M:%S") {
+                dt
+            } else if let Ok(dt) = NaiveDateTime::parse_from_str(
+                &format!("{}T00:00:00", timestamp_str),
+                "%Y-%m-%dT%H:%M:%S",
+            ) {
+                dt
+            } else {
+                return Err(custom_error(
+                    ctx,
+                    &format!("invalid timestamp format: {}", timestamp_str),
+                ));
+            };
+
+        // Interpret the naive datetime in the source timezone
+        let from_dt = from_tz
+            .from_local_datetime(&naive_dt)
+            .single()
+            .ok_or_else(|| custom_error(ctx, "ambiguous or invalid local time"))?;
+
+        // Convert to target timezone
+        let to_dt = from_dt.with_timezone(&to_tz);
+
+        // Format as ISO string without timezone suffix
+        Ok(Rc::new(Variable::String(
+            to_dt.format("%Y-%m-%dT%H:%M:%S").to_string(),
+        )))
+    }
+}
+
+// is_weekend(timestamp) -> boolean
+// Check if the given timestamp falls on a weekend (Saturday or Sunday)
+define_function!(IsWeekendFn, vec![ArgumentType::Number], None);
+
+impl Function for IsWeekendFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = args[0].as_number().unwrap();
+        let dt = Utc.timestamp_opt(ts as i64, 0);
+
+        match dt {
+            chrono::LocalResult::Single(dt) => {
+                let weekday = dt.weekday();
+                let is_weekend = weekday == Weekday::Sat || weekday == Weekday::Sun;
+                Ok(Rc::new(Variable::Bool(is_weekend)))
+            }
+            _ => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// is_weekday(timestamp) -> boolean
+// Check if the given timestamp falls on a weekday (Monday through Friday)
+define_function!(IsWeekdayFn, vec![ArgumentType::Number], None);
+
+impl Function for IsWeekdayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = args[0].as_number().unwrap();
+        let dt = Utc.timestamp_opt(ts as i64, 0);
+
+        match dt {
+            chrono::LocalResult::Single(dt) => {
+                let weekday = dt.weekday();
+                let is_weekday = weekday != Weekday::Sat && weekday != Weekday::Sun;
+                Ok(Rc::new(Variable::Bool(is_weekday)))
+            }
+            _ => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// business_days_between(ts1, ts2) -> number
+// Count business days (weekdays) between two timestamps
+define_function!(
+    BusinessDaysBetweenFn,
+    vec![ArgumentType::Number, ArgumentType::Number],
+    None
+);
+
+impl Function for BusinessDaysBetweenFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts1 = args[0].as_number().unwrap() as i64;
+        let ts2 = args[1].as_number().unwrap() as i64;
+
+        let dt1 = match Utc.timestamp_opt(ts1, 0) {
+            chrono::LocalResult::Single(dt) => dt,
+            _ => return Ok(Rc::new(Variable::Null)),
+        };
+        let dt2 = match Utc.timestamp_opt(ts2, 0) {
+            chrono::LocalResult::Single(dt) => dt,
+            _ => return Ok(Rc::new(Variable::Null)),
+        };
+
+        // Ensure we iterate from earlier to later date
+        let (start, end) = if dt1 <= dt2 {
+            (dt1.date_naive(), dt2.date_naive())
+        } else {
+            (dt2.date_naive(), dt1.date_naive())
+        };
+
+        let mut count = 0i64;
+        let mut current = start;
+
+        while current < end {
+            let weekday = current.weekday();
+            if weekday != Weekday::Sat && weekday != Weekday::Sun {
+                count += 1;
+            }
+            current = current.succ_opt().unwrap_or(current);
+        }
+
+        // If original order was reversed, return negative count
+        let result = if ts1 > ts2 { -count } else { count };
+
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(result as f64).unwrap(),
+        )))
+    }
+}
+
+// relative_time(timestamp) -> string
+// Returns human-readable relative time (e.g., "2 hours ago", "in 3 days")
+define_function!(RelativeTimeFn, vec![ArgumentType::Number], None);
+
+impl Function for RelativeTimeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = args[0].as_number().unwrap() as i64;
+        let now = Utc::now().timestamp();
+        let diff = ts - now;
+
+        let (abs_diff, is_future) = if diff >= 0 {
+            (diff, true)
+        } else {
+            (-diff, false)
+        };
+
+        let result = if abs_diff < 60 {
+            if abs_diff == 1 {
+                if is_future {
+                    "in 1 second".to_string()
+                } else {
+                    "1 second ago".to_string()
+                }
+            } else {
+                if is_future {
+                    format!("in {} seconds", abs_diff)
+                } else {
+                    format!("{} seconds ago", abs_diff)
+                }
+            }
+        } else if abs_diff < 3600 {
+            let mins = abs_diff / 60;
+            if mins == 1 {
+                if is_future {
+                    "in 1 minute".to_string()
+                } else {
+                    "1 minute ago".to_string()
+                }
+            } else {
+                if is_future {
+                    format!("in {} minutes", mins)
+                } else {
+                    format!("{} minutes ago", mins)
+                }
+            }
+        } else if abs_diff < 86400 {
+            let hours = abs_diff / 3600;
+            if hours == 1 {
+                if is_future {
+                    "in 1 hour".to_string()
+                } else {
+                    "1 hour ago".to_string()
+                }
+            } else {
+                if is_future {
+                    format!("in {} hours", hours)
+                } else {
+                    format!("{} hours ago", hours)
+                }
+            }
+        } else if abs_diff < 2592000 {
+            let days = abs_diff / 86400;
+            if days == 1 {
+                if is_future {
+                    "in 1 day".to_string()
+                } else {
+                    "1 day ago".to_string()
+                }
+            } else {
+                if is_future {
+                    format!("in {} days", days)
+                } else {
+                    format!("{} days ago", days)
+                }
+            }
+        } else if abs_diff < 31536000 {
+            let months = abs_diff / 2592000;
+            if months == 1 {
+                if is_future {
+                    "in 1 month".to_string()
+                } else {
+                    "1 month ago".to_string()
+                }
+            } else {
+                if is_future {
+                    format!("in {} months", months)
+                } else {
+                    format!("{} months ago", months)
+                }
+            }
+        } else {
+            let years = abs_diff / 31536000;
+            if years == 1 {
+                if is_future {
+                    "in 1 year".to_string()
+                } else {
+                    "1 year ago".to_string()
+                }
+            } else {
+                if is_future {
+                    format!("in {} years", years)
+                } else {
+                    format!("{} years ago", years)
+                }
+            }
+        };
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// quarter(timestamp) -> number
+// Get the quarter of the year (1-4) for the given timestamp
+define_function!(QuarterFn, vec![ArgumentType::Number], None);
+
+impl Function for QuarterFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = args[0].as_number().unwrap();
+        let dt = Utc.timestamp_opt(ts as i64, 0);
+
+        match dt {
+            chrono::LocalResult::Single(dt) => {
+                let month = dt.month();
+                let quarter = ((month - 1) / 3) + 1;
+                Ok(Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(quarter as f64).unwrap(),
+                )))
+            }
+            _ => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -414,5 +722,177 @@ mod tests {
             .unwrap();
         let result = expr.search(&Variable::Null);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_timezone_convert_ny_to_london() {
+        let runtime = setup();
+        let data = Variable::String("2024-01-15T10:00:00".to_string());
+        let expr = runtime
+            .compile("timezone_convert(@, 'America/New_York', 'Europe/London')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // NY is UTC-5 in January, London is UTC+0, so 10:00 NY = 15:00 London
+        assert_eq!(result.as_string().unwrap(), "2024-01-15T15:00:00");
+    }
+
+    #[test]
+    fn test_timezone_convert_tokyo_to_la() {
+        let runtime = setup();
+        let data = Variable::String("2024-07-15T09:00:00".to_string());
+        let expr = runtime
+            .compile("timezone_convert(@, 'Asia/Tokyo', 'America/Los_Angeles')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // Tokyo is UTC+9, LA is UTC-7 in July (PDT), so 9:00 Tokyo = 17:00 previous day LA
+        assert_eq!(result.as_string().unwrap(), "2024-07-14T17:00:00");
+    }
+
+    #[test]
+    fn test_timezone_convert_invalid_tz() {
+        let runtime = setup();
+        let data = Variable::String("2024-01-15T10:00:00".to_string());
+        let expr = runtime
+            .compile("timezone_convert(@, 'Invalid/Zone', 'Europe/London')")
+            .unwrap();
+        let result = expr.search(&data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_is_weekend_saturday() {
+        let runtime = setup();
+        // 2024-01-13 is a Saturday - timestamp: 1705104000
+        let expr = runtime.compile("is_weekend(`1705104000`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_weekend_sunday() {
+        let runtime = setup();
+        // 2024-01-14 is a Sunday - timestamp: 1705190400
+        let expr = runtime.compile("is_weekend(`1705190400`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_weekend_monday() {
+        let runtime = setup();
+        // 2024-01-15 is a Monday - timestamp: 1705276800
+        let expr = runtime.compile("is_weekend(`1705276800`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_is_weekday_monday() {
+        let runtime = setup();
+        // 2024-01-15 is a Monday - timestamp: 1705276800
+        let expr = runtime.compile("is_weekday(`1705276800`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_weekday_saturday() {
+        let runtime = setup();
+        // 2024-01-13 is a Saturday - timestamp: 1705104000
+        let expr = runtime.compile("is_weekday(`1705104000`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_business_days_between() {
+        let runtime = setup();
+        // 2024-01-01 (Mon) to 2024-01-15 (Mon) - 10 business days
+        // ts1: 1704067200 (2024-01-01)
+        // ts2: 1705276800 (2024-01-15)
+        let expr = runtime
+            .compile("business_days_between(`1704067200`, `1705276800`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 10.0);
+    }
+
+    #[test]
+    fn test_business_days_between_reversed() {
+        let runtime = setup();
+        // Same dates but reversed - should be negative
+        let expr = runtime
+            .compile("business_days_between(`1705276800`, `1704067200`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), -10.0);
+    }
+
+    #[test]
+    fn test_business_days_between_same_day() {
+        let runtime = setup();
+        let expr = runtime
+            .compile("business_days_between(`1705276800`, `1705276800`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_quarter_q1() {
+        let runtime = setup();
+        // January 15, 2024 - timestamp: 1705276800
+        let expr = runtime.compile("quarter(`1705276800`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_quarter_q2() {
+        let runtime = setup();
+        // April 15, 2024 - timestamp: 1713139200
+        let expr = runtime.compile("quarter(`1713139200`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_quarter_q3() {
+        let runtime = setup();
+        // July 15, 2024 - timestamp: 1721001600
+        let expr = runtime.compile("quarter(`1721001600`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_quarter_q4() {
+        let runtime = setup();
+        // October 15, 2024 - timestamp: 1728950400
+        let expr = runtime.compile("quarter(`1728950400`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 4.0);
+    }
+
+    #[test]
+    fn test_relative_time_past() {
+        let runtime = setup();
+        // Use a timestamp far in the past (1 year ago)
+        let one_year_ago = Utc::now().timestamp() - 31536000;
+        let expr_str = format!("relative_time(`{}`)", one_year_ago);
+        let expr = runtime.compile(&expr_str).unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.as_string().unwrap().contains("ago"));
+    }
+
+    #[test]
+    fn test_relative_time_future() {
+        let runtime = setup();
+        // Use a timestamp in the future (1 day from now)
+        let one_day_future = Utc::now().timestamp() + 86400;
+        let expr_str = format!("relative_time(`{}`)", one_day_future);
+        let expr = runtime.compile(&expr_str).unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.as_string().unwrap().starts_with("in "));
     }
 }
