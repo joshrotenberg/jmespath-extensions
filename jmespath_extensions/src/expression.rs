@@ -91,6 +91,10 @@ pub fn register(runtime: &mut Runtime) {
     // Alias for reduce_expr (lodash-style)
     runtime.register_function("fold", Box::new(ReduceExprFn::new()));
     runtime.register_function("count_by", Box::new(CountByFn::new()));
+
+    // Partial application functions
+    runtime.register_function("partial", Box::new(PartialFn::new()));
+    runtime.register_function("apply", Box::new(ApplyFn::new()));
 }
 
 // =============================================================================
@@ -1691,6 +1695,230 @@ impl Function for ScanExprFn {
     }
 }
 
+// =============================================================================
+// partial(fn_name, ...args) -> partial object
+// =============================================================================
+
+/// Create a partial function with some arguments pre-filled.
+///
+/// Returns an object that can be used with `apply()` to invoke the function
+/// with the remaining arguments.
+///
+/// # Arguments
+/// * `fn_name` - The name of the function to partially apply
+/// * `...args` - Zero or more arguments to pre-fill
+///
+/// # Returns
+/// A partial object: `{"__partial__": true, "fn": "fn_name", "args": [...]}`
+///
+/// # Example
+/// ```text
+/// partial('add', `10`)  // Create a function that adds 10
+/// apply(partial('add', `10`), `5`)  // -> 15
+///
+/// // With map_expr - add 10 to each element
+/// map_expr('apply(partial(`"add"`, `10`), @)', [1, 2, 3])  // Note: requires creative use
+/// ```
+pub struct PartialFn {
+    #[allow(dead_code)]
+    signature: Signature,
+}
+
+impl Default for PartialFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PartialFn {
+    pub fn new() -> Self {
+        Self {
+            // At least function name required, then variadic args
+            signature: Signature::new(vec![ArgumentType::String], Some(ArgumentType::Any)),
+        }
+    }
+}
+
+impl Function for PartialFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        if args.is_empty() {
+            return Err(JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse("partial() requires at least a function name".into()),
+            ));
+        }
+
+        let fn_name = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(
+                    "partial() first argument must be a function name string".into(),
+                ),
+            )
+        })?;
+
+        // Collect the pre-filled arguments
+        let prefilled_args: Vec<serde_json::Value> =
+            args[1..].iter().map(variable_to_json).collect();
+
+        // Create the partial object
+        let mut partial_obj = serde_json::Map::new();
+        partial_obj.insert("__partial__".to_string(), serde_json::Value::Bool(true));
+        partial_obj.insert(
+            "fn".to_string(),
+            serde_json::Value::String(fn_name.to_string()),
+        );
+        partial_obj.insert("args".to_string(), serde_json::Value::Array(prefilled_args));
+
+        Ok(Rc::new(
+            Variable::from_json(&serde_json::to_string(&partial_obj).unwrap()).unwrap(),
+        ))
+    }
+}
+
+// =============================================================================
+// apply(partial_or_fn, ...args) -> result
+// =============================================================================
+
+/// Apply a partial function or regular function with arguments.
+///
+/// If the first argument is a partial object (from `partial()`), combines
+/// the pre-filled arguments with the provided arguments and invokes the function.
+/// If it's a string, treats it as a function name and invokes directly.
+///
+/// # Arguments
+/// * `partial_or_fn` - Either a partial object or a function name string
+/// * `...args` - Additional arguments to pass to the function
+///
+/// # Returns
+/// The result of invoking the function with all arguments.
+///
+/// # Example
+/// ```text
+/// apply(partial('add', `10`), `5`)  // -> 15
+/// apply('length', `"hello"`)  // -> 5
+/// ```
+pub struct ApplyFn {
+    #[allow(dead_code)]
+    signature: Signature,
+}
+
+impl Default for ApplyFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ApplyFn {
+    pub fn new() -> Self {
+        Self {
+            // First arg is partial or fn name, then variadic args
+            signature: Signature::new(vec![ArgumentType::Any], Some(ArgumentType::Any)),
+        }
+    }
+}
+
+impl Function for ApplyFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        if args.is_empty() {
+            return Err(JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse("apply() requires at least one argument".into()),
+            ));
+        }
+
+        let first_arg = &args[0];
+        let additional_args = &args[1..];
+
+        // Check if it's a partial object
+        if let Some(obj) = first_arg.as_object() {
+            if obj.get("__partial__").map(|v| v.as_boolean()) == Some(Some(true)) {
+                // It's a partial - extract fn name and pre-filled args
+                let fn_name = obj.get("fn").and_then(|v| v.as_string()).ok_or_else(|| {
+                    JmespathError::new(
+                        ctx.expression,
+                        ctx.offset,
+                        ErrorReason::Parse("Invalid partial object: missing 'fn' field".into()),
+                    )
+                })?;
+
+                let prefilled = obj.get("args").and_then(|v| v.as_array()).ok_or_else(|| {
+                    JmespathError::new(
+                        ctx.expression,
+                        ctx.offset,
+                        ErrorReason::Parse("Invalid partial object: missing 'args' field".into()),
+                    )
+                })?;
+
+                // Build the full expression: fn_name(prefilled_args..., additional_args...)
+                return invoke_function(fn_name, prefilled, additional_args, ctx);
+            }
+        }
+
+        // If it's a string, treat as function name
+        if let Some(fn_name) = first_arg.as_string() {
+            return invoke_function(fn_name, &[], additional_args, ctx);
+        }
+
+        Err(JmespathError::new(
+            ctx.expression,
+            ctx.offset,
+            ErrorReason::Parse(
+                "apply() first argument must be a partial object or function name string".into(),
+            ),
+        ))
+    }
+}
+
+/// Helper to invoke a function by name with pre-filled and additional arguments
+fn invoke_function(
+    fn_name: &str,
+    prefilled: &[Rcvar],
+    additional: &[Rcvar],
+    ctx: &mut Context<'_>,
+) -> Result<Rcvar, JmespathError> {
+    // Build the argument list for the expression
+    let mut all_args_json: Vec<String> = Vec::new();
+
+    // Add pre-filled args as literals
+    for arg in prefilled {
+        let json = variable_to_json(arg);
+        all_args_json.push(format!("`{}`", serde_json::to_string(&json).unwrap()));
+    }
+
+    // Add additional args as literals
+    for arg in additional {
+        let json = variable_to_json(arg);
+        all_args_json.push(format!("`{}`", serde_json::to_string(&json).unwrap()));
+    }
+
+    // Build and execute the expression
+    let expr_str = format!("{}({})", fn_name, all_args_json.join(", "));
+
+    let compiled = ctx.runtime.compile(&expr_str).map_err(|e| {
+        JmespathError::new(
+            ctx.expression,
+            ctx.offset,
+            ErrorReason::Parse(format!(
+                "Failed to compile function call '{}': {}",
+                expr_str, e
+            )),
+        )
+    })?;
+
+    // Execute with null input since all args are literals
+    compiled.search(Rc::new(Variable::Null)).map_err(|e| {
+        JmespathError::new(
+            ctx.expression,
+            ctx.offset,
+            ErrorReason::Parse(format!("Failed to execute '{}': {}", fn_name, e)),
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2412,5 +2640,94 @@ mod tests {
         assert_eq!(obj.get("1").unwrap().as_number().unwrap(), 3.0);
         assert_eq!(obj.get("2").unwrap().as_number().unwrap(), 2.0);
         assert_eq!(obj.get("3").unwrap().as_number().unwrap(), 1.0);
+    }
+
+    // =============================================================================
+    // Partial application tests
+    // =============================================================================
+
+    #[test]
+    fn test_partial_creates_object() {
+        let runtime = setup();
+        let data = Variable::Null;
+        let expr = runtime.compile("partial('length')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("__partial__").unwrap().as_boolean().unwrap(), true);
+        assert_eq!(obj.get("fn").unwrap().as_string().unwrap(), "length");
+        assert!(obj.get("args").unwrap().as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_partial_with_args() {
+        let runtime = setup();
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("partial('contains', `\"hello world\"`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("__partial__").unwrap().as_boolean().unwrap(), true);
+        assert_eq!(obj.get("fn").unwrap().as_string().unwrap(), "contains");
+        let args = obj.get("args").unwrap().as_array().unwrap();
+        assert_eq!(args.len(), 1);
+        assert_eq!(args[0].as_string().unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_apply_with_fn_name() {
+        let runtime = setup();
+        let data = Variable::Null;
+        let expr = runtime.compile("apply('length', `\"hello\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 5.0);
+    }
+
+    #[test]
+    fn test_apply_with_partial() {
+        let runtime = setup();
+        let data = Variable::Null;
+        // Create partial with first arg, then apply with second arg
+        let expr = runtime
+            .compile("apply(partial('contains', `\"hello world\"`), `\"world\"`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_apply_partial_not_found() {
+        let runtime = setup();
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("apply(partial('contains', `\"hello world\"`), `\"xyz\"`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_partial_with_multiple_prefilled_args() {
+        let runtime = setup();
+        let data = Variable::Null;
+        // partial with 2 args pre-filled
+        let expr = runtime.compile("partial('join', `\"-\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let args = obj.get("args").unwrap().as_array().unwrap();
+        assert_eq!(args.len(), 1);
+        assert_eq!(args[0].as_string().unwrap(), "-");
+    }
+
+    #[test]
+    fn test_apply_partial_join() {
+        let runtime = setup();
+        let data = Variable::Null;
+        // Create a join with "-" separator, then apply to array
+        let expr = runtime
+            .compile("apply(partial('join', `\"-\"`), `[\"a\", \"b\", \"c\"]`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "a-b-c");
     }
 }
