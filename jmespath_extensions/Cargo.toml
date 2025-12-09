@@ -36,10 +36,11 @@ semver_crate = { workspace = true, optional = true }
 ipnetwork = { workspace = true, optional = true }
 nanoid = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true }
+json-patch = { workspace = true, optional = true }
 
 [features]
 default = ["full"]
-full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing"]
+full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch"]
 core = ["string", "array", "object", "math", "type", "utility", "validation", "path", "expression"]
 string = []
 array = []
@@ -67,6 +68,7 @@ text = []
 duration = []
 color = []
 computing = []
+jsonpatch = ["dep:json-patch"]
 
 [dev-dependencies]
 criterion.workspace = true

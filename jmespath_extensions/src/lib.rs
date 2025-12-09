@@ -115,6 +115,7 @@
 //! | `duration` | none | [Duration parsing](duration/index.html) |
 //! | `color` | none | [Color manipulation](color/index.html) |
 //! | `computing` | none | [Computing utilities](computing/index.html) |
+//! | `jsonpatch` | json-patch | [JSON Patch functions](jsonpatch/index.html) |
 //!
 //! ### Using Specific Features
 //!
@@ -157,6 +158,7 @@
 //! - [`duration`] - Duration parsing (`parse_duration`, `format_duration`)
 //! - [`color`] - Color manipulation (`hex_to_rgb`, `rgb_to_hex`, `lighten`, `darken`, `color_mix`)
 //! - [`computing`] - Computing utilities (`parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, `bit_xor`)
+//! - [`jsonpatch`] - JSON Patch (RFC 6902) and Merge Patch (RFC 7386) (`json_patch`, `json_merge_patch`, `json_diff`)
 //!
 //! ## Error Handling
 //!
@@ -281,6 +283,9 @@ pub mod color;
 #[cfg(feature = "computing")]
 pub mod computing;
 
+#[cfg(feature = "jsonpatch")]
+pub mod jsonpatch;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -387,6 +392,9 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "computing")]
     computing::register(runtime);
+
+    #[cfg(feature = "jsonpatch")]
+    jsonpatch::register(runtime);
 }
 
 #[cfg(test)]
