@@ -5,7 +5,21 @@
 [![License](https://img.shields.io/crates/l/jmespath_extensions.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
 [![CI](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml)
 
-Extended functions for JMESPath queries in Rust.
+Extended functions for JMESPath queries in Rust. **190+ functions** for strings, arrays, dates, hashing, encoding, and more.
+
+**Want to try it out?** Install the `jpx` CLI tool:
+
+```bash
+# Homebrew (macOS/Linux)
+brew install joshrotenberg/brew/jpx
+
+# Or cargo
+cargo install jpx
+
+# Then use it!
+echo '{"name": "world"}' | jpx 'upper(name)'
+# "WORLD"
+```
 
 > **Non-Standard Extensions - Not Portable**
 >
@@ -16,7 +30,7 @@ Extended functions for JMESPath queries in Rust.
 
 | | **JMESPath Specification** | **jmespath_extensions** |
 |---|---|---|
-| **Functions** | 26 built-in functions | 189 extension functions |
+| **Functions** | 26 built-in functions | 190+ extension functions |
 | **Portability** | Works everywhere (Python, JS, Go, AWS CLI, Ansible) | Rust only |
 | **Design** | Minimal, query-focused | Transformation-heavy, practical |
 | **Governance** | JEP process, multi-year consensus | Opinionated, can change |
@@ -48,7 +62,7 @@ Use only the [26 standard JMESPath built-in functions](https://jmespath.org/spec
 
 ## Overview
 
-This crate provides 189 additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
+This crate provides 190+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -104,47 +118,25 @@ This enables:
 - **ACL support**: Disable specific functions for security policies
 - **Introspection**: Query available functions with signatures, descriptions, examples, and whether they are standard JMESPath or extensions
 
-## CLI Tool: jpx
+## jpx CLI
 
-The `jpx` CLI tool lets you experiment with all functions from the command line:
-
-```bash
-# Install via Homebrew (macOS/Linux)
-brew tap joshrotenberg/brew
-brew install jpx
-
-# Install from crates.io
-cargo install jpx
-
-# Install pre-built binaries (macOS, Linux, Windows)
-# See https://github.com/joshrotenberg/jmespath-extensions/releases
-```
+See [jpx/README.md](jpx/README.md) for full CLI documentation, or use `jpx --help`.
 
 ```bash
-# String functions
-echo '{"name": "hello"}' | jpx 'upper(name)'
-# "HELLO"
-
 # Expression functions (the novel stuff!)
 echo '{"users": [{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]}' \
   | jpx 'filter_expr(users, &age > `26`) | [].name'
 # ["alice"]
-
-# Duration parsing
-echo '{"d": "1h30m"}' | jpx 'parse_duration(d)'
-# 5400.0
 
 # Strict mode - only standard JMESPath functions
 echo '[1, 2, 3]' | jpx --strict 'length(@)'
 # 3
 
 # Function discovery
-jpx --list-functions           # List all 189+ functions
+jpx --list-functions           # List all 190+ functions
 jpx --list-category expression # List expression functions
 jpx --describe map_expr        # Detailed function info
 ```
-
-See [jpx/README.md](jpx/README.md) for full documentation.
 
 ## Features
 
