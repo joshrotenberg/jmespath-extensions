@@ -172,9 +172,9 @@ fn main() -> Result<()> {
                 .to_string(),
         ]
     } else if !args.expressions.is_empty() {
-        args.expressions.clone()
-    } else if let Some(expr) = &args.expression {
-        vec![expr.clone()]
+        std::mem::take(&mut args.expressions)
+    } else if let Some(expr) = args.expression.take() {
+        vec![expr]
     } else {
         return Err(anyhow::anyhow!(
             "Expression required. Use --help for usage."
@@ -289,7 +289,7 @@ fn main() -> Result<()> {
     }
 
     // Convert to serde_json::Value for output formatting
-    let json_value: serde_json::Value = serde_json::from_str(&serde_json::to_string(&*result)?)?;
+    let json_value: serde_json::Value = serde_json::to_value(&*result)?;
 
     // When writing to file, don't colorize unless explicitly requested
     let should_colorize = match args.color {
@@ -341,18 +341,17 @@ fn main() -> Result<()> {
 fn parse_slurp(input: &str) -> Result<Variable> {
     use serde_json::Deserializer;
 
-    let mut values = Vec::new();
+    let mut values: Vec<serde_json::Value> = Vec::new();
     let stream = Deserializer::from_str(input).into_iter::<serde_json::Value>();
 
     for result in stream {
         let value = result.context("Failed to parse JSON in slurp mode")?;
-        let var = Variable::from_json(&value.to_string())
-            .map_err(|e| anyhow::anyhow!("Failed to convert JSON value: {}", e))?;
-        values.push(var);
+        values.push(value);
     }
 
-    // Convert Vec<Variable> to a Variable array
-    Variable::from_json(&serde_json::to_string(&values)?)
+    // Convert the collected values directly to Variable
+    let array_value = serde_json::Value::Array(values);
+    Variable::from_json(&array_value.to_string())
         .map_err(|e| anyhow::anyhow!("Failed to create array: {}", e))
 }
 
