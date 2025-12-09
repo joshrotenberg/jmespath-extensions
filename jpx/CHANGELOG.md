@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.4...jpx-v0.1.5) - 2025-12-09
+
+### Other
+
+- reduce unnecessary allocations in jpx CLI ([#109](https://github.com/joshrotenberg/jmespath-extensions/pull/109))
+
 ## [0.1.4](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.3...jpx-v0.1.4) - 2025-12-09
 
 ### Other
