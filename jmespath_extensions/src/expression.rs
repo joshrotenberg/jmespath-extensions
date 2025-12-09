@@ -26,6 +26,7 @@
 //! | `reject(expr, array)` | Keep elements where expression is falsy |
 //! | `map_keys(expr, object)` | Transform object keys using expression |
 //! | `map_values(expr, object)` | Transform object values using expression |
+//! | `order_by(array, criteria)` | Sort by multiple fields with direction (use backtick literals) |
 //!
 //! # Examples
 //!
@@ -80,6 +81,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("reject", Box::new(RejectFn::new()));
     runtime.register_function("map_keys", Box::new(MapKeysFn::new()));
     runtime.register_function("map_values", Box::new(MapValuesFn::new()));
+    runtime.register_function("order_by", Box::new(OrderByFn::new()));
 }
 
 // =============================================================================
@@ -1294,6 +1296,131 @@ impl Function for MapValuesFn {
     }
 }
 
+// =============================================================================
+// order_by(array, criteria) -> array
+// =============================================================================
+
+/// Sort an array by multiple criteria with direction control.
+///
+/// # Arguments
+/// * `array` - The array to sort
+/// * `criteria` - Array of [field, direction] pairs where direction is "asc" or "desc"
+///   Use JMESPath literal syntax with backticks: `` `[["field", "asc"]]` ``
+///
+/// # Returns
+/// A new sorted array.
+///
+/// # Example
+/// ```text
+/// order_by(@, `[["name", "asc"]]`)  // Sort by name ascending
+/// order_by(@, `[["age", "desc"], ["name", "asc"]]`)  // Sort by age desc, then name asc
+/// ```
+pub struct OrderByFn {
+    signature: Signature,
+}
+
+impl Default for OrderByFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl OrderByFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::Array, ArgumentType::Array], None),
+        }
+    }
+}
+
+impl Function for OrderByFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().unwrap();
+        let criteria = args[1].as_array().unwrap();
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        // Parse criteria: each element should be [field, direction]
+        let mut sort_specs: Vec<(String, bool)> = Vec::new(); // (field, ascending)
+        for criterion in criteria {
+            let crit_arr = criterion.as_array().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse("Each criterion must be an array [field, direction]".into()),
+                )
+            })?;
+
+            if crit_arr.len() < 2 {
+                return Err(JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse("Each criterion must have [field, direction]".into()),
+                ));
+            }
+
+            let field = crit_arr[0].as_string().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse("Field name must be a string".into()),
+                )
+            })?;
+
+            let direction = crit_arr[1].as_string().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse("Direction must be 'asc' or 'desc'".into()),
+                )
+            })?;
+
+            let ascending = match direction.to_lowercase().as_str() {
+                "asc" | "ascending" => true,
+                "desc" | "descending" => false,
+                _ => {
+                    return Err(JmespathError::new(
+                        ctx.expression,
+                        ctx.offset,
+                        ErrorReason::Parse("Direction must be 'asc' or 'desc'".into()),
+                    ));
+                }
+            };
+
+            sort_specs.push((field.to_string(), ascending));
+        }
+
+        // Clone and sort the array
+        let mut result: Vec<Rcvar> = arr.clone();
+        result.sort_by(|a, b| {
+            for (field, ascending) in &sort_specs {
+                let a_val = a
+                    .as_object()
+                    .and_then(|o| o.get(field))
+                    .cloned()
+                    .unwrap_or_else(|| Rc::new(Variable::Null));
+                let b_val = b
+                    .as_object()
+                    .and_then(|o| o.get(field))
+                    .cloned()
+                    .unwrap_or_else(|| Rc::new(Variable::Null));
+
+                let cmp = compare_values(&a_val, &b_val);
+                if cmp != std::cmp::Ordering::Equal {
+                    return if *ascending { cmp } else { cmp.reverse() };
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1748,5 +1875,139 @@ mod tests {
         let obj = result.as_object().unwrap();
         assert!(obj.contains_key("HELLO"));
         assert!(obj.contains_key("WORLD"));
+    }
+
+    #[test]
+    fn test_order_by_single_field_asc() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"[{"name": "Charlie", "age": 30}, {"name": "Alice", "age": 25}, {"name": "Bob", "age": 35}]"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(r#"order_by(@, `[["name", "asc"]]`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Alice"
+        );
+        assert_eq!(
+            arr[1]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Bob"
+        );
+        assert_eq!(
+            arr[2]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Charlie"
+        );
+    }
+
+    #[test]
+    fn test_order_by_single_field_desc() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"[{"name": "Alice", "age": 25}, {"name": "Bob", "age": 35}, {"name": "Charlie", "age": 30}]"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(r#"order_by(@, `[["age", "desc"]]`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("age")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            35.0
+        );
+        assert_eq!(
+            arr[1]
+                .as_object()
+                .unwrap()
+                .get("age")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            30.0
+        );
+        assert_eq!(
+            arr[2]
+                .as_object()
+                .unwrap()
+                .get("age")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            25.0
+        );
+    }
+
+    #[test]
+    fn test_order_by_multiple_fields() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"[{"dept": "sales", "name": "Bob"}, {"dept": "eng", "name": "Alice"}, {"dept": "sales", "name": "Alice"}]"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(r#"order_by(@, `[["dept", "asc"], ["name", "asc"]]`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // eng comes first, then sales (sorted by dept)
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("dept")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "eng"
+        );
+        // Within sales, Alice comes before Bob
+        assert_eq!(
+            arr[1]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Alice"
+        );
+        assert_eq!(
+            arr[2]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Bob"
+        );
     }
 }
