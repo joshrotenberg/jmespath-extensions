@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{CommandFactory, Parser, ValueEnum};
+use clap::{CommandFactory, Parser, ValueEnum, builder::styling};
 use clap_complete::{Shell, generate};
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
@@ -8,6 +8,13 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use std::rc::Rc;
 use std::time::Instant;
+
+// Cargo-style help coloring
+const STYLES: styling::Styles = styling::Styles::styled()
+    .header(styling::AnsiColor::Green.on_default().bold())
+    .usage(styling::AnsiColor::Green.on_default().bold())
+    .literal(styling::AnsiColor::Cyan.on_default().bold())
+    .placeholder(styling::AnsiColor::Cyan.on_default());
 
 /// Check if an environment variable is set to a "truthy" value
 fn env_is_true(var: &str) -> bool {
@@ -56,7 +63,19 @@ enum ColorMode {
 /// A command-line tool for querying JSON data using JMESPath expressions
 /// with 150+ additional functions beyond the standard specification.
 #[derive(Parser, Debug)]
-#[command(name = "jpx", version, about, long_about = None)]
+#[command(name = "jpx")]
+#[command(version, about, long_about = None)]
+#[command(styles = STYLES)]
+#[command(after_help = concat!(
+    "Examples:\n",
+    "  echo '{\"name\": \"alice\"}' | jpx 'name'\n",
+    "  echo '[1, 2, 3]' | jpx 'sum(@)'\n",
+    "  echo '{\"ts\": \"2024-01-15\"}' | jpx 'format_date(ts, \"%B %d, %Y\")'\n",
+    "  jpx -n 'now()'\n",
+    "  cat data.json | jpx -e 'items[*].name' -e 'sort(@)'\n",
+    "\nVersion: ", env!("CARGO_PKG_VERSION"),
+    "\nDocumentation: https://docs.rs/jmespath_extensions"
+))]
 struct Args {
     /// JMESPath expression(s) to evaluate (multiple expressions are chained)
     #[arg(short = 'e', long = "expression", conflicts_with = "query_file")]
