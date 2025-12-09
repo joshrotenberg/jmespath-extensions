@@ -60,7 +60,7 @@ jobs:
           path: ~/.cargo/bin/dist
       - id: plan
         run: |
-          dist host --steps=create --tag=${{ github.ref_name }} --output-format=json > plan-dist-manifest.json
+          dist host --steps=create ${{ steps.get-tag.outputs.tag-flag }} --output-format=json > plan-dist-manifest.json
           echo "dist ran successfully"
           cat plan-dist-manifest.json
           echo "manifest=$(jq -c "." plan-dist-manifest.json)" >> "$GITHUB_OUTPUT"
