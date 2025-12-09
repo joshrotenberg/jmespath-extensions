@@ -437,95 +437,30 @@ impl Function for RelativeTimeFn {
             (-diff, false)
         };
 
-        let result = if abs_diff < 60 {
-            if abs_diff == 1 {
-                if is_future {
-                    "in 1 second".to_string()
-                } else {
-                    "1 second ago".to_string()
-                }
-            } else {
-                if is_future {
-                    format!("in {} seconds", abs_diff)
-                } else {
-                    format!("{} seconds ago", abs_diff)
-                }
-            }
+        // Determine the unit and value
+        let (value, unit_singular, unit_plural) = if abs_diff < 60 {
+            (abs_diff, "second", "seconds")
         } else if abs_diff < 3600 {
-            let mins = abs_diff / 60;
-            if mins == 1 {
-                if is_future {
-                    "in 1 minute".to_string()
-                } else {
-                    "1 minute ago".to_string()
-                }
-            } else {
-                if is_future {
-                    format!("in {} minutes", mins)
-                } else {
-                    format!("{} minutes ago", mins)
-                }
-            }
+            (abs_diff / 60, "minute", "minutes")
         } else if abs_diff < 86400 {
-            let hours = abs_diff / 3600;
-            if hours == 1 {
-                if is_future {
-                    "in 1 hour".to_string()
-                } else {
-                    "1 hour ago".to_string()
-                }
-            } else {
-                if is_future {
-                    format!("in {} hours", hours)
-                } else {
-                    format!("{} hours ago", hours)
-                }
-            }
+            (abs_diff / 3600, "hour", "hours")
         } else if abs_diff < 2592000 {
-            let days = abs_diff / 86400;
-            if days == 1 {
-                if is_future {
-                    "in 1 day".to_string()
-                } else {
-                    "1 day ago".to_string()
-                }
-            } else {
-                if is_future {
-                    format!("in {} days", days)
-                } else {
-                    format!("{} days ago", days)
-                }
-            }
+            (abs_diff / 86400, "day", "days")
         } else if abs_diff < 31536000 {
-            let months = abs_diff / 2592000;
-            if months == 1 {
-                if is_future {
-                    "in 1 month".to_string()
-                } else {
-                    "1 month ago".to_string()
-                }
-            } else {
-                if is_future {
-                    format!("in {} months", months)
-                } else {
-                    format!("{} months ago", months)
-                }
-            }
+            (abs_diff / 2592000, "month", "months")
         } else {
-            let years = abs_diff / 31536000;
-            if years == 1 {
-                if is_future {
-                    "in 1 year".to_string()
-                } else {
-                    "1 year ago".to_string()
-                }
-            } else {
-                if is_future {
-                    format!("in {} years", years)
-                } else {
-                    format!("{} years ago", years)
-                }
-            }
+            (abs_diff / 31536000, "year", "years")
+        };
+
+        let unit = if value == 1 {
+            unit_singular
+        } else {
+            unit_plural
+        };
+        let result = if is_future {
+            format!("in {} {}", value, unit)
+        } else {
+            format!("{} {} ago", value, unit)
         };
 
         Ok(Rc::new(Variable::String(result)))
