@@ -7,6 +7,14 @@
 
 Extended functions for JMESPath queries in Rust. **190+ functions** for strings, arrays, dates, hashing, encoding, and more.
 
+## Built on jmespath.rs
+
+This crate extends the [`jmespath`](https://crates.io/crates/jmespath) crate by [@mtdowling](https://github.com/mtdowling), which provides the complete Rust implementation of the [JMESPath specification](https://jmespath.org/specification.html). All spec-compliant parsing, evaluation, and the 26 built-in functions come from that foundational library—we simply add extra functions on top.
+
+**If you only need standard JMESPath functionality, use [`jmespath`](https://crates.io/crates/jmespath) directly.**
+
+---
+
 **Want to try it out?** Install the `jpx` CLI tool:
 
 ```bash

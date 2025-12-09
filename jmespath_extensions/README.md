@@ -7,6 +7,12 @@
 
 Extended functions for JMESPath queries in Rust.
 
+## Built on jmespath.rs
+
+This crate extends the [`jmespath`](https://crates.io/crates/jmespath) crate by [@mtdowling](https://github.com/mtdowling), which provides the complete Rust implementation of the [JMESPath specification](https://jmespath.org/specification.html). All spec-compliant parsing, evaluation, and the 26 built-in functions come from that foundational library—we simply add extra functions on top.
+
+**If you only need standard JMESPath functionality, use [`jmespath`](https://crates.io/crates/jmespath) directly.**
+
 > **Non-Standard Extensions - Not Portable**
 >
 > This crate provides **custom extension functions** that are **NOT part of the [JMESPath specification](https://jmespath.org/specification.html)**.
