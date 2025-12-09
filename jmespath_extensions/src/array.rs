@@ -36,6 +36,8 @@
 //! | [`xor`](#xor) | `xor(array1, array2) → array` | Symmetric difference |
 //! | [`fill`](#fill) | `fill(array, value, start?, end?) → array` | Fill with value |
 //! | [`pull_at`](#pull_at) | `pull_at(array, indices) → array` | Get elements at indices |
+//! | [`window`](#window) | `window(array, size, step?) → array` | Sliding window |
+//! | [`combinations`](#combinations) | `combinations(array, k) → array` | K-combinations |
 //!
 //! # Examples
 //!
@@ -394,6 +396,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("xor", Box::new(XorFn::new()));
     runtime.register_function("fill", Box::new(FillFn::new()));
     runtime.register_function("pull_at", Box::new(PullAtFn::new()));
+    runtime.register_function("window", Box::new(WindowFn::new()));
+    runtime.register_function("combinations", Box::new(CombinationsFn::new()));
 }
 
 // =============================================================================
@@ -1565,6 +1569,168 @@ impl Function for XorFn {
 }
 
 // =============================================================================
+// window(array, size, step?) -> array (sliding window)
+// =============================================================================
+
+define_function!(
+    WindowFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    Some(ArgumentType::Number)
+);
+
+impl Function for WindowFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let size = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for window size".to_owned()),
+            )
+        })? as usize;
+
+        if size == 0 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        // Default step is 1
+        let step = if args.len() > 2 {
+            args[2].as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected number for step".to_owned()),
+                )
+            })? as usize
+        } else {
+            1
+        };
+
+        if step == 0 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Step cannot be zero".to_owned()),
+            ));
+        }
+
+        let len = arr.len();
+        if len < size {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let mut result = Vec::new();
+        let mut i = 0;
+
+        while i + size <= len {
+            let window: Vec<Rcvar> = arr[i..i + size].to_vec();
+            result.push(Rc::new(Variable::Array(window)) as Rcvar);
+            i += step;
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// combinations(array, k) -> array (k-combinations of array)
+// =============================================================================
+
+define_function!(
+    CombinationsFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    None
+);
+
+fn generate_combinations(arr: &[Rcvar], k: usize) -> Vec<Vec<Rcvar>> {
+    if k == 0 {
+        return vec![vec![]];
+    }
+    if arr.len() < k {
+        return vec![];
+    }
+
+    let mut result = Vec::new();
+
+    // Include first element in combination
+    let first = arr[0].clone();
+    let rest = &arr[1..];
+    for mut combo in generate_combinations(rest, k - 1) {
+        let mut new_combo = vec![first.clone()];
+        new_combo.append(&mut combo);
+        result.push(new_combo);
+    }
+
+    // Exclude first element
+    result.extend(generate_combinations(rest, k));
+
+    result
+}
+
+impl Function for CombinationsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let k = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for k".to_owned()),
+            )
+        })? as usize;
+
+        // Limit to prevent excessive computation
+        const MAX_COMBINATIONS: usize = 10000;
+
+        // Quick check: if C(n, k) would be too large, return error
+        let n = arr.len();
+        if n > 20 && k > 3 && k < n - 3 {
+            // For large arrays with mid-range k, combinations could be huge
+            // Rough estimate: C(n, k) grows quickly
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Combination size too large".to_owned()),
+            ));
+        }
+
+        let combinations = generate_combinations(arr, k);
+
+        if combinations.len() > MAX_COMBINATIONS {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Too many combinations generated".to_owned()),
+            ));
+        }
+
+        let result: Vec<Rcvar> = combinations
+            .into_iter()
+            .map(|combo| Rc::new(Variable::Array(combo)) as Rcvar)
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
 // fill(array, value, start?, end?) -> array (fill range with value)
 // =============================================================================
 
@@ -1909,5 +2075,117 @@ mod tests {
         assert_eq!(arr.len(), 2);
         assert_eq!(arr[0].as_string().unwrap(), "d");
         assert_eq!(arr[1].as_string().unwrap(), "c");
+    }
+
+    #[test]
+    fn test_window() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("window(@, `3`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+            Rc::new(Variable::Number(serde_json::Number::from(4))),
+            Rc::new(Variable::Number(serde_json::Number::from(5))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // [1,2,3], [2,3,4], [3,4,5]
+        assert_eq!(arr.len(), 3);
+        let first = arr[0].as_array().unwrap();
+        assert_eq!(first.len(), 3);
+        assert_eq!(first[0].as_number().unwrap() as i64, 1);
+        assert_eq!(first[1].as_number().unwrap() as i64, 2);
+        assert_eq!(first[2].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_window_with_step() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("window(@, `2`, `2`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+            Rc::new(Variable::Number(serde_json::Number::from(4))),
+            Rc::new(Variable::Number(serde_json::Number::from(5))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // [1,2], [3,4]
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn test_window_empty_result() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("window(@, `5`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_combinations() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("combinations(@, `2`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // C(3,2) = 3: [1,2], [1,3], [2,3]
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_combinations_k_zero() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("combinations(@, `0`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // C(n,0) = 1 (the empty set)
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_combinations_k_equals_n() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("combinations(@, `3`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // C(3,3) = 1: [1,2,3]
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_combinations_k_greater_than_n() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("combinations(@, `5`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // C(2,5) = 0
+        assert_eq!(arr.len(), 0);
     }
 }

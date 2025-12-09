@@ -27,6 +27,9 @@
 //! | `map_keys(expr, object)` | Transform object keys using expression |
 //! | `map_values(expr, object)` | Transform object values using expression |
 //! | `order_by(array, criteria)` | Sort by multiple fields with direction (use backtick literals) |
+//! | `reduce_expr(expr, array, init)` | Reduce array to single value |
+//! | `scan_expr(expr, array, init)` | Cumulative reduce (running totals) |
+//! | `fold(expr, array, init)` | Alias for reduce_expr |
 //!
 //! # Examples
 //!
@@ -82,6 +85,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("map_keys", Box::new(MapKeysFn::new()));
     runtime.register_function("map_values", Box::new(MapValuesFn::new()));
     runtime.register_function("order_by", Box::new(OrderByFn::new()));
+    runtime.register_function("reduce_expr", Box::new(ReduceExprFn::new()));
+    runtime.register_function("scan_expr", Box::new(ScanExprFn::new()));
+    // Alias for reduce_expr (lodash-style)
+    runtime.register_function("fold", Box::new(ReduceExprFn::new()));
 }
 
 // =============================================================================
@@ -1421,6 +1428,193 @@ impl Function for OrderByFn {
     }
 }
 
+// =============================================================================
+// reduce_expr(expr, array, initial) -> any
+// =============================================================================
+
+/// Reduce an array to a single value using an expression.
+///
+/// The expression is evaluated with a special context where:
+/// - `accumulator` is the current accumulated value
+/// - `current` is the current element being processed
+/// - `index` is the current index (0-based)
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string. Use `accumulator` and `current` in the expression.
+/// * `array` - The array to reduce
+/// * `initial` - The initial value for the accumulator
+///
+/// # Returns
+/// The final accumulated value.
+///
+/// # Example
+/// ```text
+/// reduce_expr('accumulator + current', [1, 2, 3], `0`)  // Sum: 6
+/// reduce_expr('max([accumulator, current])', [3, 1, 4], `0`)  // Max: 4
+/// ```
+pub struct ReduceExprFn {
+    signature: Signature,
+}
+
+impl Default for ReduceExprFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ReduceExprFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(
+                vec![ArgumentType::String, ArgumentType::Array, ArgumentType::Any],
+                None,
+            ),
+        }
+    }
+}
+
+impl Function for ReduceExprFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr = args[1].as_array().unwrap();
+        let initial = args[2].clone();
+
+        if arr.is_empty() {
+            return Ok(initial);
+        }
+
+        // Compile the expression
+        let runtime = ctx.runtime;
+        let compiled = runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid reduce expression: {}", e)),
+            )
+        })?;
+
+        let mut accumulator = initial;
+
+        for (idx, item) in arr.iter().enumerate() {
+            // Create context object with accumulator, current, and index
+            let mut context_map: std::collections::BTreeMap<String, Rcvar> =
+                std::collections::BTreeMap::new();
+            context_map.insert("accumulator".to_string(), accumulator.clone());
+            context_map.insert("current".to_string(), item.clone());
+            context_map.insert(
+                "index".to_string(),
+                Rc::new(Variable::Number(serde_json::Number::from(idx as i64))),
+            );
+            let context_var = Rc::new(Variable::Object(context_map));
+
+            accumulator = compiled.search(&context_var).map_err(|e| {
+                JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse(format!("Reduce expression evaluation error: {}", e)),
+                )
+            })?;
+        }
+
+        Ok(accumulator)
+    }
+}
+
+// =============================================================================
+// scan_expr(expr, array, initial) -> array
+// =============================================================================
+
+/// Scan (cumulative reduce) an array, returning all intermediate accumulated values.
+///
+/// Similar to reduce_expr, but returns an array of all intermediate results.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string. Use `accumulator` and `current` in the expression.
+/// * `array` - The array to scan
+/// * `initial` - The initial value for the accumulator
+///
+/// # Returns
+/// An array of all accumulated values (including each intermediate step).
+///
+/// # Example
+/// ```text
+/// scan_expr('accumulator + current', [1, 2, 3], `0`)  // Running sum: [1, 3, 6]
+/// ```
+pub struct ScanExprFn {
+    signature: Signature,
+}
+
+impl Default for ScanExprFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ScanExprFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(
+                vec![ArgumentType::String, ArgumentType::Array, ArgumentType::Any],
+                None,
+            ),
+        }
+    }
+}
+
+impl Function for ScanExprFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr = args[1].as_array().unwrap();
+        let initial = args[2].clone();
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        // Compile the expression
+        let runtime = ctx.runtime;
+        let compiled = runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid scan expression: {}", e)),
+            )
+        })?;
+
+        let mut accumulator = initial;
+        let mut results: Vec<Rcvar> = Vec::with_capacity(arr.len());
+
+        for (idx, item) in arr.iter().enumerate() {
+            // Create context object with accumulator, current, and index
+            let mut context_map: std::collections::BTreeMap<String, Rcvar> =
+                std::collections::BTreeMap::new();
+            context_map.insert("accumulator".to_string(), accumulator.clone());
+            context_map.insert("current".to_string(), item.clone());
+            context_map.insert(
+                "index".to_string(),
+                Rc::new(Variable::Number(serde_json::Number::from(idx as i64))),
+            );
+            let context_var = Rc::new(Variable::Object(context_map));
+
+            accumulator = compiled.search(&context_var).map_err(|e| {
+                JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse(format!("Scan expression evaluation error: {}", e)),
+                )
+            })?;
+
+            results.push(accumulator.clone());
+        }
+
+        Ok(Rc::new(Variable::Array(results)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2009,5 +2203,91 @@ mod tests {
                 .unwrap(),
             "Bob"
         );
+    }
+
+    #[test]
+    fn test_reduce_expr_sum() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime
+            .compile("reduce_expr('sum([accumulator, current])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 15.0);
+    }
+
+    #[test]
+    fn test_reduce_expr_max() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[3, 1, 4, 1, 5, 9, 2, 6]"#).unwrap();
+        let expr = runtime
+            .compile("reduce_expr('max([accumulator, current])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 9.0);
+    }
+
+    #[test]
+    fn test_reduce_expr_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime
+            .compile("reduce_expr('sum([accumulator, current])', @, `42`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 42.0); // Returns initial value
+    }
+
+    #[test]
+    fn test_fold_alias() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime
+            .compile("fold('sum([accumulator, current])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 6.0);
+    }
+
+    #[test]
+    fn test_scan_expr_running_sum() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 4]"#).unwrap();
+        let expr = runtime
+            .compile("scan_expr('sum([accumulator, current])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Running sum: [1, 3, 6, 10]
+        assert_eq!(arr.len(), 4);
+        assert_eq!(arr[0].as_number().unwrap(), 1.0);
+        assert_eq!(arr[1].as_number().unwrap(), 3.0);
+        assert_eq!(arr[2].as_number().unwrap(), 6.0);
+        assert_eq!(arr[3].as_number().unwrap(), 10.0);
+    }
+
+    #[test]
+    fn test_scan_expr_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime
+            .compile("scan_expr('sum([accumulator, current])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_reduce_expr_with_index() {
+        let runtime = setup();
+        // Access the index in the reduce expression
+        let data = Variable::from_json(r#"[10, 20, 30]"#).unwrap();
+        let expr = runtime
+            .compile("reduce_expr('sum([accumulator, index])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // 0 + 1 + 2 = 3
+        assert_eq!(result.as_number().unwrap(), 3.0);
     }
 }
