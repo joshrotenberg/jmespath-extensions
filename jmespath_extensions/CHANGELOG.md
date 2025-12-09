@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.5...v0.3.6) - 2025-12-09
+
+### Added
+
+- add lodash-inspired object path functions ([#115](https://github.com/joshrotenberg/jmespath-extensions/pull/115))
+- add count_by expression function ([#114](https://github.com/joshrotenberg/jmespath-extensions/pull/114))
+- add date/time utility functions ([#111](https://github.com/joshrotenberg/jmespath-extensions/pull/111))
+
+### Other
+
+- add attribution to jmespath crate ([#112](https://github.com/joshrotenberg/jmespath-extensions/pull/112))
+
 ## [0.3.5](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.4...v0.3.5) - 2025-12-09
 
 ### Added
