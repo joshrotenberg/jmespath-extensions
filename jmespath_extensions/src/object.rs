@@ -17,6 +17,10 @@
 //! | [`deep_merge`](#deep_merge) | `deep_merge(obj1, obj2) → object` | Deep merge two objects |
 //! | [`deep_equals`](#deep_equals) | `deep_equals(a, b) → boolean` | Deep equality check |
 //! | [`deep_diff`](#deep_diff) | `deep_diff(a, b) → object` | Structural diff between values |
+//! | [`get`](#get) | `get(object, path, default?) → any` | Get value at path with optional default |
+//! | [`has`](#has) | `has(object, path) → boolean` | Check if path exists |
+//! | [`defaults`](#defaults) | `defaults(object, defaults) → object` | Assign defaults for missing keys |
+//! | [`defaults_deep`](#defaults_deep) | `defaults_deep(object, defaults) → object` | Recursive defaults |
 //!
 //! # Examples
 //!
@@ -198,6 +202,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("deep_merge", Box::new(DeepMergeFn::new()));
     runtime.register_function("deep_equals", Box::new(DeepEqualsFn::new()));
     runtime.register_function("deep_diff", Box::new(DeepDiffFn::new()));
+    runtime.register_function("get", Box::new(GetFn::new()));
+    runtime.register_function("has", Box::new(HasFn::new()));
+    runtime.register_function("defaults", Box::new(DefaultsFn::new()));
+    runtime.register_function("defaults_deep", Box::new(DefaultsDeepFn::new()));
 }
 
 // =============================================================================
@@ -726,6 +734,362 @@ impl Function for DeepDiffFn {
     }
 }
 
+// =============================================================================
+// get(object, path, default?) -> value at path or default
+// =============================================================================
+
+/// Get value at a dot-separated path with optional default.
+///
+/// Supports dot notation for nested access and bracket notation for array indices.
+///
+/// # Arguments
+/// * `object` - The object to query
+/// * `path` - Dot-separated path string (e.g., "a.b.c" or "a\[0\].b")
+/// * `default` - Optional default value if path doesn't exist
+///
+/// # Examples
+/// ```text
+/// get({a: {b: {c: 1}}}, 'a.b.c') -> 1
+/// get({a: 1}, 'b.c', 'default') -> 'default'
+/// get({a: [{b: 1}]}, 'a\[0\].b') -> 1
+/// ```
+pub struct GetFn {
+    signature: crate::Signature,
+}
+
+impl Default for GetFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GetFn {
+    pub fn new() -> Self {
+        Self {
+            signature: crate::Signature::new(
+                vec![ArgumentType::Any, ArgumentType::String],
+                Some(ArgumentType::Any),
+            ),
+        }
+    }
+}
+
+// Navigate to a value using a path string like "a.b.c" or "a[0].b"
+fn get_at_path(value: &Variable, path: &str) -> Option<Rcvar> {
+    if path.is_empty() {
+        return Some(Rc::new(value.clone()));
+    }
+
+    let mut current: Rcvar = Rc::new(value.clone());
+
+    // Split path by dots, but handle array indices
+    let parts = parse_path_parts(path);
+
+    for part in parts {
+        if let Some(idx) = part.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            // Array index access
+            if let Ok(index) = idx.parse::<usize>() {
+                if let Some(arr) = current.as_array() {
+                    if index < arr.len() {
+                        current = arr[index].clone();
+                    } else {
+                        return None;
+                    }
+                } else {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        } else {
+            // Object key access
+            if let Some(obj) = current.as_object() {
+                if let Some(val) = obj.get(&part) {
+                    current = val.clone();
+                } else {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        }
+    }
+
+    Some(current)
+}
+
+/// Parse path string into parts, handling both dot notation and bracket notation
+fn parse_path_parts(path: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut chars = path.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '.' => {
+                if !current.is_empty() {
+                    parts.push(current.clone());
+                    current.clear();
+                }
+            }
+            '[' => {
+                if !current.is_empty() {
+                    parts.push(current.clone());
+                    current.clear();
+                }
+                // Collect the bracket expression
+                let mut bracket = String::from("[");
+                while let Some(&next) = chars.peek() {
+                    bracket.push(chars.next().unwrap());
+                    if next == ']' {
+                        break;
+                    }
+                }
+                parts.push(bracket);
+            }
+            _ => {
+                current.push(c);
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    parts
+}
+
+impl Function for GetFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let path = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string path argument".to_owned()),
+            )
+        })?;
+
+        let default_val = if args.len() > 2 {
+            args[2].clone()
+        } else {
+            Rc::new(Variable::Null)
+        };
+
+        match get_at_path(&args[0], path) {
+            Some(val) => Ok(val),
+            None => Ok(default_val),
+        }
+    }
+}
+
+// =============================================================================
+// has(object, path) -> boolean
+// =============================================================================
+
+/// Check if a path exists in an object.
+///
+/// # Arguments
+/// * `object` - The object to check
+/// * `path` - Dot-separated path string
+///
+/// # Examples
+/// ```text
+/// has({a: {b: 1}}, 'a.b') -> true
+/// has({a: 1}, 'a.b.c') -> false
+/// ```
+pub struct HasFn {
+    signature: crate::Signature,
+}
+
+impl Default for HasFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HasFn {
+    pub fn new() -> Self {
+        Self {
+            signature: crate::Signature::new(vec![ArgumentType::Any, ArgumentType::String], None),
+        }
+    }
+}
+
+impl Function for HasFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let path = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string path argument".to_owned()),
+            )
+        })?;
+
+        let exists = get_at_path(&args[0], path).is_some();
+        Ok(Rc::new(Variable::Bool(exists)))
+    }
+}
+
+// =============================================================================
+// defaults(object, defaults) -> object with defaults applied
+// =============================================================================
+
+/// Assign default values for missing keys (shallow).
+///
+/// # Arguments
+/// * `object` - The base object
+/// * `defaults` - Object with default values
+///
+/// # Examples
+/// ```text
+/// defaults({a: 1}, {a: 2, b: 3}) -> {a: 1, b: 3}
+/// defaults({}, {a: 1, b: 2}) -> {a: 1, b: 2}
+/// ```
+pub struct DefaultsFn {
+    signature: crate::Signature,
+}
+
+impl Default for DefaultsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DefaultsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: crate::Signature::new(
+                vec![ArgumentType::Object, ArgumentType::Object],
+                None,
+            ),
+        }
+    }
+}
+
+impl Function for DefaultsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let obj = args[0].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected object argument".to_owned()),
+            )
+        })?;
+
+        let defaults = args[1].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected object argument".to_owned()),
+            )
+        })?;
+
+        let mut result = obj.clone();
+
+        // Add keys from defaults that don't exist in obj
+        for (key, value) in defaults.iter() {
+            if !result.contains_key(key) {
+                result.insert(key.clone(), value.clone());
+            }
+        }
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+// =============================================================================
+// defaults_deep(object, defaults) -> object with deep defaults applied
+// =============================================================================
+
+/// Recursively assign default values for missing keys.
+///
+/// # Arguments
+/// * `object` - The base object
+/// * `defaults` - Object with default values (applied recursively)
+///
+/// # Examples
+/// ```text
+/// defaults_deep({a: {b: 1}}, {a: {b: 2, c: 3}}) -> {a: {b: 1, c: 3}}
+/// defaults_deep({x: 1}, {x: 2, y: {z: 3}}) -> {x: 1, y: {z: 3}}
+/// ```
+pub struct DefaultsDeepFn {
+    signature: crate::Signature,
+}
+
+impl Default for DefaultsDeepFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DefaultsDeepFn {
+    pub fn new() -> Self {
+        Self {
+            signature: crate::Signature::new(
+                vec![ArgumentType::Object, ArgumentType::Object],
+                None,
+            ),
+        }
+    }
+}
+
+fn apply_defaults_deep(
+    obj: &BTreeMap<String, Rcvar>,
+    defaults: &BTreeMap<String, Rcvar>,
+) -> BTreeMap<String, Rcvar> {
+    let mut result = obj.clone();
+
+    for (key, default_value) in defaults.iter() {
+        if let Some(existing) = result.get(key) {
+            // If both are objects, merge recursively
+            if let (Some(existing_obj), Some(default_obj)) =
+                (existing.as_object(), default_value.as_object())
+            {
+                let merged = apply_defaults_deep(existing_obj, default_obj);
+                result.insert(key.clone(), Rc::new(Variable::Object(merged)));
+            }
+            // Otherwise keep existing value
+        } else {
+            // Key doesn't exist, use default
+            result.insert(key.clone(), default_value.clone());
+        }
+    }
+
+    result
+}
+
+impl Function for DefaultsDeepFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let obj = args[0].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected object argument".to_owned()),
+            )
+        })?;
+
+        let defaults = args[1].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected object argument".to_owned()),
+            )
+        })?;
+
+        let result = apply_defaults_deep(obj, defaults);
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -890,5 +1254,126 @@ mod tests {
         assert!(diff.get("added").unwrap().as_object().unwrap().is_empty());
         assert!(diff.get("removed").unwrap().as_object().unwrap().is_empty());
         assert!(diff.get("changed").unwrap().as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_get_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": {"c": 1}}}"#).unwrap();
+        let expr = runtime.compile("get(@, 'a.b.c')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_get_with_default() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let expr = runtime.compile("get(@, 'b.c', 'default')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "default");
+    }
+
+    #[test]
+    fn test_get_array_index() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [{"b": 1}, {"b": 2}]}"#).unwrap();
+        let expr = runtime.compile("get(@, 'a[0].b')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_get_missing_returns_null() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let expr = runtime.compile("get(@, 'x.y.z')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_has_exists() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1}}"#).unwrap();
+        let expr = runtime.compile("has(@, 'a.b')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_has_not_exists() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let expr = runtime.compile("has(@, 'a.b.c')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_has_array_index() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("has(@, 'a[1]')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_has_array_index_out_of_bounds() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2]}"#).unwrap();
+        let expr = runtime.compile("has(@, 'a[5]')").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_defaults_shallow() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"obj": {"a": 1}, "defs": {"a": 2, "b": 3}}"#).unwrap();
+        let expr = runtime.compile("defaults(obj, defs)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap(), 1.0); // original kept
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap(), 3.0); // default added
+    }
+
+    #[test]
+    fn test_defaults_empty_object() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"obj": {}, "defs": {"a": 1, "b": 2}}"#).unwrap();
+        let expr = runtime.compile("defaults(obj, defs)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap(), 1.0);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_defaults_deep_nested() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"obj": {"a": {"b": 1}}, "defs": {"a": {"b": 2, "c": 3}}}"#)
+                .unwrap();
+        let expr = runtime.compile("defaults_deep(obj, defs)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let a = obj.get("a").unwrap().as_object().unwrap();
+        assert_eq!(a.get("b").unwrap().as_number().unwrap(), 1.0); // original kept
+        assert_eq!(a.get("c").unwrap().as_number().unwrap(), 3.0); // default added
+    }
+
+    #[test]
+    fn test_defaults_deep_new_nested() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"obj": {"x": 1}, "defs": {"x": 2, "y": {"z": 3}}}"#).unwrap();
+        let expr = runtime.compile("defaults_deep(obj, defs)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("x").unwrap().as_number().unwrap(), 1.0); // original kept
+        let y = obj.get("y").unwrap().as_object().unwrap();
+        assert_eq!(y.get("z").unwrap().as_number().unwrap(), 3.0); // default added
     }
 }
