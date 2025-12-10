@@ -38,10 +38,11 @@ ipnetwork = { workspace = true, optional = true }
 nanoid = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true }
 json-patch = { workspace = true, optional = true }
+aho-corasick = { workspace = true, optional = true }
 
 [features]
 default = ["full"]
-full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch"]
+full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch", "multi-match"]
 core = ["string", "array", "object", "math", "type", "utility", "validation", "path", "expression"]
 string = []
 array = []
@@ -70,6 +71,7 @@ duration = []
 color = []
 computing = []
 jsonpatch = ["dep:json-patch"]
+multi-match = ["dep:aho-corasick"]
 
 [dev-dependencies]
 criterion.workspace = true

@@ -91,6 +91,7 @@ pub enum Category {
     Duration,
     Color,
     Computing,
+    MultiMatch,
 }
 
 impl Category {
@@ -124,6 +125,7 @@ impl Category {
             Category::Duration,
             Category::Color,
             Category::Computing,
+            Category::MultiMatch,
         ]
     }
 
@@ -157,6 +159,7 @@ impl Category {
             Category::Duration => "duration",
             Category::Color => "color",
             Category::Computing => "computing",
+            Category::MultiMatch => "multi-match",
         }
     }
 
@@ -217,6 +220,8 @@ impl Category {
             Category::Color => true,
             #[cfg(feature = "computing")]
             Category::Computing => true,
+            #[cfg(feature = "multi-match")]
+            Category::MultiMatch => true,
             #[allow(unreachable_patterns)]
             _ => false,
         }
@@ -501,6 +506,8 @@ impl FunctionRegistry {
             Category::Color => crate::color::register(runtime),
             #[cfg(feature = "computing")]
             Category::Computing => crate::computing::register(runtime),
+            #[cfg(feature = "multi-match")]
+            Category::MultiMatch => crate::multi_match::register(runtime),
             #[allow(unreachable_patterns)]
             _ => {}
         }
@@ -537,6 +544,7 @@ fn get_category_functions(category: Category) -> Vec<FunctionInfo> {
         Category::Duration => duration_functions(),
         Category::Color => color_functions(),
         Category::Computing => computing_functions(),
+        Category::MultiMatch => multi_match_functions(),
     }
 }
 
@@ -3452,6 +3460,66 @@ fn computing_functions() -> Vec<FunctionInfo> {
             description: "Bitwise right shift",
             signature: "number, number -> number",
             example: "bit_shift_right(`16`, `2`) -> 4",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+    ]
+}
+
+fn multi_match_functions() -> Vec<FunctionInfo> {
+    vec![
+        FunctionInfo {
+            name: "match_any",
+            category: Category::MultiMatch,
+            description: "Check if string contains any of the patterns (Aho-Corasick)",
+            signature: "string, array[string] -> boolean",
+            example: "match_any('hello world', ['world', 'foo']) -> true",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+        FunctionInfo {
+            name: "match_all",
+            category: Category::MultiMatch,
+            description: "Check if string contains all of the patterns (Aho-Corasick)",
+            signature: "string, array[string] -> boolean",
+            example: "match_all('hello world', ['hello', 'world']) -> true",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+        FunctionInfo {
+            name: "match_which",
+            category: Category::MultiMatch,
+            description: "Return array of patterns that match the string (Aho-Corasick)",
+            signature: "string, array[string] -> array[string]",
+            example: "match_which('hello world', ['hello', 'foo', 'world']) -> [\"hello\", \"world\"]",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+        FunctionInfo {
+            name: "match_count",
+            category: Category::MultiMatch,
+            description: "Count total pattern matches in string (Aho-Corasick)",
+            signature: "string, array[string] -> number",
+            example: "match_count('abcabc', ['a', 'b']) -> 4",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+        FunctionInfo {
+            name: "replace_many",
+            category: Category::MultiMatch,
+            description: "Replace multiple patterns simultaneously (Aho-Corasick)",
+            signature: "string, object -> string",
+            example: "replace_many('hello world', {hello: 'hi', world: 'earth'}) -> \"hi earth\"",
             is_standard: false,
             jep: None,
             aliases: &[],
