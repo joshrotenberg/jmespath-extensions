@@ -18,6 +18,10 @@
 //! | `business_days_between(ts1, ts2)` | Count business days between dates |
 //! | `relative_time(timestamp)` | Human-readable relative time |
 //! | `quarter(timestamp)` | Get quarter of year (1-4) |
+//! | `is_after(date1, date2)` | Check if date1 is after date2 |
+//! | `is_before(date1, date2)` | Check if date1 is before date2 |
+//! | `is_between(date, start, end)` | Check if date is between start and end |
+//! | `time_ago(date)` | Human-readable time since date |
 //!
 //! # Format Specifiers
 //!
@@ -89,6 +93,10 @@ pub fn register(runtime: &mut Runtime) {
     );
     runtime.register_function("relative_time", Box::new(RelativeTimeFn::new()));
     runtime.register_function("quarter", Box::new(QuarterFn::new()));
+    runtime.register_function("is_after", Box::new(IsAfterFn::new()));
+    runtime.register_function("is_before", Box::new(IsBeforeFn::new()));
+    runtime.register_function("is_between", Box::new(IsBetweenFn::new()));
+    runtime.register_function("time_ago", Box::new(TimeAgoFn::new()));
 }
 
 // now() -> number
@@ -491,6 +499,140 @@ impl Function for QuarterFn {
     }
 }
 
+/// Helper function to parse a date value that can be either a string or a number (timestamp).
+/// Returns the Unix timestamp as i64, or None if parsing fails.
+fn parse_date_value(value: &Variable) -> Option<i64> {
+    match value {
+        Variable::Number(n) => n.as_f64().map(|f| f as i64),
+        Variable::String(s) => {
+            // Try RFC3339 first
+            if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+                return Some(dt.timestamp());
+            }
+            // Try ISO datetime without timezone
+            if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+                return Some(dt.and_utc().timestamp());
+            }
+            // Try date only
+            if let Ok(dt) =
+                NaiveDateTime::parse_from_str(&format!("{}T00:00:00", s), "%Y-%m-%dT%H:%M:%S")
+            {
+                return Some(dt.and_utc().timestamp());
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+// is_after(date1, date2) -> boolean
+// Check if date1 is after date2. Accepts either timestamps (numbers) or date strings.
+define_function!(IsAfterFn, vec![ArgumentType::Any, ArgumentType::Any], None);
+
+impl Function for IsAfterFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts1 = parse_date_value(&args[0]);
+        let ts2 = parse_date_value(&args[1]);
+
+        match (ts1, ts2) {
+            (Some(t1), Some(t2)) => Ok(Rc::new(Variable::Bool(t1 > t2))),
+            _ => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// is_before(date1, date2) -> boolean
+// Check if date1 is before date2. Accepts either timestamps (numbers) or date strings.
+define_function!(IsBeforeFn, vec![ArgumentType::Any, ArgumentType::Any], None);
+
+impl Function for IsBeforeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts1 = parse_date_value(&args[0]);
+        let ts2 = parse_date_value(&args[1]);
+
+        match (ts1, ts2) {
+            (Some(t1), Some(t2)) => Ok(Rc::new(Variable::Bool(t1 < t2))),
+            _ => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// is_between(date, start, end) -> boolean
+// Check if date is between start and end (inclusive). Accepts either timestamps or date strings.
+define_function!(
+    IsBetweenFn,
+    vec![ArgumentType::Any, ArgumentType::Any, ArgumentType::Any],
+    None
+);
+
+impl Function for IsBetweenFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = parse_date_value(&args[0]);
+        let start = parse_date_value(&args[1]);
+        let end = parse_date_value(&args[2]);
+
+        match (ts, start, end) {
+            (Some(t), Some(s), Some(e)) => Ok(Rc::new(Variable::Bool(t >= s && t <= e))),
+            _ => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// time_ago(date) -> string
+// Returns human-readable time since the given date (always in the past tense).
+// Unlike relative_time, this always returns "X ago" format even for future dates.
+define_function!(TimeAgoFn, vec![ArgumentType::Any], None);
+
+impl Function for TimeAgoFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+
+        let now = Utc::now().timestamp();
+        let diff = now - ts;
+        let abs_diff = diff.abs();
+
+        // Determine the unit and value
+        let (value, unit_singular, unit_plural) = if abs_diff < 60 {
+            (abs_diff, "second", "seconds")
+        } else if abs_diff < 3600 {
+            (abs_diff / 60, "minute", "minutes")
+        } else if abs_diff < 86400 {
+            (abs_diff / 3600, "hour", "hours")
+        } else if abs_diff < 2592000 {
+            (abs_diff / 86400, "day", "days")
+        } else if abs_diff < 31536000 {
+            (abs_diff / 2592000, "month", "months")
+        } else {
+            (abs_diff / 31536000, "year", "years")
+        };
+
+        let unit = if value == 1 {
+            unit_singular
+        } else {
+            unit_plural
+        };
+
+        let result = if diff < 0 {
+            format!("in {} {}", value, unit)
+        } else {
+            format!("{} {} ago", value, unit)
+        };
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -829,5 +971,255 @@ mod tests {
         let expr = runtime.compile(&expr_str).unwrap();
         let result = expr.search(&Variable::Null).unwrap();
         assert!(result.as_string().unwrap().starts_with("in "));
+    }
+
+    // Tests for is_after
+
+    #[test]
+    fn test_is_after_with_timestamps() {
+        let runtime = setup();
+        // 1720000000 is after 1710000000
+        let expr = runtime
+            .compile("is_after(`1720000000`, `1710000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_after_with_timestamps_false() {
+        let runtime = setup();
+        // 1710000000 is not after 1720000000
+        let expr = runtime
+            .compile("is_after(`1710000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_is_after_with_date_strings() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"d1": "2024-07-15", "d2": "2024-01-01"}"#).unwrap();
+        let expr = runtime.compile("is_after(d1, d2)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_after_with_iso_strings() {
+        let runtime = setup();
+        let data =
+            Variable::from_json(r#"{"d1": "2024-07-15T10:30:00Z", "d2": "2024-07-15T08:00:00Z"}"#)
+                .unwrap();
+        let expr = runtime.compile("is_after(d1, d2)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_after_mixed_types() {
+        let runtime = setup();
+        // 1720000000 = 2024-07-03T10:26:40Z, which is after 2024-01-01
+        let data = Variable::from_json(r#"{"d": "2024-01-01"}"#).unwrap();
+        let expr = runtime.compile("is_after(`1720000000`, d)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_after_equal_dates() {
+        let runtime = setup();
+        let expr = runtime
+            .compile("is_after(`1720000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_is_after_invalid_date() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"d": "not-a-date"}"#).unwrap();
+        let expr = runtime.compile("is_after(d, `1720000000`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    // Tests for is_before
+
+    #[test]
+    fn test_is_before_with_timestamps() {
+        let runtime = setup();
+        // 1710000000 is before 1720000000
+        let expr = runtime
+            .compile("is_before(`1710000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_before_with_timestamps_false() {
+        let runtime = setup();
+        // 1720000000 is not before 1710000000
+        let expr = runtime
+            .compile("is_before(`1720000000`, `1710000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_is_before_with_date_strings() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"d1": "2024-01-01", "d2": "2024-07-15"}"#).unwrap();
+        let expr = runtime.compile("is_before(d1, d2)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_before_equal_dates() {
+        let runtime = setup();
+        let expr = runtime
+            .compile("is_before(`1720000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    // Tests for is_between
+
+    #[test]
+    fn test_is_between_with_timestamps_true() {
+        let runtime = setup();
+        // 1715000000 is between 1710000000 and 1720000000
+        let expr = runtime
+            .compile("is_between(`1715000000`, `1710000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_between_with_timestamps_false() {
+        let runtime = setup();
+        // 1700000000 is not between 1710000000 and 1720000000
+        let expr = runtime
+            .compile("is_between(`1700000000`, `1710000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_is_between_with_date_strings() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{"d": "2024-06-15", "start": "2024-01-01", "end": "2024-12-31"}"#,
+        )
+        .unwrap();
+        let expr = runtime.compile("is_between(d, start, end)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_between_inclusive_start() {
+        let runtime = setup();
+        // Date equals start - should be true (inclusive)
+        let expr = runtime
+            .compile("is_between(`1710000000`, `1710000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_between_inclusive_end() {
+        let runtime = setup();
+        // Date equals end - should be true (inclusive)
+        let expr = runtime
+            .compile("is_between(`1720000000`, `1710000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_between_outside_range() {
+        let runtime = setup();
+        // Date is after end
+        let expr = runtime
+            .compile("is_between(`1730000000`, `1710000000`, `1720000000`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    // Tests for time_ago
+
+    #[test]
+    fn test_time_ago_with_timestamp() {
+        let runtime = setup();
+        // Use a timestamp 1 hour ago
+        let one_hour_ago = Utc::now().timestamp() - 3600;
+        let expr_str = format!("time_ago(`{}`)", one_hour_ago);
+        let expr = runtime.compile(&expr_str).unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1 hour ago");
+    }
+
+    #[test]
+    fn test_time_ago_with_date_string() {
+        let runtime = setup();
+        // Use a date far in the past (over 1 year)
+        let data = Variable::String("2020-01-01".to_string());
+        let expr = runtime.compile("time_ago(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_string().unwrap().contains("years ago"));
+    }
+
+    #[test]
+    fn test_time_ago_plural() {
+        let runtime = setup();
+        // Use a timestamp 2 days ago
+        let two_days_ago = Utc::now().timestamp() - 172800;
+        let expr_str = format!("time_ago(`{}`)", two_days_ago);
+        let expr = runtime.compile(&expr_str).unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "2 days ago");
+    }
+
+    #[test]
+    fn test_time_ago_singular() {
+        let runtime = setup();
+        // Use a timestamp 1 day ago
+        let one_day_ago = Utc::now().timestamp() - 86400;
+        let expr_str = format!("time_ago(`{}`)", one_day_ago);
+        let expr = runtime.compile(&expr_str).unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1 day ago");
+    }
+
+    #[test]
+    fn test_time_ago_future() {
+        let runtime = setup();
+        // Future dates show "in X"
+        let one_day_future = Utc::now().timestamp() + 86400;
+        let expr_str = format!("time_ago(`{}`)", one_day_future);
+        let expr = runtime.compile(&expr_str).unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.as_string().unwrap().starts_with("in "));
+    }
+
+    #[test]
+    fn test_time_ago_invalid_date() {
+        let runtime = setup();
+        let data = Variable::String("not-a-date".to_string());
+        let expr = runtime.compile("time_ago(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
     }
 }
