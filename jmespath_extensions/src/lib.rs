@@ -334,6 +334,9 @@ pub mod computing;
 #[cfg(feature = "jsonpatch")]
 pub mod jsonpatch;
 
+#[cfg(feature = "multi-match")]
+pub mod multi_match;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -443,6 +446,9 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "jsonpatch")]
     jsonpatch::register(runtime);
+
+    #[cfg(feature = "multi-match")]
+    multi_match::register(runtime);
 }
 
 #[cfg(test)]

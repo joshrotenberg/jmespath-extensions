@@ -44,6 +44,7 @@ ipnetwork = "0.20"
 nanoid = "0.4"
 ulid = "1.1"
 json-patch = "4.0"
+aho-corasick = "1.1"
 
 # Dev dependencies
 criterion = { version = "0.5", features = ["html_reports"] }
