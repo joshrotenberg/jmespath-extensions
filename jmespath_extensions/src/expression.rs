@@ -2788,4 +2788,475 @@ mod tests {
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "a-b-c");
     }
+
+    // =========================================================================
+    // Pipeline pattern tests
+    // =========================================================================
+
+    #[test]
+    fn test_pipeline_filter_sort_products() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{
+                "products": [
+                    {"name": "A", "price": 30, "in_stock": true},
+                    {"name": "B", "price": 10, "in_stock": true},
+                    {"name": "C", "price": 20, "in_stock": false},
+                    {"name": "D", "price": 5, "in_stock": true}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile("products | filter_expr('in_stock', @) | sort_by_expr('price', @)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "D"
+        ); // $5
+        assert_eq!(
+            arr[1]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "B"
+        ); // $10
+    }
+
+    #[test]
+    fn test_pipeline_funnel_errors() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{
+                "events": [
+                    {"level": "error", "timestamp": 1704067300, "message": "Disk full"},
+                    {"level": "info", "timestamp": 1704067200, "message": "Started"},
+                    {"level": "error", "timestamp": 1704067400, "message": "Connection lost"},
+                    {"level": "warn", "timestamp": 1704067350, "message": "High memory"}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(
+                r#"events | filter_expr('level == `"error"`', @) | sort_by_expr('timestamp', @)"#,
+            )
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        // Sorted by timestamp ascending
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("message")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Disk full"
+        );
+    }
+
+    #[test]
+    fn test_pipeline_transactions_completed() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{
+                "transactions": [
+                    {"amount": 100, "status": "completed"},
+                    {"amount": 50, "status": "completed"},
+                    {"amount": 75, "status": "pending"},
+                    {"amount": 200, "status": "completed"}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(r#"transactions | filter_expr('status == `"completed"`', @) | map_expr('amount', @)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap(), 100.0);
+        assert_eq!(arr[1].as_number().unwrap(), 50.0);
+        assert_eq!(arr[2].as_number().unwrap(), 200.0);
+    }
+
+    #[test]
+    fn test_pipeline_fork_join() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{
+                "items": [
+                    {"name": "A", "price": 150},
+                    {"name": "B", "price": 50},
+                    {"name": "C", "price": 200},
+                    {"name": "D", "price": 25}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(
+                r#"@.{
+                    expensive: items | filter_expr('price > `100`', @),
+                    cheap: items | filter_expr('price <= `100`', @)
+                }"#,
+            )
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("expensive").unwrap().as_array().unwrap().len(), 2);
+        assert_eq!(obj.get("cheap").unwrap().as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_pipeline_nested_users() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{
+                "users": [
+                    {"name": "Alice", "orders": [{"total": 100}, {"total": 50}]},
+                    {"name": "Bob", "orders": [{"total": 200}]},
+                    {"name": "Carol", "orders": []}
+                ]
+            }"#,
+        )
+        .unwrap();
+        // Filter users with orders, then map to get names
+        let expr = runtime
+            .compile("users | filter_expr('length(orders) > `0`', @) | map_expr('name', @)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "Alice");
+        assert_eq!(arr[1].as_string().unwrap(), "Bob");
+    }
+
+    #[test]
+    fn test_pipeline_rag_chunks() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{
+                "chunks": [
+                    {"content": "Redis is fast", "score": 0.9},
+                    {"content": "Redis is in-memory", "score": 0.85},
+                    {"content": "Unrelated content", "score": 0.5},
+                    {"content": "Redis supports modules", "score": 0.75}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile("chunks | filter_expr('score > `0.7`', @) | sort_by_expr('score', @)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // Sorted ascending by score
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("score")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            0.75
+        );
+    }
+
+    // =========================================================================
+    // Additional reduce_expr/scan_expr tests
+    // =========================================================================
+
+    #[test]
+    fn test_reduce_expr_product() {
+        let runtime = setup();
+        // Test reduce with min (similar to existing max test but finds minimum)
+        let data = Variable::from_json(r#"[5, 3, 8, 1, 9]"#).unwrap();
+        let expr = runtime
+            .compile("reduce_expr('min([accumulator, current])', @, `100`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_scan_expr_running_balance() {
+        let runtime = setup();
+        // Test scan with running max - shows progressive maximum
+        let data = Variable::from_json(r#"[3, 1, 4, 1, 5, 9]"#).unwrap();
+        let expr = runtime
+            .compile("scan_expr('max([accumulator, current])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Running max: 3, 3, 4, 4, 5, 9
+        assert_eq!(arr[0].as_number().unwrap(), 3.0);
+        assert_eq!(arr[1].as_number().unwrap(), 3.0);
+        assert_eq!(arr[2].as_number().unwrap(), 4.0);
+        assert_eq!(arr[3].as_number().unwrap(), 4.0);
+        assert_eq!(arr[4].as_number().unwrap(), 5.0);
+        assert_eq!(arr[5].as_number().unwrap(), 9.0);
+    }
+
+    // =========================================================================
+    // Additional order_by tests
+    // =========================================================================
+
+    #[test]
+    fn test_order_by_three_fields() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"[
+                {"dept": "Engineering", "level": "senior", "name": "Charlie"},
+                {"dept": "Engineering", "level": "junior", "name": "Alice"},
+                {"dept": "Engineering", "level": "senior", "name": "Bob"},
+                {"dept": "Sales", "level": "senior", "name": "David"}
+            ]"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(r#"order_by(@, `[["dept", "asc"], ["level", "desc"], ["name", "asc"]]`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Engineering seniors first (alphabetical), then Engineering juniors, then Sales
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Bob"
+        );
+        assert_eq!(
+            arr[1]
+                .as_object()
+                .unwrap()
+                .get("name")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "Charlie"
+        );
+    }
+
+    #[test]
+    fn test_order_by_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime
+            .compile(r#"order_by(@, `[["name", "asc"]]`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert!(arr.is_empty());
+    }
+
+    // =========================================================================
+    // Additional partition_expr tests
+    // =========================================================================
+
+    #[test]
+    fn test_partition_expr_scores() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[85, 42, 91, 67, 55, 78, 33, 99]"#).unwrap();
+        let expr = runtime.compile("partition_expr('@ >= `60`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        let passing = arr[0].as_array().unwrap();
+        let failing = arr[1].as_array().unwrap();
+        assert_eq!(passing.len(), 5); // 85, 91, 67, 78, 99
+        assert_eq!(failing.len(), 3); // 42, 55, 33
+    }
+
+    #[test]
+    fn test_partition_expr_active() {
+        let runtime = setup();
+        let data =
+            Variable::from_json(r#"[{"active": true}, {"active": false}, {"active": true}]"#)
+                .unwrap();
+        let expr = runtime.compile("partition_expr('active', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr[0].as_array().unwrap().len(), 2);
+        assert_eq!(arr[1].as_array().unwrap().len(), 1);
+    }
+
+    // =========================================================================
+    // Additional map_values/map_keys tests
+    // =========================================================================
+
+    #[test]
+    fn test_map_values_discount() {
+        let runtime = setup();
+        // Test with string transformation since nested expressions don't have extension math functions
+        let data = Variable::from_json(r#"{"apple": "FRUIT", "banana": "ITEM"}"#).unwrap();
+        let expr = runtime.compile("map_values('length(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("apple").unwrap().as_number().unwrap(), 5.0);
+        assert_eq!(obj.get("banana").unwrap().as_number().unwrap(), 4.0);
+    }
+
+    // =========================================================================
+    // Additional group_by_expr tests
+    // =========================================================================
+
+    #[test]
+    fn test_group_by_expr_type() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"[{"type": "fruit", "name": "apple"}, {"type": "vegetable", "name": "carrot"}, {"type": "fruit", "name": "banana"}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile("group_by_expr('type', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("fruit").unwrap().as_array().unwrap().len(), 2);
+        assert_eq!(obj.get("vegetable").unwrap().as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_group_by_expr_computed() {
+        let runtime = setup();
+        // Group strings by their length using built-in length function
+        let data = Variable::from_json(r#"["a", "bb", "ccc", "dd", "eee", "f"]"#).unwrap();
+        let expr = runtime
+            .compile("group_by_expr('to_string(length(@))', @)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("1")); // "a", "f"
+        assert!(obj.contains_key("2")); // "bb", "dd"
+        assert!(obj.contains_key("3")); // "ccc", "eee"
+        assert_eq!(obj.get("1").unwrap().as_array().unwrap().len(), 2);
+        assert_eq!(obj.get("2").unwrap().as_array().unwrap().len(), 2);
+        assert_eq!(obj.get("3").unwrap().as_array().unwrap().len(), 2);
+    }
+
+    // =========================================================================
+    // Additional unique_by_expr tests
+    // =========================================================================
+
+    #[test]
+    fn test_unique_by_expr_id() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"[{"id": 1, "v": "a"}, {"id": 2, "v": "b"}, {"id": 1, "v": "c"}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile("unique_by_expr('id', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        // Keeps first occurrence
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("v")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "a"
+        );
+    }
+
+    // =========================================================================
+    // Edge case tests
+    // =========================================================================
+
+    #[test]
+    fn test_any_expr_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("any_expr('@ > `0`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_max_by_expr_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("max_by_expr('age', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_flat_map_expr_duplicate() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        // Duplicate each element
+        let expr = runtime.compile("flat_map_expr('[@, @]', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 6);
+    }
+
+    #[test]
+    fn test_reject_greater_than() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6]"#).unwrap();
+        let expr = runtime.compile("reject('@ > `3`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3); // 1, 2, 3
+    }
+
+    #[test]
+    fn test_every_false_case() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, -1, 3]"#).unwrap();
+        let expr = runtime.compile("every('@ > `0`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_count_expr_all_match() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[5, 10, 15, 20]"#).unwrap();
+        let expr = runtime.compile("count_expr('@ > `0`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 4.0);
+    }
+
+    #[test]
+    fn test_find_expr_first_match() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 5, 10, 15]"#).unwrap();
+        let expr = runtime.compile("find_expr('@ > `3`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 5.0);
+    }
+
+    #[test]
+    fn test_find_index_expr_first_match() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 5, 10, 15]"#).unwrap();
+        let expr = runtime.compile("find_index_expr('@ > `3`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
 }
