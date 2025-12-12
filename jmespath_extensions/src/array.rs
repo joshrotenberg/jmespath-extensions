@@ -2188,4 +2188,724 @@ mod tests {
         // C(2,5) = 0
         assert_eq!(arr.len(), 0);
     }
+
+    // =========================================================================
+    // zip tests
+    // =========================================================================
+
+    #[test]
+    fn test_zip_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2, 3], "b": ["x", "y", "z"]}"#).unwrap();
+        let expr = runtime.compile("zip(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_array().unwrap()[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[0].as_array().unwrap()[1].as_string().unwrap(), "x");
+    }
+
+    #[test]
+    fn test_zip_unequal_lengths() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2], "b": ["x", "y", "z"]}"#).unwrap();
+        let expr = runtime.compile("zip(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Stops at shorter array
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn test_zip_empty_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [], "b": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("zip(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_zip_with_objects() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"names": ["Alice", "Bob"], "scores": [95, 87]}"#).unwrap();
+        let expr = runtime.compile("zip(names, scores)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_array().unwrap()[0].as_string().unwrap(), "Alice");
+        assert_eq!(
+            arr[0].as_array().unwrap()[1].as_number().unwrap() as i64,
+            95
+        );
+    }
+
+    // =========================================================================
+    // chunk tests
+    // =========================================================================
+
+    #[test]
+    fn test_chunk_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("chunk(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3); // [1,2], [3,4], [5]
+        assert_eq!(arr[0].as_array().unwrap().len(), 2);
+        assert_eq!(arr[2].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_chunk_exact_fit() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6]"#).unwrap();
+        let expr = runtime.compile("chunk(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_array().unwrap().len(), 3);
+        assert_eq!(arr[1].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_chunk_size_larger_than_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("chunk(@, `10`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_chunk_size_one() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("chunk(@, `1`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_chunk_and_process_pipeline() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"#).unwrap();
+        let expr = runtime.compile("chunk(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // [1,2,3], [4,5,6], [7,8,9], [10]
+        assert_eq!(arr.len(), 4);
+    }
+
+    // =========================================================================
+    // take tests
+    // =========================================================================
+
+    #[test]
+    fn test_take_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("take(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_take_more_than_length() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2]"#).unwrap();
+        let expr = runtime.compile("take(@, `10`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn test_take_zero() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("take(@, `0`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    // =========================================================================
+    // drop tests
+    // =========================================================================
+
+    #[test]
+    fn test_drop_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("drop(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_drop_more_than_length() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2]"#).unwrap();
+        let expr = runtime.compile("drop(@, `10`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_drop_zero() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("drop(@, `0`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    // =========================================================================
+    // flatten_deep tests
+    // =========================================================================
+
+    #[test]
+    fn test_flatten_deep_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2], [3, 4]]"#).unwrap();
+        let expr = runtime.compile("flatten_deep(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4);
+    }
+
+    #[test]
+    fn test_flatten_deep_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, [2, [3, [4, [5]]]]]"#).unwrap();
+        let expr = runtime.compile("flatten_deep(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+        assert_eq!(arr[4].as_number().unwrap() as i64, 5);
+    }
+
+    #[test]
+    fn test_flatten_deep_already_flat() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("flatten_deep(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_flatten_deep_mixed() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, [2, 3], [[4]], [[[5, 6]]]]"#).unwrap();
+        let expr = runtime.compile("flatten_deep(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 6);
+    }
+
+    // =========================================================================
+    // compact tests
+    // =========================================================================
+
+    #[test]
+    fn test_compact_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, null, 2, false, 3]"#).unwrap();
+        let expr = runtime.compile("compact(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_compact_keeps_zero_and_empty_string() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[0, "", null, true]"#).unwrap();
+        let expr = runtime.compile("compact(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3); // 0, "", true
+    }
+
+    #[test]
+    fn test_compact_all_falsy() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[null, false, null]"#).unwrap();
+        let expr = runtime.compile("compact(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    // =========================================================================
+    // index_at tests
+    // =========================================================================
+
+    #[test]
+    fn test_index_at_positive() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "c", "d"]"#).unwrap();
+        let expr = runtime.compile("index_at(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "c");
+    }
+
+    #[test]
+    fn test_index_at_negative() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "c", "d"]"#).unwrap();
+        let expr = runtime.compile("index_at(@, `-1`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "d");
+    }
+
+    #[test]
+    fn test_index_at_negative_second() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "c", "d"]"#).unwrap();
+        let expr = runtime.compile("index_at(@, `-2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "c");
+    }
+
+    #[test]
+    fn test_index_at_out_of_bounds() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "c"]"#).unwrap();
+        let expr = runtime.compile("index_at(@, `10`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    // =========================================================================
+    // includes tests
+    // =========================================================================
+
+    #[test]
+    fn test_includes_number() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("includes(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_includes_not_found() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("includes(@, `10`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_includes_string() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["apple", "banana", "cherry"]"#).unwrap();
+        let expr = runtime.compile(r#"includes(@, `"banana"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_includes_object() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[{"a": 1}, {"b": 2}]"#).unwrap();
+        let expr = runtime.compile(r#"includes(@, `{"a": 1}`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    // =========================================================================
+    // find_index tests
+    // =========================================================================
+
+    #[test]
+    fn test_find_index_found() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "c", "d"]"#).unwrap();
+        let expr = runtime.compile(r#"find_index(@, `"c"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_find_index_not_found() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "c"]"#).unwrap();
+        let expr = runtime.compile(r#"find_index(@, `"z"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, -1);
+    }
+
+    // =========================================================================
+    // group_by tests
+    // =========================================================================
+
+    #[test]
+    fn test_group_by_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"[{"type": "a", "v": 1}, {"type": "b", "v": 2}, {"type": "a", "v": 3}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile(r#"group_by(@, `"type"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("a").unwrap().as_array().unwrap().len(), 2);
+        assert_eq!(obj.get("b").unwrap().as_array().unwrap().len(), 1);
+    }
+
+    // =========================================================================
+    // nth tests
+    // =========================================================================
+
+    #[test]
+    fn test_nth_every_second() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6]"#).unwrap();
+        let expr = runtime.compile("nth(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3); // 1, 3, 5
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 3);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 5);
+    }
+
+    #[test]
+    fn test_nth_every_third() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6, 7, 8, 9]"#).unwrap();
+        let expr = runtime.compile("nth(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3); // 1, 4, 7
+    }
+
+    // =========================================================================
+    // interleave tests
+    // =========================================================================
+
+    #[test]
+    fn test_interleave_equal() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2, 3], "b": ["a", "b", "c"]}"#).unwrap();
+        let expr = runtime.compile("interleave(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 6);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_string().unwrap(), "a");
+        assert_eq!(arr[2].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[3].as_string().unwrap(), "b");
+    }
+
+    #[test]
+    fn test_interleave_unequal() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2], "b": ["a", "b", "c"]}"#).unwrap();
+        let expr = runtime.compile("interleave(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5); // 1, a, 2, b, c
+    }
+
+    // =========================================================================
+    // rotate tests
+    // =========================================================================
+
+    #[test]
+    fn test_rotate_left() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("rotate(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr[0].as_number().unwrap() as i64, 3);
+        assert_eq!(arr[4].as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_rotate_right() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("rotate(@, `-1`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr[0].as_number().unwrap() as i64, 5);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 1);
+    }
+
+    // =========================================================================
+    // partition tests
+    // =========================================================================
+
+    #[test]
+    fn test_partition_even() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6]"#).unwrap();
+        let expr = runtime.compile("partition(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_array().unwrap().len(), 3);
+        assert_eq!(arr[1].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_partition_uneven() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("partition(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    // =========================================================================
+    // set operations tests
+    // =========================================================================
+
+    #[test]
+    fn test_difference() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2, 3, 4], "b": [2, 4]}"#).unwrap();
+        let expr = runtime.compile("difference(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2); // 1, 3
+    }
+
+    #[test]
+    fn test_intersection() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2, 3], "b": [2, 3, 4]}"#).unwrap();
+        let expr = runtime.compile("intersection(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2); // 2, 3
+    }
+
+    #[test]
+    fn test_union() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2], "b": [2, 3]}"#).unwrap();
+        let expr = runtime.compile("union(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3); // 1, 2, 3
+    }
+
+    // =========================================================================
+    // frequencies tests
+    // =========================================================================
+
+    #[test]
+    fn test_frequencies_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "a", "c", "a", "b"]"#).unwrap();
+        let expr = runtime.compile("frequencies(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 3);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap() as i64, 2);
+        assert_eq!(obj.get("c").unwrap().as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_frequencies_numbers() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 1, 1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("frequencies(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("1").unwrap().as_number().unwrap() as i64, 3);
+        assert_eq!(obj.get("2").unwrap().as_number().unwrap() as i64, 2);
+    }
+
+    // =========================================================================
+    // mode tests
+    // =========================================================================
+
+    #[test]
+    fn test_mode_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 2, 3, 2, 4]"#).unwrap();
+        let expr = runtime.compile("mode(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_mode_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("mode(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    // =========================================================================
+    // cartesian tests
+    // =========================================================================
+
+    #[test]
+    fn test_cartesian_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2], "b": ["x", "y"]}"#).unwrap();
+        let expr = runtime.compile("cartesian(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4); // [1,x], [1,y], [2,x], [2,y]
+    }
+
+    #[test]
+    fn test_cartesian_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [], "b": [1, 2]}"#).unwrap();
+        let expr = runtime.compile("cartesian(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    // =========================================================================
+    // Edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_first_empty_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("first(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_last_empty_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("last(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_unique_preserves_order() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["c", "a", "b", "a", "c"]"#).unwrap();
+        let expr = runtime.compile("unique(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_string().unwrap(), "c");
+        assert_eq!(arr[1].as_string().unwrap(), "a");
+        assert_eq!(arr[2].as_string().unwrap(), "b");
+    }
+
+    #[test]
+    fn test_unique_different_types() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, "1", 1, "1"]"#).unwrap();
+        let expr = runtime.compile("unique(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2); // 1 and "1" are different
+    }
+
+    #[test]
+    fn test_range_with_step() {
+        let runtime = setup_runtime();
+        let data = Variable::Null;
+        let expr = runtime.compile("range(`1`, `10`, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5); // 1, 3, 5, 7, 9
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[4].as_number().unwrap() as i64, 9);
+    }
+
+    #[test]
+    fn test_range_descending() {
+        let runtime = setup_runtime();
+        let data = Variable::Null;
+        let expr = runtime.compile("range(`5`, `0`, `-1`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5); // 5, 4, 3, 2, 1
+        assert_eq!(arr[0].as_number().unwrap() as i64, 5);
+        assert_eq!(arr[4].as_number().unwrap() as i64, 1);
+    }
+
+    // =========================================================================
+    // Pipeline patterns with arrays
+    // =========================================================================
+
+    #[test]
+    fn test_pipeline_unique_sort() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"["redis", "database", "redis", "nosql", "database"]"#).unwrap();
+        let expr = runtime.compile("unique(@) | sort(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_string().unwrap(), "database");
+        assert_eq!(arr[1].as_string().unwrap(), "nosql");
+        assert_eq!(arr[2].as_string().unwrap(), "redis");
+    }
+
+    #[test]
+    fn test_pipeline_filter_take() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"#).unwrap();
+        let expr = runtime.compile("[?@ > `3`] | take(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 4);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 5);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 6);
+    }
+
+    #[test]
+    fn test_pipeline_flatten_unique() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2], [2, 3], [3, 4]]"#).unwrap();
+        let expr = runtime.compile("flatten_deep(@) | unique(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4); // 1, 2, 3, 4
+    }
+
+    #[test]
+    fn test_large_array_processing() {
+        let runtime = setup_runtime();
+        // Create array with 1000 elements
+        let items: Vec<i32> = (1..=1000).collect();
+        let json = serde_json::to_string(&items).unwrap();
+        let data = Variable::from_json(&json).unwrap();
+
+        let expr = runtime.compile("length(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 1000);
+    }
 }
