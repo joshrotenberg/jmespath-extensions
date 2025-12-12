@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.5.0...v0.6.0) - 2025-12-12
+
+### Other
+
+- add comprehensive test coverage for array and expression functions ([#135](https://github.com/joshrotenberg/jmespath-extensions/pull/135))
+- add reduce_expr, scan_expr, order_by to registry metadata ([#134](https://github.com/joshrotenberg/jmespath-extensions/pull/134))
+- add missing jsonpatch and multi-match to documentation ([#132](https://github.com/joshrotenberg/jmespath-extensions/pull/132))
+
 ## [0.5.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.4.1...v0.5.0) - 2025-12-10
 
 ### Added
