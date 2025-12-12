@@ -188,6 +188,8 @@ All features are opt-in. Use `default-features = false` to select only what you 
 | `duration` | `parse_duration`, `format_duration`, etc. | None |
 | `color` | `hex_to_rgb`, `rgb_to_hex`, `lighten`, `darken`, etc. | None |
 | `computing` | `parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, etc. | None |
+| `jsonpatch` | `json_patch`, `json_merge_patch`, `json_diff` (RFC 6902/7386) | json-patch |
+| `multi-match` | `match_any`, `match_all`, `match_which`, `match_count`, `replace_many` | aho-corasick |
 
 ### Minimal Dependencies
 
@@ -257,6 +259,24 @@ geo_bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`)     → 51.2
 ```
 cidr_contains('192.168.0.0/16', '192.168.1.1') → true
 is_private_ip('10.0.0.1')                      → true
+```
+
+### JSON Patch (RFC 6902/7386)
+
+```
+json_patch({a: 1}, [{op: 'add', path: '/b', value: 2}])  → {a: 1, b: 2}
+json_merge_patch({a: 1}, {b: 2})                        → {a: 1, b: 2}
+json_diff({a: 1}, {a: 2})                               → [{op: 'replace', path: '/a', value: 2}]
+```
+
+### Multi-Pattern Matching (Aho-Corasick)
+
+```
+match_any('hello world', ['world', 'foo'])              → true
+match_all('hello world', ['hello', 'world'])            → true
+match_which('hello world', ['hello', 'foo', 'world'])   → ["hello", "world"]
+match_count('abcabc', ['a', 'b'])                       → 4
+replace_many('hello world', {hello: 'hi', world: 'earth'}) → "hi earth"
 ```
 
 See the [API documentation](https://docs.rs/jmespath_extensions) for complete function reference with examples.
