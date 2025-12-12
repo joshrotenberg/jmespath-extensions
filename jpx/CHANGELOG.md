@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.8...jpx-v0.1.9) - 2025-12-10
+
+### Other
+
+- updated the following local packages: jmespath_extensions
+
 ## [0.1.8](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.7...jpx-v0.1.8) - 2025-12-10
 
 ### Other
