@@ -414,6 +414,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("pull_at", Box::new(PullAtFn::new()));
     runtime.register_function("window", Box::new(WindowFn::new()));
     runtime.register_function("combinations", Box::new(CombinationsFn::new()));
+    runtime.register_function("transpose", Box::new(TransposeFn::new()));
+    runtime.register_function("pairwise", Box::new(PairwiseFn::new()));
+    // Alias for window (sliding_window is a common name)
+    runtime.register_function("sliding_window", Box::new(WindowFn::new()));
 }
 
 // =============================================================================
@@ -1911,6 +1915,117 @@ impl Function for PullAtFn {
     }
 }
 
+// =============================================================================
+// transpose(array) -> array
+// =============================================================================
+
+// Transpose a 2D array (swap rows and columns).
+//
+// # Arguments
+// * `array` - A 2D array (array of arrays)
+//
+// # Returns
+// A new 2D array with rows and columns swapped.
+// The result has as many rows as the shortest inner array.
+//
+// # Example
+// transpose([[1, 2, 3], [4, 5, 6]]) -> [[1, 4], [2, 5], [3, 6]]
+// transpose([[1, 2], [3, 4], [5, 6]]) -> [[1, 3, 5], [2, 4, 6]]
+define_function!(TransposeFn, vec![ArgumentType::Array], None);
+
+impl Function for TransposeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        // Get all inner arrays and find the minimum length
+        let mut inner_arrays: Vec<&Vec<Rcvar>> = Vec::new();
+        let mut min_len = usize::MAX;
+
+        for item in arr {
+            if let Some(inner) = item.as_array() {
+                min_len = min_len.min(inner.len());
+                inner_arrays.push(inner);
+            } else {
+                // If any element is not an array, return empty
+                return Ok(Rc::new(Variable::Array(vec![])));
+            }
+        }
+
+        if inner_arrays.is_empty() || min_len == 0 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        // Transpose: create new arrays where each contains the i-th element from each inner array
+        let mut result = Vec::with_capacity(min_len);
+        for i in 0..min_len {
+            let mut row = Vec::with_capacity(inner_arrays.len());
+            for inner in &inner_arrays {
+                row.push(inner[i].clone());
+            }
+            result.push(Rc::new(Variable::Array(row)));
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// pairwise(array) -> array
+// =============================================================================
+
+// Return adjacent pairs from an array.
+//
+// This is equivalent to `window(array, 2)` but provided as a convenience.
+//
+// # Arguments
+// * `array` - The input array
+//
+// # Returns
+// An array of 2-element arrays, each containing adjacent elements.
+//
+// # Example
+// pairwise([1, 2, 3, 4]) -> [[1, 2], [2, 3], [3, 4]]
+// pairwise([10, 15, 13, 20]) -> [[10, 15], [15, 13], [13, 20]]
+define_function!(PairwiseFn, vec![ArgumentType::Array], None);
+
+impl Function for PairwiseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        if arr.len() < 2 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let mut result = Vec::with_capacity(arr.len() - 1);
+        for i in 0..arr.len() - 1 {
+            let pair = vec![arr[i].clone(), arr[i + 1].clone()];
+            result.push(Rc::new(Variable::Array(pair)));
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3019,5 +3134,86 @@ mod tests {
         let expr = runtime.compile("length(@)").unwrap();
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_number().unwrap() as i64, 1000);
+    }
+
+    #[test]
+    fn test_transpose_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2, 3], [4, 5, 6]]"#).unwrap();
+        let expr = runtime.compile("transpose(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // First column: [1, 4]
+        let col0 = arr[0].as_array().unwrap();
+        assert_eq!(col0[0].as_number().unwrap() as i64, 1);
+        assert_eq!(col0[1].as_number().unwrap() as i64, 4);
+        // Second column: [2, 5]
+        let col1 = arr[1].as_array().unwrap();
+        assert_eq!(col1[0].as_number().unwrap() as i64, 2);
+        assert_eq!(col1[1].as_number().unwrap() as i64, 5);
+    }
+
+    #[test]
+    fn test_transpose_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("transpose(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_transpose_unequal_rows() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2], [3, 4, 5], [6, 7]]"#).unwrap();
+        let expr = runtime.compile("transpose(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Should use minimum length (2)
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn test_pairwise_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4]"#).unwrap();
+        let expr = runtime.compile("pairwise(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // First pair: [1, 2]
+        let pair0 = arr[0].as_array().unwrap();
+        assert_eq!(pair0[0].as_number().unwrap() as i64, 1);
+        assert_eq!(pair0[1].as_number().unwrap() as i64, 2);
+        // Second pair: [2, 3]
+        let pair1 = arr[1].as_array().unwrap();
+        assert_eq!(pair1[0].as_number().unwrap() as i64, 2);
+        assert_eq!(pair1[1].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_pairwise_short_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1]"#).unwrap();
+        let expr = runtime.compile("pairwise(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_sliding_window_alias() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("sliding_window(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // First window: [1, 2, 3]
+        let win0 = arr[0].as_array().unwrap();
+        assert_eq!(win0.len(), 3);
+        assert_eq!(win0[0].as_number().unwrap() as i64, 1);
     }
 }

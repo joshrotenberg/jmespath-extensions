@@ -97,6 +97,11 @@ pub fn register(runtime: &mut Runtime) {
     // Partial application functions
     runtime.register_function("partial", Box::new(PartialFn::new()));
     runtime.register_function("apply", Box::new(ApplyFn::new()));
+
+    // Functional array operations
+    runtime.register_function("take_while", Box::new(TakeWhileFn::new()));
+    runtime.register_function("drop_while", Box::new(DropWhileFn::new()));
+    runtime.register_function("zip_with", Box::new(ZipWithFn::new()));
 }
 
 // =============================================================================
@@ -1977,6 +1982,215 @@ fn invoke_function(
     })
 }
 
+// =============================================================================
+// take_while(expr, array) -> array
+// =============================================================================
+
+/// Take elements from the beginning of an array while the expression is truthy.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to process
+///
+/// # Returns
+/// A new array containing elements from the start until the predicate returns false.
+///
+/// # Example
+/// ```text
+/// take_while('@ < `4`', [1, 2, 3, 5, 1, 2]) -> [1, 2, 3]
+/// take_while('@ > `0`', [3, 2, 1, 0, -1]) -> [3, 2, 1]
+/// ```
+pub struct TakeWhileFn {
+    signature: Signature,
+}
+
+impl Default for TakeWhileFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TakeWhileFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Array], None),
+        }
+    }
+}
+
+impl Function for TakeWhileFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr = args[1].as_array().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in take_while: {}", e)),
+            )
+        })?;
+
+        let mut results = Vec::new();
+        for item in arr {
+            let result = compiled.search(item.clone())?;
+            if is_truthy(&result) {
+                results.push(item.clone());
+            } else {
+                break;
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(results)))
+    }
+}
+
+// =============================================================================
+// drop_while(expr, array) -> array
+// =============================================================================
+
+/// Drop elements from the beginning of an array while the expression is truthy.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to process
+///
+/// # Returns
+/// A new array with leading elements removed until the predicate returns false.
+///
+/// # Example
+/// ```text
+/// drop_while('@ < `4`', [1, 2, 3, 5, 1, 2]) -> [5, 1, 2]
+/// drop_while('@ > `0`', [3, 2, 1, 0, -1]) -> [0, -1]
+/// ```
+pub struct DropWhileFn {
+    signature: Signature,
+}
+
+impl Default for DropWhileFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DropWhileFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Array], None),
+        }
+    }
+}
+
+impl Function for DropWhileFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr = args[1].as_array().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in drop_while: {}", e)),
+            )
+        })?;
+
+        let mut dropping = true;
+        let mut results = Vec::new();
+        for item in arr {
+            if dropping {
+                let result = compiled.search(item.clone())?;
+                if !is_truthy(&result) {
+                    dropping = false;
+                    results.push(item.clone());
+                }
+            } else {
+                results.push(item.clone());
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(results)))
+    }
+}
+
+// =============================================================================
+// zip_with(expr, array1, array2) -> array
+// =============================================================================
+
+/// Zip two arrays together using a custom combiner expression.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression that receives `[element1, element2]` as input
+/// * `array1` - The first array
+/// * `array2` - The second array
+///
+/// # Returns
+/// A new array with elements combined using the expression.
+/// The result length is the minimum of the two input array lengths.
+///
+/// # Example
+/// ```text
+/// zip_with('add([0], [1])', [1, 2, 3], [10, 20, 30]) -> [11, 22, 33]
+/// zip_with('[0] * [1]', [2, 3, 4], [5, 6, 7]) -> [10, 18, 28]
+/// ```
+pub struct ZipWithFn {
+    signature: Signature,
+}
+
+impl Default for ZipWithFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ZipWithFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(
+                vec![
+                    ArgumentType::String,
+                    ArgumentType::Array,
+                    ArgumentType::Array,
+                ],
+                None,
+            ),
+        }
+    }
+}
+
+impl Function for ZipWithFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr1 = args[1].as_array().unwrap();
+        let arr2 = args[2].as_array().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in zip_with: {}", e)),
+            )
+        })?;
+
+        let min_len = arr1.len().min(arr2.len());
+        let mut results = Vec::with_capacity(min_len);
+
+        for i in 0..min_len {
+            // Create a pair array [element1, element2] as input to the expression
+            let pair = Rc::new(Variable::Array(vec![arr1[i].clone(), arr2[i].clone()]));
+            let result = compiled.search(pair)?;
+            results.push(result);
+        }
+
+        Ok(Rc::new(Variable::Array(results)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3258,5 +3472,118 @@ mod tests {
         let expr = runtime.compile("find_index_expr('@ > `3`', @)").unwrap();
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_take_while_basic() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 5, 1, 2]"#).unwrap();
+        let expr = runtime.compile("take_while('@ < `4`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap(), 1.0);
+        assert_eq!(arr[1].as_number().unwrap(), 2.0);
+        assert_eq!(arr[2].as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_take_while_all_match() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("take_while('@ < `10`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_take_while_none_match() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[5, 6, 7]"#).unwrap();
+        let expr = runtime.compile("take_while('@ < `4`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_drop_while_basic() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 5, 1, 2]"#).unwrap();
+        let expr = runtime.compile("drop_while('@ < `4`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap(), 5.0);
+        assert_eq!(arr[1].as_number().unwrap(), 1.0);
+        assert_eq!(arr[2].as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_drop_while_all_match() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("drop_while('@ < `10`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_drop_while_none_match() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[5, 6, 7]"#).unwrap();
+        let expr = runtime.compile("drop_while('@ < `4`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_zip_with_add() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("zip_with('add([0], [1])', `[1, 2, 3]`, `[10, 20, 30]`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap(), 11.0);
+        assert_eq!(arr[1].as_number().unwrap(), 22.0);
+        assert_eq!(arr[2].as_number().unwrap(), 33.0);
+    }
+
+    #[test]
+    fn test_zip_with_unequal_lengths() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("zip_with('add([0], [1])', `[1, 2, 3, 4, 5]`, `[10, 20]`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap(), 11.0);
+        assert_eq!(arr[1].as_number().unwrap(), 22.0);
+    }
+
+    #[test]
+    fn test_zip_with_multiply() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("zip_with('multiply([0], [1])', `[2, 3, 4]`, `[5, 6, 7]`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap(), 10.0);
+        assert_eq!(arr[1].as_number().unwrap(), 18.0);
+        assert_eq!(arr[2].as_number().unwrap(), 28.0);
     }
 }
