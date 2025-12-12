@@ -1,0 +1,16 @@
+[package]
+name = "jpx-lsp"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Language Server Protocol implementation for JMESPath with extensions"
+
+[dependencies]
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["full"] }
+jmespath.workspace = true
+jmespath_extensions = { workspace = true, features = ["full"] }
+serde.workspace = true
+serde_json.workspace = true

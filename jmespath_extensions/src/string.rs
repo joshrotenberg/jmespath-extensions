@@ -41,6 +41,13 @@
 //! | [`unescape`](#unescape) | `unescape(string) → string` | Unescape HTML entities |
 //! | [`escape_regex`](#escape_regex) | `escape_regex(string) → string` | Escape regex special chars |
 //! | [`start_case`](#start_case) | `start_case(string) → string` | Convert To Start Case |
+//! | [`mask`](#mask) | `mask(string, visible?, char?) → string` | Mask string, keep last N visible |
+//! | [`redact`](#redact) | `redact(string, pattern, replacement?) → string` | Redact regex matches |
+//! | [`normalize_whitespace`](#normalize_whitespace) | `normalize_whitespace(string) → string` | Collapse whitespace |
+//! | [`is_blank`](#is_blank) | `is_blank(string) → boolean` | Check if empty/whitespace |
+//! | [`abbreviate`](#abbreviate) | `abbreviate(string, max, suffix?) → string` | Truncate with ellipsis |
+//! | [`center`](#center) | `center(string, width, char?) → string` | Center-pad string |
+//! | [`reverse_string`](#reverse_string) | `reverse_string(string) → string` | Reverse string |
 //!
 //! # Examples
 //!
@@ -508,6 +515,17 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("unescape", Box::new(UnescapeFn::new()));
     runtime.register_function("escape_regex", Box::new(EscapeRegexFn::new()));
     runtime.register_function("start_case", Box::new(StartCaseFn::new()));
+    runtime.register_function("mask", Box::new(MaskFn::new()));
+    #[cfg(feature = "regex")]
+    runtime.register_function("redact", Box::new(RedactFn::new()));
+    runtime.register_function(
+        "normalize_whitespace",
+        Box::new(NormalizeWhitespaceFn::new()),
+    );
+    runtime.register_function("is_blank", Box::new(IsBlankFn::new()));
+    runtime.register_function("abbreviate", Box::new(AbbreviateFn::new()));
+    runtime.register_function("center", Box::new(CenterFn::new()));
+    runtime.register_function("reverse_string", Box::new(ReverseStringFn::new()));
 }
 
 // =============================================================================
@@ -2289,6 +2307,314 @@ impl Function for StartCaseFn {
     }
 }
 
+// =============================================================================
+// mask(string, visible?, char?) -> string
+// Mask a string, optionally keeping the last N characters visible
+// =============================================================================
+
+define_function!(MaskFn, vec![ArgumentType::String], Some(ArgumentType::Any));
+
+impl Function for MaskFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Number of characters to keep visible at the end (default: 0)
+        let visible = if args.len() > 1 && !args[1].is_null() {
+            args[1].as_number().unwrap_or(0.0) as usize
+        } else {
+            0
+        };
+
+        // Mask character (default: '*')
+        let mask_char = if args.len() > 2 && !args[2].is_null() {
+            args[2]
+                .as_string()
+                .and_then(|s| s.chars().next())
+                .unwrap_or('*')
+        } else {
+            '*'
+        };
+
+        let char_count = s.chars().count();
+
+        if visible >= char_count {
+            // If visible >= length, return original string
+            return Ok(Rc::new(Variable::String(s.to_string())));
+        }
+
+        let mask_count = char_count - visible;
+        let masked: String = std::iter::repeat_n(mask_char, mask_count)
+            .chain(s.chars().skip(mask_count))
+            .collect();
+
+        Ok(Rc::new(Variable::String(masked)))
+    }
+}
+
+// =============================================================================
+// redact(string, pattern, replacement?) -> string
+// Replace all matches of a regex pattern with a replacement string
+// =============================================================================
+
+#[cfg(feature = "regex")]
+define_function!(
+    RedactFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    Some(ArgumentType::Any)
+);
+
+#[cfg(feature = "regex")]
+impl Function for RedactFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let pattern = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string pattern".to_owned()),
+            )
+        })?;
+
+        // Replacement string (default: "[REDACTED]")
+        let replacement = if args.len() > 2 && !args[2].is_null() {
+            args[2]
+                .as_string()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "[REDACTED]".to_string())
+        } else {
+            "[REDACTED]".to_string()
+        };
+
+        let re = regex::Regex::new(pattern).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse(format!("Invalid regex pattern: {}", e)),
+            )
+        })?;
+
+        let result = re.replace_all(s, replacement.as_str());
+        Ok(Rc::new(Variable::String(result.into_owned())))
+    }
+}
+
+// =============================================================================
+// normalize_whitespace(string) -> string
+// Collapse multiple whitespace characters into a single space
+// =============================================================================
+
+define_function!(NormalizeWhitespaceFn, vec![ArgumentType::String], None);
+
+impl Function for NormalizeWhitespaceFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Split on whitespace and rejoin with single spaces
+        let result: String = s.split_whitespace().collect::<Vec<_>>().join(" ");
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// is_blank(string) -> boolean
+// Check if string is empty or contains only whitespace
+// =============================================================================
+
+define_function!(IsBlankFn, vec![ArgumentType::String], None);
+
+impl Function for IsBlankFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let is_blank = s.trim().is_empty();
+        Ok(Rc::new(Variable::Bool(is_blank)))
+    }
+}
+
+// =============================================================================
+// abbreviate(string, max_length, suffix?) -> string
+// Truncate string to max length with ellipsis suffix
+// =============================================================================
+
+define_function!(
+    AbbreviateFn,
+    vec![ArgumentType::String, ArgumentType::Number],
+    Some(ArgumentType::Any)
+);
+
+impl Function for AbbreviateFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let max_length = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for max_length".to_owned()),
+            )
+        })? as usize;
+
+        // Suffix (default: "...")
+        let suffix = if args.len() > 2 && !args[2].is_null() {
+            args[2]
+                .as_string()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "...".to_string())
+        } else {
+            "...".to_string()
+        };
+
+        let char_count = s.chars().count();
+        let suffix_len = suffix.chars().count();
+
+        if char_count <= max_length {
+            return Ok(Rc::new(Variable::String(s.to_string())));
+        }
+
+        if max_length <= suffix_len {
+            // If max_length is too small for suffix, just truncate
+            let result: String = s.chars().take(max_length).collect();
+            return Ok(Rc::new(Variable::String(result)));
+        }
+
+        let truncate_at = max_length - suffix_len;
+        let mut result: String = s.chars().take(truncate_at).collect();
+        result.push_str(&suffix);
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// center(string, width, char?) -> string
+// Center-pad a string to the given width
+// =============================================================================
+
+define_function!(
+    CenterFn,
+    vec![ArgumentType::String, ArgumentType::Number],
+    Some(ArgumentType::Any)
+);
+
+impl Function for CenterFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let width = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for width".to_owned()),
+            )
+        })? as usize;
+
+        // Padding character (default: ' ')
+        let pad_char = if args.len() > 2 && !args[2].is_null() {
+            args[2]
+                .as_string()
+                .and_then(|s| s.chars().next())
+                .unwrap_or(' ')
+        } else {
+            ' '
+        };
+
+        let char_count = s.chars().count();
+
+        if char_count >= width {
+            return Ok(Rc::new(Variable::String(s.to_string())));
+        }
+
+        let total_padding = width - char_count;
+        let left_padding = total_padding / 2;
+        let right_padding = total_padding - left_padding;
+
+        let mut result = String::with_capacity(width);
+        for _ in 0..left_padding {
+            result.push(pad_char);
+        }
+        result.push_str(s);
+        for _ in 0..right_padding {
+            result.push(pad_char);
+        }
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// reverse_string(string) -> string
+// Reverse a string (Unicode-aware, reverses grapheme clusters ideally, chars for simplicity)
+// =============================================================================
+
+define_function!(ReverseStringFn, vec![ArgumentType::String], None);
+
+impl Function for ReverseStringFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let result: String = s.chars().rev().collect();
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2768,5 +3094,243 @@ mod tests {
         let data = Variable::String("hello world".to_string());
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_number().unwrap() as i64, 9);
+    }
+
+    // =========================================================================
+    // mask tests
+    // =========================================================================
+
+    #[test]
+    fn test_mask_all() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("mask(@)").unwrap();
+        let data = Variable::String("secret".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "******");
+    }
+
+    #[test]
+    fn test_mask_keep_last_4() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("mask(@, `4`)").unwrap();
+        let data = Variable::String("4111111111111111".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "************1111");
+    }
+
+    #[test]
+    fn test_mask_custom_char() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("mask(@, `0`, `\"X\"`)").unwrap();
+        let data = Variable::String("secret".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "XXXXXX");
+    }
+
+    #[test]
+    fn test_mask_visible_exceeds_length() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("mask(@, `10`)").unwrap();
+        let data = Variable::String("short".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "short");
+    }
+
+    // =========================================================================
+    // redact tests (requires regex feature)
+    // =========================================================================
+
+    #[test]
+    #[cfg(feature = "regex")]
+    fn test_redact_email() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile(
+                r#"redact(@, `"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"`, `"[EMAIL]"`)"#,
+            )
+            .unwrap();
+        let data = Variable::String("Contact us at test@example.com for help".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "Contact us at [EMAIL] for help"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "regex")]
+    fn test_redact_default_replacement() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile(r#"redact(@, `"secret"` )"#).unwrap();
+        let data = Variable::String("The secret password is secret".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "The [REDACTED] password is [REDACTED]"
+        );
+    }
+
+    // =========================================================================
+    // normalize_whitespace tests
+    // =========================================================================
+
+    #[test]
+    fn test_normalize_whitespace_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("normalize_whitespace(@)").unwrap();
+        let data = Variable::String("hello    world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_normalize_whitespace_mixed() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("normalize_whitespace(@)").unwrap();
+        let data = Variable::String("hello\t\n  world\n\nfoo".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello world foo");
+    }
+
+    #[test]
+    fn test_normalize_whitespace_leading_trailing() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("normalize_whitespace(@)").unwrap();
+        let data = Variable::String("  hello world  ".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello world");
+    }
+
+    // =========================================================================
+    // is_blank tests
+    // =========================================================================
+
+    #[test]
+    fn test_is_blank_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("is_blank(@)").unwrap();
+        let data = Variable::String("".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_is_blank_whitespace() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("is_blank(@)").unwrap();
+        let data = Variable::String("   \t\n  ".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_is_blank_not_blank() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("is_blank(@)").unwrap();
+        let data = Variable::String("  a  ".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(!result.as_boolean().unwrap());
+    }
+
+    // =========================================================================
+    // abbreviate tests
+    // =========================================================================
+
+    #[test]
+    fn test_abbreviate_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("abbreviate(@, `10`)").unwrap();
+        let data = Variable::String("This is a very long string".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "This is...");
+    }
+
+    #[test]
+    fn test_abbreviate_no_truncation() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("abbreviate(@, `20`)").unwrap();
+        let data = Variable::String("short".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "short");
+    }
+
+    #[test]
+    fn test_abbreviate_custom_suffix() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("abbreviate(@, `8`, `\"~\"`)").unwrap();
+        let data = Variable::String("Hello World".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello W~");
+    }
+
+    // =========================================================================
+    // center tests
+    // =========================================================================
+
+    #[test]
+    fn test_center_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("center(@, `10`)").unwrap();
+        let data = Variable::String("hi".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "    hi    ");
+    }
+
+    #[test]
+    fn test_center_custom_char() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("center(@, `10`, `\"-\"`)").unwrap();
+        let data = Variable::String("hi".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "----hi----");
+    }
+
+    #[test]
+    fn test_center_already_wide() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("center(@, `3`)").unwrap();
+        let data = Variable::String("hello".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_center_odd_padding() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("center(@, `7`)").unwrap();
+        let data = Variable::String("hi".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "  hi   ");
+    }
+
+    // =========================================================================
+    // reverse_string tests
+    // =========================================================================
+
+    #[test]
+    fn test_reverse_string_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("reverse_string(@)").unwrap();
+        let data = Variable::String("hello".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "olleh");
+    }
+
+    #[test]
+    fn test_reverse_string_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("reverse_string(@)").unwrap();
+        let data = Variable::String("".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "");
+    }
+
+    #[test]
+    fn test_reverse_string_palindrome() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("reverse_string(@)").unwrap();
+        let data = Variable::String("racecar".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "racecar");
     }
 }
