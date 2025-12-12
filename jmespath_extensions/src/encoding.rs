@@ -2,7 +2,8 @@
 //!
 //! This module provides binary-to-text encoding and decoding capabilities for JMESPath expressions.
 //! It supports Base64 and hexadecimal encoding schemes, allowing you to encode strings to these
-//! formats and decode them back to their original form.
+//! formats and decode them back to their original form. It also includes JWT (JSON Web Token)
+//! decoding functions for extracting claims from tokens.
 //!
 //! **Note:** This module requires the `encoding` feature to be enabled.
 //!
@@ -14,6 +15,8 @@
 //! | `base64_decode` | `(base64: string)` | `string` | Decode Base64 to string |
 //! | `hex_encode` | `(text: string)` | `string` | Encode string to hexadecimal |
 //! | `hex_decode` | `(hex: string)` | `string` | Decode hexadecimal to string |
+//! | `jwt_decode` | `(token: string)` | `object` | Decode JWT payload (no verification) |
+//! | `jwt_header` | `(token: string)` | `object` | Decode JWT header |
 //!
 //! # Examples
 //!
@@ -85,6 +88,46 @@
 //! hex_decode('invalid')                    // null (invalid hex input)
 //! hex_decode('123')                        // null (odd length hex string)
 //! ```
+//!
+//! ## JWT Functions
+//!
+//! JWT (JSON Web Token) functions decode tokens to extract their contents. These functions
+//! perform decoding only - they do NOT verify signatures. Use these for:
+//! - Extracting claims for routing/filtering decisions
+//! - Inspecting token contents for debugging
+//! - Pre-processing before signature verification elsewhere
+//!
+//! **Security Note:** Never trust JWT contents without proper signature verification.
+//! These functions are for inspection only, not authentication.
+//!
+//! ### `jwt_decode(token: string) -> object`
+//!
+//! Decodes a JWT and returns the payload (claims) as a JSON object. Returns null if the
+//! token is malformed or cannot be decoded.
+//!
+//! ```text
+//! jwt_decode('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+//! // Returns: {"sub": "1234567890", "name": "John Doe", "iat": 1516239022}
+//!
+//! // Extract a specific claim:
+//! jwt_decode(token).sub                    // "1234567890"
+//!
+//! // Use in filtering:
+//! requests[?jwt_decode(auth_token).role == `"admin"`]
+//! ```
+//!
+//! ### `jwt_header(token: string) -> object`
+//!
+//! Decodes a JWT and returns the header as a JSON object. Returns null if the token
+//! is malformed or cannot be decoded.
+//!
+//! ```text
+//! jwt_header('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U')
+//! // Returns: {"alg": "HS256", "typ": "JWT"}
+//!
+//! // Check algorithm:
+//! jwt_header(token).alg                    // "HS256"
+//! ```
 
 use std::rc::Rc;
 
@@ -93,7 +136,10 @@ use crate::common::{
 };
 use crate::define_function;
 
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
+use base64::{
+    Engine,
+    engine::general_purpose::{STANDARD as BASE64_STANDARD, URL_SAFE_NO_PAD as BASE64_URL_SAFE},
+};
 
 /// Register all encoding functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -101,6 +147,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("base64_decode", Box::new(Base64DecodeFn::new()));
     runtime.register_function("hex_encode", Box::new(HexEncodeFn::new()));
     runtime.register_function("hex_decode", Box::new(HexDecodeFn::new()));
+    runtime.register_function("jwt_decode", Box::new(JwtDecodeFn::new()));
+    runtime.register_function("jwt_header", Box::new(JwtHeaderFn::new()));
 }
 
 // =============================================================================
@@ -219,6 +267,102 @@ impl Function for HexDecodeFn {
     }
 }
 
+// =============================================================================
+// JWT Helper Functions
+// =============================================================================
+
+/// Decode a base64url-encoded JWT part (header or payload) to JSON
+fn decode_jwt_part(part: &str) -> Option<serde_json::Value> {
+    // JWT uses base64url encoding (no padding)
+    let decoded = BASE64_URL_SAFE.decode(part).ok()?;
+    let json_str = String::from_utf8(decoded).ok()?;
+    serde_json::from_str(&json_str).ok()
+}
+
+/// Convert serde_json::Value to jmespath Variable
+fn json_to_variable(value: serde_json::Value) -> Variable {
+    match value {
+        serde_json::Value::Null => Variable::Null,
+        serde_json::Value::Bool(b) => Variable::Bool(b),
+        serde_json::Value::Number(n) => Variable::Number(n),
+        serde_json::Value::String(s) => Variable::String(s),
+        serde_json::Value::Array(arr) => Variable::Array(
+            arr.into_iter()
+                .map(|v| Rc::new(json_to_variable(v)))
+                .collect(),
+        ),
+        serde_json::Value::Object(map) => Variable::Object(
+            map.into_iter()
+                .map(|(k, v)| (k, Rc::new(json_to_variable(v))))
+                .collect(),
+        ),
+    }
+}
+
+// =============================================================================
+// jwt_decode(token) -> object (JWT payload/claims)
+// =============================================================================
+
+define_function!(JwtDecodeFn, vec![ArgumentType::String], None);
+
+impl Function for JwtDecodeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let token = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // JWT format: header.payload.signature
+        let parts: Vec<&str> = token.split('.').collect();
+        if parts.len() != 3 {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        // Decode the payload (second part)
+        match decode_jwt_part(parts[1]) {
+            Some(json) => Ok(Rc::new(json_to_variable(json))),
+            None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// =============================================================================
+// jwt_header(token) -> object (JWT header)
+// =============================================================================
+
+define_function!(JwtHeaderFn, vec![ArgumentType::String], None);
+
+impl Function for JwtHeaderFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let token = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // JWT format: header.payload.signature
+        let parts: Vec<&str> = token.split('.').collect();
+        if parts.len() != 3 {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        // Decode the header (first part)
+        match decode_jwt_part(parts[0]) {
+            Some(json) => Ok(Rc::new(json_to_variable(json))),
+            None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,6 +425,103 @@ mod tests {
         let runtime = setup_runtime();
         let expr = runtime.compile("hex_decode(@)").unwrap();
         let data = Variable::String("123".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    // =========================================================================
+    // JWT function tests
+    // =========================================================================
+
+    // Test JWT from jwt.io: {"sub": "1234567890", "name": "John Doe", "iat": 1516239022}
+    const TEST_JWT: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+
+    #[test]
+    fn test_jwt_decode_payload() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("jwt_decode(@)").unwrap();
+        let data = Variable::String(TEST_JWT.to_string());
+        let result = expr.search(&data).unwrap();
+
+        // Check it's an object
+        let obj = result.as_object().expect("Should be an object");
+
+        // Check claims
+        assert_eq!(obj.get("sub").unwrap().as_string().unwrap(), "1234567890");
+        assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "John Doe");
+        assert_eq!(
+            obj.get("iat").unwrap().as_number().unwrap() as i64,
+            1516239022
+        );
+    }
+
+    #[test]
+    fn test_jwt_decode_extract_claim() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("jwt_decode(@).sub").unwrap();
+        let data = Variable::String(TEST_JWT.to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "1234567890");
+    }
+
+    #[test]
+    fn test_jwt_header() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("jwt_header(@)").unwrap();
+        let data = Variable::String(TEST_JWT.to_string());
+        let result = expr.search(&data).unwrap();
+
+        // Check it's an object
+        let obj = result.as_object().expect("Should be an object");
+
+        // Check header fields
+        assert_eq!(obj.get("alg").unwrap().as_string().unwrap(), "HS256");
+        assert_eq!(obj.get("typ").unwrap().as_string().unwrap(), "JWT");
+    }
+
+    #[test]
+    fn test_jwt_header_extract_alg() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("jwt_header(@).alg").unwrap();
+        let data = Variable::String(TEST_JWT.to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "HS256");
+    }
+
+    #[test]
+    fn test_jwt_decode_invalid_format() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("jwt_decode(@)").unwrap();
+
+        // Not a valid JWT (no dots)
+        let data = Variable::String("not-a-jwt".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+
+        // Only two parts
+        let data = Variable::String("part1.part2".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_jwt_decode_invalid_base64() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("jwt_decode(@)").unwrap();
+
+        // Three parts but invalid base64
+        let data = Variable::String("!!!.@@@.###".to_string());
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_jwt_decode_invalid_json() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("jwt_decode(@)").unwrap();
+
+        // Valid base64 but not valid JSON - "not json" encoded
+        let data = Variable::String("eyJhbGciOiJIUzI1NiJ9.bm90IGpzb24.sig".to_string());
         let result = expr.search(&data).unwrap();
         assert!(result.is_null());
     }
