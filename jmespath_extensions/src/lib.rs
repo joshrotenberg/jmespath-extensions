@@ -164,6 +164,7 @@
 //! | `color` | none | [Color manipulation](color/index.html) |
 //! | `computing` | none | [Computing utilities](computing/index.html) |
 //! | `jsonpatch` | json-patch | [JSON Patch functions](jsonpatch/index.html) |
+//! | `multi-match` | aho-corasick | [Multi-pattern matching](multi_match/index.html) |
 //!
 //! ### Using Specific Features
 //!

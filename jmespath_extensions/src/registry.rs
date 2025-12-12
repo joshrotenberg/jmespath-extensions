@@ -92,6 +92,7 @@ pub enum Category {
     Color,
     Computing,
     MultiMatch,
+    Jsonpatch,
 }
 
 impl Category {
@@ -126,6 +127,7 @@ impl Category {
             Category::Color,
             Category::Computing,
             Category::MultiMatch,
+            Category::Jsonpatch,
         ]
     }
 
@@ -160,6 +162,7 @@ impl Category {
             Category::Color => "color",
             Category::Computing => "computing",
             Category::MultiMatch => "multi-match",
+            Category::Jsonpatch => "jsonpatch",
         }
     }
 
@@ -222,6 +225,8 @@ impl Category {
             Category::Computing => true,
             #[cfg(feature = "multi-match")]
             Category::MultiMatch => true,
+            #[cfg(feature = "jsonpatch")]
+            Category::Jsonpatch => true,
             #[allow(unreachable_patterns)]
             _ => false,
         }
@@ -508,6 +513,8 @@ impl FunctionRegistry {
             Category::Computing => crate::computing::register(runtime),
             #[cfg(feature = "multi-match")]
             Category::MultiMatch => crate::multi_match::register(runtime),
+            #[cfg(feature = "jsonpatch")]
+            Category::Jsonpatch => crate::jsonpatch::register(runtime),
             #[allow(unreachable_patterns)]
             _ => {}
         }
@@ -545,6 +552,7 @@ fn get_category_functions(category: Category) -> Vec<FunctionInfo> {
         Category::Color => color_functions(),
         Category::Computing => computing_functions(),
         Category::MultiMatch => multi_match_functions(),
+        Category::Jsonpatch => jsonpatch_functions(),
     }
 }
 
@@ -3520,6 +3528,44 @@ fn multi_match_functions() -> Vec<FunctionInfo> {
             description: "Replace multiple patterns simultaneously (Aho-Corasick)",
             signature: "string, object -> string",
             example: "replace_many('hello world', {hello: 'hi', world: 'earth'}) -> \"hi earth\"",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+    ]
+}
+
+fn jsonpatch_functions() -> Vec<FunctionInfo> {
+    vec![
+        FunctionInfo {
+            name: "json_patch",
+            category: Category::Jsonpatch,
+            description: "Apply JSON Patch (RFC 6902) operations to an object",
+            signature: "object, array -> object",
+            example: "json_patch({a: 1}, [{op: 'add', path: '/b', value: 2}]) -> {a: 1, b: 2}",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+        FunctionInfo {
+            name: "json_merge_patch",
+            category: Category::Jsonpatch,
+            description: "Apply JSON Merge Patch (RFC 7386) to an object",
+            signature: "object, object -> object",
+            example: "json_merge_patch({a: 1, b: 2}, {b: 3, c: 4}) -> {a: 1, b: 3, c: 4}",
+            is_standard: false,
+            jep: None,
+            aliases: &[],
+            features: &[Feature::Core],
+        },
+        FunctionInfo {
+            name: "json_diff",
+            category: Category::Jsonpatch,
+            description: "Generate JSON Patch (RFC 6902) that transforms first object into second",
+            signature: "object, object -> array",
+            example: "json_diff({a: 1}, {a: 2}) -> [{op: 'replace', path: '/a', value: 2}]",
             is_standard: false,
             jep: None,
             aliases: &[],
