@@ -13,6 +13,7 @@
 //! | [`drop`](#drop) | `drop(array, n) → array` | Drop first N elements |
 //! | [`chunk`](#chunk) | `chunk(array, size) → array` | Split into chunks |
 //! | [`zip`](#zip) | `zip(array1, array2) → array` | Zip two arrays |
+//! | [`flatten`](#flatten) | `flatten(array) → array` | Single-level flatten |
 //! | [`flatten_deep`](#flatten_deep) | `flatten_deep(array) → array` | Recursively flatten |
 //! | [`compact`](#compact) | `compact(array) → array` | Remove null/false values |
 //! | [`range`](#range) | `range(start, end, step?) → array` | Generate number range |
@@ -146,6 +147,20 @@
 //! zip([1, 2, 3], ['a', 'b', 'c'])   → [[1, "a"], [2, "b"], [3, "c"]]
 //! zip([1, 2], ['a', 'b', 'c'])      → [[1, "a"], [2, "b"]]
 //! zip([], [1, 2])                   → []
+//! ```
+//!
+//! ## flatten
+//!
+//! Flattens an array one level deep. Nested arrays are merged into the parent,
+//! but deeper nesting is preserved.
+//!
+//! ```text
+//! flatten(array) → array
+//!
+//! flatten([[1, 2], [3, 4]])          → [1, 2, 3, 4]
+//! flatten([1, [2, [3, 4]]])          → [1, 2, [3, 4]]
+//! flatten([1, 2, 3])                 → [1, 2, 3]
+//! flatten([[1], [[2]], [[[3]]]])     → [1, [2], [[3]]]
 //! ```
 //!
 //! ## flatten_deep
@@ -372,6 +387,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("take", Box::new(TakeFn::new()));
     runtime.register_function("drop", Box::new(DropFn::new()));
     runtime.register_function("flatten_deep", Box::new(FlattenDeepFn::new()));
+    runtime.register_function("flatten", Box::new(FlattenFn::new()));
     runtime.register_function("compact", Box::new(CompactFn::new()));
     runtime.register_function("range", Box::new(RangeFn::new()));
     runtime.register_function("index_at", Box::new(IndexAtFn::new()));
@@ -614,6 +630,37 @@ impl Function for FlattenDeepFn {
         })?;
 
         Ok(Rc::new(Variable::Array(flatten_recursive(arr))))
+    }
+}
+
+// =============================================================================
+// flatten(array) -> array (single-level flatten)
+// =============================================================================
+
+define_function!(FlattenFn, vec![ArgumentType::Array], None);
+
+impl Function for FlattenFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let mut result = Vec::new();
+        for item in arr {
+            if let Some(inner) = item.as_array() {
+                result.extend(inner.iter().cloned());
+            } else {
+                result.push(item.clone());
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
     }
 }
 
@@ -2416,6 +2463,71 @@ mod tests {
         let result = expr.search(&data).unwrap();
         let arr = result.as_array().unwrap();
         assert_eq!(arr.len(), 6);
+    }
+
+    // =========================================================================
+    // flatten tests (single-level)
+    // =========================================================================
+
+    #[test]
+    fn test_flatten_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2], [3, 4]]"#).unwrap();
+        let expr = runtime.compile("flatten(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4);
+    }
+
+    #[test]
+    fn test_flatten_single_level_only() {
+        let runtime = setup_runtime();
+        // flatten should only go one level deep
+        let data = Variable::from_json(r#"[1, [2, [3, 4]]]"#).unwrap();
+        let expr = runtime.compile("flatten(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Should be [1, 2, [3, 4]] - 3 elements, not 4
+        assert_eq!(arr.len(), 3);
+        // The third element should still be an array
+        assert!(arr[2].as_array().is_some());
+    }
+
+    #[test]
+    fn test_flatten_already_flat() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("flatten(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_flatten_mixed_nesting() {
+        let runtime = setup_runtime();
+        // [[1], [[2]], [[[3]]]] should become [1, [2], [[3]]]
+        let data = Variable::from_json(r#"[[1], [[2]], [[[3]]]]"#).unwrap();
+        let expr = runtime.compile("flatten(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // First element is a number
+        assert!(arr[0].as_number().is_some());
+        // Second element is [2]
+        assert!(arr[1].as_array().is_some());
+        // Third element is [[3]]
+        assert!(arr[2].as_array().is_some());
+    }
+
+    #[test]
+    fn test_flatten_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("flatten(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
     }
 
     // =========================================================================
