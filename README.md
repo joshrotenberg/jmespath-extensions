@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/crates/l/jmespath_extensions.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
 [![CI](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml)
 
-Extended functions for JMESPath queries in Rust. **190+ functions** for strings, arrays, dates, hashing, encoding, and more.
+Extended functions for JMESPath queries in Rust. **320+ functions** for strings, arrays, dates, hashing, encoding, and more.
 
 ## Built on jmespath.rs
 
@@ -38,7 +38,7 @@ echo '{"name": "world"}' | jpx 'upper(name)'
 
 | | **JMESPath Specification** | **jmespath_extensions** |
 |---|---|---|
-| **Functions** | 26 built-in functions | 190+ extension functions |
+| **Functions** | 26 built-in functions | 320+ extension functions |
 | **Portability** | Works everywhere (Python, JS, Go, AWS CLI, Ansible) | Rust only |
 | **Design** | Minimal, query-focused | Transformation-heavy, practical |
 | **Governance** | JEP process, multi-year consensus | Opinionated, can change |
@@ -70,7 +70,7 @@ Use only the [26 standard JMESPath built-in functions](https://jmespath.org/spec
 
 ## Overview
 
-This crate provides 190+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
+This crate provides 320+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -141,7 +141,7 @@ echo '[1, 2, 3]' | jpx --strict 'length(@)'
 # 3
 
 # Function discovery
-jpx --list-functions           # List all 190+ functions
+jpx --list-functions           # List all 320+ functions
 jpx --list-category expression # List expression functions
 jpx --describe map_expr        # Detailed function info
 ```
@@ -285,6 +285,93 @@ This crate aligns with several [JMESPath Enhancement Proposals](https://github.c
 Functions that align with JEPs have `jep: Some("JEP-XXX")` in their `FunctionInfo` metadata, accessible via the registry.
 
 Additional functions extend well beyond these proposals. Some JEPs (like arithmetic operators) require parser changes and cannot be implemented as extension functions.
+
+## Development
+
+### Adding a New Function
+
+1. **Add metadata to `jmespath_extensions/functions.toml`**:
+   ```toml
+   [[functions]]
+   name = "my_function"
+   category = "string"  # Must match an existing category
+   description = "Brief description of what it does"
+   signature = "string, number -> string"
+   example = "my_function('hello', `3`) -> 'hellohellohello'"
+   features = ["string"]  # Feature flags that enable this function
+   # Optional fields:
+   # jep = "JEP-014"      # If aligned with a JMESPath Enhancement Proposal
+   # aliases = ["my_func"] # Alternative names
+   ```
+
+2. **Implement the function** in the appropriate module (e.g., `src/string.rs`):
+   ```rust
+   define_function! {
+       name = "my_function";
+       doc = "Brief description of what it does.";
+       args = [value: Value, count: usize];
+       fn run(value, count) {
+           // Implementation
+           let s = value.as_string().ok_or_else(|| /* error */)?;
+           Ok(Rc::new(Variable::String(s.repeat(count))))
+       }
+   }
+   ```
+
+3. **Register the function** in the module's `register_*` function:
+   ```rust
+   pub fn register_string(runtime: &mut Runtime) {
+       // ... existing registrations
+       runtime.register_function(Box::new(MyFunction));
+   }
+   ```
+
+4. **Run the build** to regenerate documentation:
+   ```bash
+   cargo build  # build.rs generates docs from functions.toml
+   cargo test   # Verify everything works
+   cargo clippy --all-features
+   ```
+
+### Adding a New Feature/Category
+
+1. **Add the feature to `Cargo.toml`**:
+   ```toml
+   [features]
+   my_category = ["dep:some-crate"]  # If it needs dependencies
+   full = ["my_category", ...]       # Add to full feature
+   ```
+
+2. **Create the module** `src/my_category.rs` with the standard structure
+
+3. **Add to `src/lib.rs`**:
+   ```rust
+   #[cfg(feature = "my_category")]
+   pub mod my_category;
+   ```
+
+4. **Add the category variant** to `Category` enum in `src/registry.rs`
+
+5. **Update `build.rs`** to handle the new category in `category_variant()`
+
+### Contribution Guidelines
+
+When proposing new functions, please ensure they meet these criteria:
+
+1. **Generally useful**: Functions should solve common problems that many users encounter. Avoid highly specialized or niche use cases.
+
+2. **Minimal dependencies**: Prefer zero dependencies. If a dependency is needed, limit to one well-maintained crate. Dependencies should be feature-gated.
+
+3. **Thoughtful naming**: Function names should be:
+   - Clear and descriptive
+   - General enough to not imply overly specific behavior
+   - Consistent with existing naming conventions in the category
+
+4. **Fit existing categories**: New functions should naturally belong to an existing feature/category. Proposing a new category requires strong justification and multiple related functions.
+
+5. **No duplicate functionality**: Check that the function doesn't duplicate existing functionality or can be trivially composed from existing functions.
+
+6. **Include tests and examples**: All new functions must include tests and a working example in `functions.toml`.
 
 ## Benchmarks
 

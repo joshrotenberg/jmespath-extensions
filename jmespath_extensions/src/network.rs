@@ -1,34 +1,19 @@
-//! Network/IP functions for JMESPath.
+//! Network and IP address functions.
 //!
-//! This module provides functions for working with IP addresses and CIDR notation.
+//! This module provides network functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category network`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `ip_to_int(s)` | Convert IPv4 address to integer |
-//! | `int_to_ip(n)` | Convert integer to IPv4 address |
-//! | `cidr_contains(cidr, ip)` | Check if IP is within CIDR range |
-//! | `cidr_network(cidr)` | Get network address of CIDR |
-//! | `cidr_broadcast(cidr)` | Get broadcast address of CIDR |
-//! | `cidr_prefix(cidr)` | Get prefix length of CIDR |
-//! | `is_private_ip(ip)` | Check if IP is in private range |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::network;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! network::register(&mut runtime);
-//!
-//! // Check if IP is in CIDR range
-//! let data = Variable::from_json(r#"{"cidr": "192.168.1.0/24", "ip": "192.168.1.100"}"#).unwrap();
-//! let expr = runtime.compile("cidr_contains(cidr, ip)").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: true
 //! ```
 
 use std::net::Ipv4Addr;

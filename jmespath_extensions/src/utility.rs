@@ -1,138 +1,19 @@
-//! Utility and conditional functions.
+//! Utility functions.
 //!
-//! This module provides essential utility functions for JMESPath expressions, including timestamp
-//! generation, default value handling, conditional logic, and JSON serialization. These functions
-//! help with common data manipulation tasks and control flow.
+//! This module provides utility functions for JMESPath queries.
 //!
-//! # Function Reference
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category utility`.
 //!
-//! | Function | Arguments | Returns | Description |
-//! |----------|-----------|---------|-------------|
-//! | `now` | `(fallback?: number)` | `number` | Current Unix timestamp in seconds |
-//! | `now_ms` | `(fallback?: number)` | `number` | Current Unix timestamp in milliseconds |
-//! | `default` | `(value: any, default: any)` | `any` | Return value if not null, else default |
-//! | `if` | `(condition: any, then: any, else: any)` | `any` | Ternary conditional operator |
-//! | `coalesce` | `(...values: any)` | `any` | Return first non-null value |
-//! | `json_encode` | `(value: any)` | `string` | Serialize value to JSON string |
-//! | `json_decode` | `(json: string)` | `any` | Parse JSON string to value |
-//! | `json_pointer` | `(value: any, pointer: string)` | `any` | Access value using JSON Pointer (RFC 6901) |
-//!
-//! # Examples
+//! # Example
 //!
 //! ```rust
-//! use jmespath_extensions::Runtime;
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::utility;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
-//! jmespath_extensions::register_all(&mut runtime);
-//!
-//! let expr = runtime.compile("default(value, 'fallback')").unwrap();
-//! let data = jmespath::Variable::from_json(r#"{"value": null}"#).unwrap();
-//! let result = expr.search(&data).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "fallback");
-//! ```
-//!
-//! # Function Details
-//!
-//! ## Timestamp Functions
-//!
-//! ### `now(fallback?: number) -> number`
-//!
-//! Returns the current Unix timestamp in seconds. If an optional fallback is provided and is a
-//! valid number, it will be returned instead (useful for testing).
-//!
-//! ```text
-//! now()                     // 1701234567 (current time)
-//! now(`1234567890`)         // 1234567890 (fallback value)
-//! ```
-//!
-//! ### `now_ms(fallback?: number) -> number`
-//!
-//! Returns the current Unix timestamp in milliseconds. If an optional fallback is provided and is
-//! a valid number, it will be returned instead.
-//!
-//! ```text
-//! now_ms()                  // 1701234567890 (current time)
-//! now_ms(`1234567890000`)   // 1234567890000 (fallback value)
-//! ```
-//!
-//! ## Conditional Functions
-//!
-//! ### `default(value: any, default_value: any) -> any`
-//!
-//! Returns the first argument if it is not null, otherwise returns the default value.
-//!
-//! ```text
-//! default(name, 'Unknown')           // "John" if name="John", else "Unknown"
-//! default(null, 'fallback')          // "fallback"
-//! default('', 'fallback')            // "" (empty string is not null)
-//! default(`0`, `42`)                 // 0 (zero is not null)
-//! ```
-//!
-//! ### `if(condition: any, then_value: any, else_value: any) -> any`
-//!
-//! Ternary conditional operator. Returns then_value if condition is truthy, else returns else_value.
-//! Truthy values are everything except false and null.
-//!
-//! ```text
-//! if(`true`, 'yes', 'no')            // "yes"
-//! if(`false`, 'yes', 'no')           // "no"
-//! if(null, 'yes', 'no')              // "no"
-//! if(`0`, 'yes', 'no')               // "yes" (0 is truthy)
-//! if(`""`, 'yes', 'no')              // "yes" (empty string is truthy)
-//! if(count > `5`, 'many', 'few')     // conditional based on comparison
-//! ```
-//!
-//! ### `coalesce(...values: any) -> any`
-//!
-//! Returns the first non-null value from the argument list. If all values are null, returns null.
-//!
-//! ```text
-//! coalesce(null, null, 'value')      // "value"
-//! coalesce(name, username, 'Guest')  // first non-null field or "Guest"
-//! coalesce(null, null)               // null
-//! coalesce(`42`, `100`)              // 42 (first value)
-//! ```
-//!
-//! ## JSON Functions
-//!
-//! ### `json_encode(value: any) -> string`
-//!
-//! Serializes any value to a JSON string.
-//!
-//! ```text
-//! json_encode(`42`)                  // "42"
-//! json_encode(`"hello"`)             // "\"hello\""
-//! json_encode(`[1, 2, 3]`)           // "[1,2,3]"
-//! json_encode(`{a: 1, b: 2}`)        // "{\"a\":1,\"b\":2}"
-//! json_encode(null)                  // "null"
-//! ```
-//!
-//! ### `json_decode(json: string) -> any`
-//!
-//! Parses a JSON string and returns the corresponding value. Throws an error if the string
-//! is not valid JSON.
-//!
-//! ```text
-//! json_decode(`"42"`)                // 42
-//! json_decode(`"\"hello\""`)         // "hello"
-//! json_decode(`"[1,2,3]"`)           // [1, 2, 3]
-//! json_decode(`"{\"a\":1}"`)         // {a: 1}
-//! json_decode(`"true"`)              // true
-//! ```
-//!
-//! ### `json_pointer(value: any, pointer: string) -> any`
-//!
-//! Access a value using JSON Pointer syntax (RFC 6901). Returns null if the pointer
-//! doesn't resolve to a value.
-//!
-//! ```text
-//! json_pointer({foo: {bar: [1,2,3]}}, '/foo/bar/1')   // 2
-//! json_pointer({a: {b: 1}}, '/a/b')                   // 1
-//! json_pointer([1, 2, 3], '/0')                       // 1
-//! json_pointer({}, '/missing')                        // null
-//! json_pointer({'a/b': 1}, '/a~1b')                   // 1 (/ escaped as ~1)
-//! json_pointer({'a~b': 1}, '/a~0b')                   // 1 (~ escaped as ~0)
+//! utility::register(&mut runtime);
 //! ```
 
 use std::rc::Rc;

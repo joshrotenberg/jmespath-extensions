@@ -250,6 +250,10 @@ pub mod common;
 
 // Function registry for runtime control
 pub mod registry;
+
+/// Complete function reference - auto-generated from `functions.toml`
+#[doc = include_str!(concat!(env!("OUT_DIR"), "/function_docs.md"))]
+pub mod functions {}
 pub use common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Signature,
     Variable,

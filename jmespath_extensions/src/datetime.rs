@@ -1,71 +1,19 @@
-//! Date/time functions for JMESPath.
+//! Date and time functions.
 //!
-//! This module provides functions for working with dates and times.
+//! This module provides datetime functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category datetime`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `now()` | Current Unix timestamp in seconds |
-//! | `now_millis()` | Current Unix timestamp in milliseconds |
-//! | `parse_date(string, format?)` | Parse date string to timestamp |
-//! | `format_date(timestamp, format)` | Format timestamp to string |
-//! | `date_add(timestamp, amount, unit)` | Add time to timestamp |
-//! | `date_diff(ts1, ts2, unit)` | Difference between timestamps |
-//! | `timezone_convert(timestamp, from_tz, to_tz)` | Convert timestamp between timezones |
-//! | `is_weekend(timestamp)` | Check if date falls on weekend |
-//! | `is_weekday(timestamp)` | Check if date falls on weekday |
-//! | `business_days_between(ts1, ts2)` | Count business days between dates |
-//! | `relative_time(timestamp)` | Human-readable relative time |
-//! | `quarter(timestamp)` | Get quarter of year (1-4) |
-//! | `is_after(date1, date2)` | Check if date1 is after date2 |
-//! | `is_before(date1, date2)` | Check if date1 is before date2 |
-//! | `is_between(date, start, end)` | Check if date is between start and end |
-//! | `time_ago(date)` | Human-readable time since date |
+//! # Example
 //!
-//! # Format Specifiers
-//!
-//! Uses [chrono strftime format](https://docs.rs/chrono/latest/chrono/format/strftime/index.html):
-//!
-//! | Specifier | Description | Example |
-//! |-----------|-------------|---------|
-//! | `%Y` | Year with century | 2024 |
-//! | `%m` | Month (01-12) | 07 |
-//! | `%d` | Day of month (01-31) | 15 |
-//! | `%H` | Hour (00-23) | 14 |
-//! | `%M` | Minute (00-59) | 30 |
-//! | `%S` | Second (00-59) | 45 |
-//! | `%Y-%m-%d` | ISO date | 2024-07-15 |
-//! | `%Y-%m-%dT%H:%M:%S` | ISO datetime | 2024-07-15T14:30:45 |
-//!
-//! # Time Units
-//!
-//! For `date_add` and `date_diff`:
-//! - `seconds`, `second`, `s`
-//! - `minutes`, `minute`, `m`
-//! - `hours`, `hour`, `h`
-//! - `days`, `day`, `d`
-//! - `weeks`, `week`, `w`
-//!
-//! # Examples
-//!
-//! ```
-//! # #[cfg(feature = "datetime")]
-//! # fn main() {
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::datetime;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! datetime::register(&mut runtime);
-//!
-//! // Format a timestamp
-//! let expr = runtime.compile("format_date(`1720000000`, '%Y-%m-%d')").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "2024-07-03");
-//! # }
-//! # #[cfg(not(feature = "datetime"))]
-//! # fn main() {}
 //! ```
 
 use std::rc::Rc;

@@ -1,32 +1,19 @@
-//! Geospatial functions for JMESPath.
+//! Geographic/geospatial functions.
 //!
-//! This module provides functions for calculating distances and bearings
-//! between geographic coordinates.
+//! This module provides geo functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category geo`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `geo_distance(lat1, lon1, lat2, lon2)` | Distance in meters using Haversine formula |
-//! | `geo_distance_km(lat1, lon1, lat2, lon2)` | Distance in kilometers |
-//! | `geo_distance_miles(lat1, lon1, lat2, lon2)` | Distance in miles |
-//! | `geo_bearing(lat1, lon1, lat2, lon2)` | Initial bearing in degrees (0-360) |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::geo;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! geo::register(&mut runtime);
-//!
-//! // Distance between New York and London
-//! let data = Variable::from_json(r#"{"ny": [40.7128, -74.0060], "london": [51.5074, -0.1278]}"#).unwrap();
-//! let expr = runtime.compile("geo_distance_km(ny[0], ny[1], london[0], london[1])").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: ~5570 km
 //! ```
 
 use std::rc::Rc;

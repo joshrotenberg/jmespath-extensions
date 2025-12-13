@@ -1,60 +1,19 @@
-//! Expression-based functions for JMESPath.
+//! Expression-based higher-order functions.
 //!
-//! This module provides higher-order functions that accept JMESPath expressions
-//! as arguments, enabling powerful data transformations.
+//! This module provides expression functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category expression`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `map_expr(expr, array)` | Apply expression to each element |
-//! | `filter_expr(expr, array)` | Keep elements where expression is truthy |
-//! | `any_expr(expr, array)` | True if any element matches expression |
-//! | `all_expr(expr, array)` | True if all elements match expression |
-//! | `find_expr(expr, array)` | First element matching expression |
-//! | `find_index_expr(expr, array)` | Index of first match or -1 |
-//! | `count_expr(expr, array)` | Count elements where expression is truthy |
-//! | `sort_by_expr(expr, array)` | Sort array by expression result |
-//! | `group_by_expr(expr, array)` | Group elements by expression result |
-//! | `partition_expr(expr, array)` | Split into [matches, non_matches] |
-//! | `min_by_expr(expr, array)` | Element with minimum expression value |
-//! | `max_by_expr(expr, array)` | Element with maximum expression value |
-//! | `unique_by_expr(expr, array)` | Dedupe by expression result |
-//! | `flat_map_expr(expr, array)` | Map and flatten results |
-//! | `some(expr, array)` | Alias for any_expr (lodash-style) |
-//! | `every(expr, array)` | Alias for all_expr (lodash-style) |
-//! | `reject(expr, array)` | Keep elements where expression is falsy |
-//! | `map_keys(expr, object)` | Transform object keys using expression |
-//! | `map_values(expr, object)` | Transform object values using expression |
-//! | `order_by(array, criteria)` | Sort by multiple fields with direction (use backtick literals) |
-//! | `reduce_expr(expr, array, init)` | Reduce array to single value |
-//! | `scan_expr(expr, array, init)` | Cumulative reduce (running totals) |
-//! | `fold(expr, array, init)` | Alias for reduce_expr |
-//! | `count_by(expr, array)` | Count occurrences by expression result |
-//! | `partial(fn_name, ...args)` | Create a partial function with pre-filled args |
-//! | `apply(partial_or_fn, ...args)` | Invoke a partial or function by name |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::expression;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! expression::register(&mut runtime);
-//!
-//! // Map: extract field from each object
-//! let data = Variable::from_json(r#"[{"name": "Alice"}, {"name": "Bob"}]"#).unwrap();
-//! let expr = runtime.compile("map_expr('name', @)").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: ["Alice", "Bob"]
-//!
-//! // Filter: keep objects matching condition
-//! let data = Variable::from_json(r#"[{"age": 25}, {"age": 17}, {"age": 30}]"#).unwrap();
-//! let expr = runtime.compile("filter_expr('age >= `18`', @)").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: [{"age": 25}, {"age": 30}]
 //! ```
 
 use std::rc::Rc;

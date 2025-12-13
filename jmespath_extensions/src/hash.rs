@@ -1,151 +1,19 @@
-//! Hash and checksum functions.
+//! Cryptographic hash functions.
 //!
-//! This module provides cryptographic hash, HMAC, and checksum functions for JMESPath expressions.
-//! It includes support for MD5, SHA-1, SHA-256, SHA-512 cryptographic hashes, HMAC variants,
-//! and CRC32 checksums. All hash functions return hexadecimal string representations except
-//! CRC32 which returns a numeric checksum.
+//! This module provides hash functions for JMESPath queries.
 //!
-//! **Note:** This module requires the `hash` feature to be enabled.
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category hash`.
 //!
-//! # Function Reference
-//!
-//! | Function | Arguments | Returns | Description |
-//! |----------|-----------|---------|-------------|
-//! | `md5` | `(text: string)` | `string` | Compute MD5 hash (hex-encoded) |
-//! | `sha1` | `(text: string)` | `string` | Compute SHA-1 hash (hex-encoded) |
-//! | `sha256` | `(text: string)` | `string` | Compute SHA-256 hash (hex-encoded) |
-//! | `sha512` | `(text: string)` | `string` | Compute SHA-512 hash (hex-encoded) |
-//! | `hmac_md5` | `(text: string, key: string)` | `string` | Compute HMAC-MD5 (hex-encoded) |
-//! | `hmac_sha1` | `(text: string, key: string)` | `string` | Compute HMAC-SHA1 (hex-encoded) |
-//! | `hmac_sha256` | `(text: string, key: string)` | `string` | Compute HMAC-SHA256 (hex-encoded) |
-//! | `hmac_sha512` | `(text: string, key: string)` | `string` | Compute HMAC-SHA512 (hex-encoded) |
-//! | `crc32` | `(text: string)` | `number` | Compute CRC32 checksum |
-//!
-//! # Examples
+//! # Example
 //!
 //! ```rust
-//! use jmespath_extensions::Runtime;
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::hash;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
-//! jmespath_extensions::register_all(&mut runtime);
-//!
-//! let expr = runtime.compile("sha256(@)").unwrap();
-//! let data = jmespath::Variable::String("hello".to_string());
-//! let result = expr.search(&data).unwrap();
-//! assert_eq!(result.as_string().unwrap(),
-//!            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
-//! ```
-//!
-//! # Function Details
-//!
-//! ## Cryptographic Hash Functions
-//!
-//! ### `md5(text: string) -> string`
-//!
-//! Computes the MD5 hash of the input string and returns it as a lowercase hexadecimal string.
-//!
-//! **Warning:** MD5 is cryptographically broken and should not be used for security purposes.
-//! It's suitable for checksums and non-security applications.
-//!
-//! ```text
-//! md5('hello')                             // "5d41402abc4b2a76b9719d911017c592"
-//! md5('Hello World')                       // "b10a8db164e0754105b7a99be72e3fe5"
-//! md5('')                                  // "d41d8cd98f00b204e9800998ecf8427e"
-//! ```
-//!
-//! ### `sha1(text: string) -> string`
-//!
-//! Computes the SHA-1 hash of the input string and returns it as a lowercase hexadecimal string.
-//!
-//! **Warning:** SHA-1 is considered weak and should not be used for security-critical applications.
-//!
-//! ```text
-//! sha1('hello')                            // "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
-//! sha1('Hello World')                      // "0a4d55a8d778e5022fab701977c5d840bbc486d0"
-//! sha1('')                                 // "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-//! ```
-//!
-//! ### `sha256(text: string) -> string`
-//!
-//! Computes the SHA-256 hash of the input string and returns it as a lowercase hexadecimal string.
-//! SHA-256 is part of the SHA-2 family and is suitable for security applications.
-//!
-//! ```text
-//! sha256('hello')                          // "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-//! sha256('Hello World')                    // "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
-//! sha256('')                               // "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-//! ```
-//!
-//! ### `sha512(text: string) -> string`
-//!
-//! Computes the SHA-512 hash of the input string and returns it as a lowercase hexadecimal string.
-//! SHA-512 is part of the SHA-2 family and provides stronger security than SHA-256.
-//!
-//! ```text
-//! sha512('hello')                          // "9b71d224bd62f3785d96d46ad3ea3d73..."
-//! sha512('')                               // "cf83e1357eefb8bdf1542850d66d8007..."
-//! ```
-//!
-//! ## HMAC Functions
-//!
-//! HMAC (Hash-based Message Authentication Code) functions compute a keyed hash that can be
-//! used to verify both data integrity and authenticity. Common use cases include:
-//! - Webhook signature verification (GitHub, Stripe, etc.)
-//! - API request signing
-//! - Token generation
-//!
-//! ### `hmac_md5(text: string, key: string) -> string`
-//!
-//! Computes HMAC-MD5 of the input using the provided key.
-//!
-//! **Warning:** HMAC-MD5 is considered weak. Use HMAC-SHA256 or HMAC-SHA512 for new applications.
-//!
-//! ```text
-//! hmac_md5('hello', 'secret')              // "e17e4e4a2ef59e02498b1f1e4c1b7272"
-//! ```
-//!
-//! ### `hmac_sha1(text: string, key: string) -> string`
-//!
-//! Computes HMAC-SHA1 of the input using the provided key.
-//! Still used by some APIs (e.g., OAuth 1.0, older webhook implementations).
-//!
-//! ```text
-//! hmac_sha1('hello', 'secret')             // "5112055c05f944f85755efc5cd8970e194e9f45b"
-//! ```
-//!
-//! ### `hmac_sha256(text: string, key: string) -> string`
-//!
-//! Computes HMAC-SHA256 of the input using the provided key.
-//! This is the recommended HMAC algorithm for most applications.
-//!
-//! ```text
-//! hmac_sha256('hello', 'secret')           // "88aab3ede8d3adf94d26ab90d3bafd4a..."
-//! // Verify a GitHub webhook signature:
-//! hmac_sha256(payload, webhook_secret) == headers.`"X-Hub-Signature-256"`
-//! ```
-//!
-//! ### `hmac_sha512(text: string, key: string) -> string`
-//!
-//! Computes HMAC-SHA512 of the input using the provided key.
-//! Provides maximum security when needed.
-//!
-//! ```text
-//! hmac_sha512('hello', 'secret')           // "d05888a201606a6979..."
-//! ```
-//!
-//! ## Checksum Functions
-//!
-//! ### `crc32(text: string) -> number`
-//!
-//! Computes the CRC32 checksum of the input string and returns it as an unsigned 32-bit integer.
-//! CRC32 is useful for error detection but not for cryptographic purposes.
-//!
-//! ```text
-//! crc32('hello')                           // 907060870
-//! crc32('Hello World')                     // 1243066710
-//! crc32('')                                // 0
-//! crc32('test')                            // 3632233996
+//! hash::register(&mut runtime);
 //! ```
 
 use std::rc::Rc;

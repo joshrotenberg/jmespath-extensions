@@ -41,7 +41,7 @@ strsim = "0.11"
 rphonetic = "3.0"
 geoutils = "0.5"
 semver_crate = { package = "semver", version = "1.0" }
-ipnetwork = "0.20"
+ipnetwork = "0.21"
 nanoid = "0.4"
 ulid = "1.1"
 json-patch = "4.0"
@@ -49,6 +49,7 @@ aho-corasick = "1.1"
 
 # Dev dependencies
 criterion = { version = "0.5", features = ["html_reports"] }
+# Note: criterion 0.7 has breaking changes, staying on 0.5 for now
 
 # Internal crate
 jmespath_extensions = { path = "jmespath_extensions", version = "0.6.0" }

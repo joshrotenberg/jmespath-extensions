@@ -1,0 +1,2731 @@
+# JMESPath Extensions Function Registry
+# 
+# This file is the single source of truth for:
+# - Function metadata (name, signature, description)
+# - Rustdoc generation (via build.rs)
+# - Runtime introspection (via registry.rs)
+#
+# To regenerate registry.rs and docs after editing:
+#   cargo build  # build.rs will process this file
+
+# =============================================================================
+# ARRAY FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "chunk"
+category = "array"
+description = "Split array into chunks of size n"
+signature = "array, number -> array"
+example = "chunk([1, 2, 3, 4], `2`) -> [[1, 2], [3, 4]]"
+features = ["core"]
+
+[[functions]]
+name = "compact"
+category = "array"
+description = "Remove null values from array"
+signature = "array -> array"
+example = "compact([1, null, 2, null]) -> [1, 2]"
+features = ["core"]
+
+[[functions]]
+name = "difference"
+category = "array"
+description = "Elements in first array not in second"
+signature = "array, array -> array"
+example = "difference([1, 2, 3], [2]) -> [1, 3]"
+features = ["core"]
+
+[[functions]]
+name = "drop"
+category = "array"
+description = "Drop first n elements"
+signature = "array, number -> array"
+example = "drop([1, 2, 3, 4], `2`) -> [3, 4]"
+features = ["core"]
+
+[[functions]]
+name = "find_index"
+category = "array"
+description = "Find index of value in array"
+signature = "array, any -> number | null"
+example = "find_index([1, 2, 3], `2`) -> 1"
+features = ["core"]
+
+[[functions]]
+name = "first"
+category = "array"
+description = "Get first element of array"
+signature = "array -> any"
+example = "first([1, 2, 3]) -> 1"
+features = ["core"]
+
+[[functions]]
+name = "flatten"
+category = "array"
+description = "Flatten array one level deep"
+signature = "array -> array"
+example = "flatten([[1, 2], [3]]) -> [1, 2, 3]"
+features = ["core"]
+
+[[functions]]
+name = "flatten_deep"
+category = "array"
+description = "Recursively flatten nested arrays"
+signature = "array -> array"
+example = "flatten_deep([[1, [2]], [3]]) -> [1, 2, 3]"
+features = ["core"]
+
+[[functions]]
+name = "frequencies"
+category = "array"
+description = "Count occurrences of each value"
+signature = "array -> object"
+example = "frequencies(['a', 'b', 'a']) -> {a: 2, b: 1}"
+features = ["core"]
+
+[[functions]]
+name = "group_by"
+category = "array"
+description = "Group array elements by key"
+signature = "array, string -> object"
+example = "group_by([{t: 'a'}, {t: 'b'}], 't') -> {a: [...], b: [...]}"
+features = ["core"]
+
+[[functions]]
+name = "includes"
+category = "array"
+description = "Check if array contains value"
+signature = "array, any -> boolean"
+example = "includes([1, 2, 3], `2`) -> true"
+features = ["core"]
+
+[[functions]]
+name = "index_at"
+category = "array"
+description = "Get element at index (supports negative)"
+signature = "array, number -> any"
+example = "index_at([1, 2, 3], `-1`) -> 3"
+features = ["core"]
+
+[[functions]]
+name = "intersection"
+category = "array"
+description = "Elements common to both arrays"
+signature = "array, array -> array"
+example = "intersection([1, 2], [2, 3]) -> [2]"
+features = ["core"]
+
+[[functions]]
+name = "last"
+category = "array"
+description = "Get last element of array"
+signature = "array -> any"
+example = "last([1, 2, 3]) -> 3"
+features = ["core"]
+
+[[functions]]
+name = "pairwise"
+category = "array"
+description = "Return adjacent pairs from array"
+signature = "array -> array"
+example = "pairwise([1, 2, 3]) -> [[1, 2], [2, 3]]"
+features = ["core"]
+
+[[functions]]
+name = "range"
+category = "array"
+description = "Generate array of numbers"
+signature = "number, number -> array"
+example = "range(`1`, `5`) -> [1, 2, 3, 4]"
+features = ["core"]
+
+[[functions]]
+name = "sliding_window"
+category = "array"
+description = "Create overlapping windows of size n (alias for window)"
+signature = "array, number -> array"
+example = "sliding_window([1, 2, 3, 4], `2`) -> [[1, 2], [2, 3], [3, 4]]"
+aliases = ["window"]
+features = ["core"]
+
+[[functions]]
+name = "take"
+category = "array"
+description = "Take first n elements"
+signature = "array, number -> array"
+example = "take([1, 2, 3, 4], `2`) -> [1, 2]"
+features = ["core"]
+
+[[functions]]
+name = "transpose"
+category = "array"
+description = "Transpose a 2D array (swap rows and columns)"
+signature = "array -> array"
+example = "transpose([[1, 2], [3, 4]]) -> [[1, 3], [2, 4]]"
+features = ["core"]
+
+[[functions]]
+name = "union"
+category = "array"
+description = "Unique elements from both arrays"
+signature = "array, array -> array"
+example = "union([1, 2], [2, 3]) -> [1, 2, 3]"
+features = ["core"]
+
+[[functions]]
+name = "unique"
+category = "array"
+description = "Remove duplicate values"
+signature = "array -> array"
+example = "unique([1, 2, 1, 3]) -> [1, 2, 3]"
+features = ["core"]
+
+[[functions]]
+name = "zip"
+category = "array"
+description = "Zip two arrays together"
+signature = "array, array -> array"
+example = "zip([1, 2], ['a', 'b']) -> [[1, 'a'], [2, 'b']]"
+jep = "JEP-013"
+features = ["core", "jep"]
+
+# =============================================================================
+# COLOR FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "color_complement"
+category = "color"
+description = "Get complementary color"
+signature = "string -> string"
+example = '''color_complement('#ff0000') -> \"#00ffff\"'''
+features = ["core"]
+
+[[functions]]
+name = "color_grayscale"
+category = "color"
+description = "Convert to grayscale"
+signature = "string -> string"
+example = '''color_grayscale('#ff0000') -> \"#4c4c4c\"'''
+features = ["core"]
+
+[[functions]]
+name = "color_invert"
+category = "color"
+description = "Invert a color"
+signature = "string -> string"
+example = '''color_invert('#ff0000') -> \"#00ffff\"'''
+features = ["core"]
+
+[[functions]]
+name = "color_mix"
+category = "color"
+description = "Mix two colors"
+signature = "string, string, number -> string"
+example = '''color_mix('#ff0000', '#0000ff', `50`) -> \"#800080\"'''
+features = ["core"]
+
+[[functions]]
+name = "darken"
+category = "color"
+description = "Darken a color by percentage"
+signature = "string, number -> string"
+example = '''darken('#3366cc', `20`) -> \"#2952a3\"'''
+features = ["core"]
+
+[[functions]]
+name = "hex_to_rgb"
+category = "color"
+description = "Convert hex color to RGB"
+signature = "string -> object"
+example = "hex_to_rgb('#ff5500') -> {r: 255, g: 85, b: 0}"
+features = ["core"]
+
+[[functions]]
+name = "lighten"
+category = "color"
+description = "Lighten a color by percentage"
+signature = "string, number -> string"
+example = '''lighten('#3366cc', `20`) -> \"#5c85d6\"'''
+features = ["core"]
+
+[[functions]]
+name = "rgb_to_hex"
+category = "color"
+description = "Convert RGB to hex color"
+signature = "number, number, number -> string"
+example = '''rgb_to_hex(`255`, `85`, `0`) -> \"#ff5500\"'''
+features = ["core"]
+
+# =============================================================================
+# COMPUTING FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "bit_and"
+category = "computing"
+description = "Bitwise AND"
+signature = "number, number -> number"
+example = "bit_and(`12`, `10`) -> 8"
+features = ["core"]
+
+[[functions]]
+name = "bit_not"
+category = "computing"
+description = "Bitwise NOT"
+signature = "number -> number"
+example = "bit_not(`0`) -> -1"
+features = ["core"]
+
+[[functions]]
+name = "bit_or"
+category = "computing"
+description = "Bitwise OR"
+signature = "number, number -> number"
+example = "bit_or(`12`, `10`) -> 14"
+features = ["core"]
+
+[[functions]]
+name = "bit_shift_left"
+category = "computing"
+description = "Bitwise left shift"
+signature = "number, number -> number"
+example = "bit_shift_left(`1`, `4`) -> 16"
+features = ["core"]
+
+[[functions]]
+name = "bit_shift_right"
+category = "computing"
+description = "Bitwise right shift"
+signature = "number, number -> number"
+example = "bit_shift_right(`16`, `2`) -> 4"
+features = ["core"]
+
+[[functions]]
+name = "bit_xor"
+category = "computing"
+description = "Bitwise XOR"
+signature = "number, number -> number"
+example = "bit_xor(`12`, `10`) -> 6"
+features = ["core"]
+
+[[functions]]
+name = "format_bytes"
+category = "computing"
+description = "Format bytes (decimal)"
+signature = "number -> string"
+example = '''format_bytes(`1500000000`) -> \"1.50 GB\"'''
+features = ["core"]
+
+[[functions]]
+name = "format_bytes_binary"
+category = "computing"
+description = "Format bytes (binary)"
+signature = "number -> string"
+example = '''format_bytes_binary(`1073741824`) -> \"1.00 GiB\"'''
+features = ["core"]
+
+[[functions]]
+name = "parse_bytes"
+category = "computing"
+description = "Parse byte size string"
+signature = "string -> number"
+example = "parse_bytes('1.5 GB') -> 1500000000"
+features = ["core"]
+
+# =============================================================================
+# DATETIME FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "business_days_between"
+category = "datetime"
+description = "Count business days (weekdays) between two timestamps"
+signature = "number, number -> number"
+example = "business_days_between(`1704067200`, `1705276800`) -> 10"
+features = ["core"]
+
+[[functions]]
+name = "date_add"
+category = "datetime"
+description = "Add time to timestamp"
+signature = "number, number, string -> number"
+example = "date_add(`0`, `1`, 'days') -> 86400"
+features = ["core"]
+
+[[functions]]
+name = "date_diff"
+category = "datetime"
+description = "Difference between timestamps"
+signature = "number, number, string -> number"
+example = "date_diff(`86400`, `0`, 'days') -> 1"
+features = ["core"]
+
+[[functions]]
+name = "duration_since"
+category = "datetime"
+description = "Get detailed duration object from timestamp to now"
+signature = "number|string -> object"
+example = "duration_since(`1702396800`) -> {days: 1, hours: 0, ...}"
+features = ["core"]
+
+[[functions]]
+name = "end_of_day"
+category = "datetime"
+description = "Get ISO 8601 string for end of day (23:59:59)"
+signature = "number|string -> string"
+example = '''end_of_day('2023-12-13T15:30:00Z') -> \"2023-12-13T23:59:59Z\"'''
+features = ["core"]
+
+[[functions]]
+name = "epoch_ms"
+category = "datetime"
+description = "Current Unix timestamp in milliseconds (alias for now_ms)"
+signature = "-> number"
+example = "epoch_ms() -> 1702483200000"
+features = ["core"]
+
+[[functions]]
+name = "format_date"
+category = "datetime"
+description = "Format timestamp to string"
+signature = "number, string -> string"
+example = '''format_date(`1705276800`, '%Y-%m-%d') -> \"2024-01-15\"'''
+features = ["core"]
+
+[[functions]]
+name = "from_epoch"
+category = "datetime"
+description = "Convert Unix timestamp (seconds) to ISO 8601 string"
+signature = "number -> string"
+example = '''from_epoch(`1702483200`) -> \"2023-12-13T16:00:00Z\"'''
+features = ["core"]
+
+[[functions]]
+name = "from_epoch_ms"
+category = "datetime"
+description = "Convert Unix timestamp (milliseconds) to ISO 8601 string"
+signature = "number -> string"
+example = '''from_epoch_ms(`1702483200000`) -> \"2023-12-13T16:00:00Z\"'''
+features = ["core"]
+
+[[functions]]
+name = "is_after"
+category = "datetime"
+description = "Check if first date is after second date (accepts timestamps or date strings)"
+signature = "number|string, number|string -> boolean"
+example = "is_after('2024-07-15', '2024-01-01') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_before"
+category = "datetime"
+description = "Check if first date is before second date (accepts timestamps or date strings)"
+signature = "number|string, number|string -> boolean"
+example = "is_before('2024-01-01', '2024-07-15') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_between"
+category = "datetime"
+description = "Check if date is between start and end (inclusive, accepts timestamps or date strings)"
+signature = "number|string, number|string, number|string -> boolean"
+example = "is_between('2024-06-15', '2024-01-01', '2024-12-31') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_same_day"
+category = "datetime"
+description = "Check if two timestamps/dates are on the same day"
+signature = "number|string, number|string -> boolean"
+example = "is_same_day('2023-12-13T10:00:00Z', '2023-12-13T23:00:00Z') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_weekday"
+category = "datetime"
+description = "Check if timestamp falls on weekday (Monday-Friday)"
+signature = "number -> boolean"
+example = "is_weekday(`1705276800`) -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_weekend"
+category = "datetime"
+description = "Check if timestamp falls on weekend (Saturday or Sunday)"
+signature = "number -> boolean"
+example = "is_weekend(`1705104000`) -> true"
+features = ["core"]
+
+[[functions]]
+name = "parse_date"
+category = "datetime"
+description = "Parse date string to timestamp"
+signature = "string, string? -> number"
+example = "parse_date('2024-01-15', '%Y-%m-%d') -> 1705276800"
+features = ["core"]
+
+[[functions]]
+name = "quarter"
+category = "datetime"
+description = "Get quarter of year (1-4) from timestamp"
+signature = "number -> number"
+example = "quarter(`1713139200`) -> 2"
+features = ["core"]
+
+[[functions]]
+name = "relative_time"
+category = "datetime"
+description = "Human-readable relative time from timestamp"
+signature = "number -> string"
+example = '''relative_time(now() - 3600) -> \"1 hour ago\"'''
+features = ["core"]
+
+[[functions]]
+name = "start_of_day"
+category = "datetime"
+description = "Get ISO 8601 string for start of day (00:00:00)"
+signature = "number|string -> string"
+example = '''start_of_day('2023-12-13T15:30:00Z') -> \"2023-12-13T00:00:00Z\"'''
+features = ["core"]
+
+[[functions]]
+name = "start_of_month"
+category = "datetime"
+description = "Get ISO 8601 string for start of month"
+signature = "number|string -> string"
+example = '''start_of_month('2023-12-13T15:30:00Z') -> \"2023-12-01T00:00:00Z\"'''
+features = ["core"]
+
+[[functions]]
+name = "start_of_week"
+category = "datetime"
+description = "Get ISO 8601 string for start of week (Monday 00:00:00)"
+signature = "number|string -> string"
+example = '''start_of_week('2023-12-13T15:30:00Z') -> \"2023-12-11T00:00:00Z\"'''
+features = ["core"]
+
+[[functions]]
+name = "start_of_year"
+category = "datetime"
+description = "Get ISO 8601 string for start of year"
+signature = "number|string -> string"
+example = '''start_of_year('2023-12-13T15:30:00Z') -> \"2023-01-01T00:00:00Z\"'''
+features = ["core"]
+
+[[functions]]
+name = "time_ago"
+category = "datetime"
+description = "Human-readable time since date (accepts timestamps or date strings)"
+signature = "number|string -> string"
+example = '''time_ago('2020-01-01') -> \"4 years ago\"'''
+features = ["core"]
+
+[[functions]]
+name = "timezone_convert"
+category = "datetime"
+description = "Convert timestamp between timezones (IANA timezone names)"
+signature = "string, string, string -> string"
+example = '''timezone_convert('2024-01-15T10:00:00', 'America/New_York', 'Europe/London') -> \"2024-01-15T15:00:00\"'''
+features = ["core"]
+
+[[functions]]
+name = "to_epoch"
+category = "datetime"
+description = "Convert date string or timestamp to Unix timestamp (seconds)"
+signature = "number|string -> number"
+example = "to_epoch('2023-12-13T16:00:00Z') -> 1702483200"
+features = ["core"]
+
+[[functions]]
+name = "to_epoch_ms"
+category = "datetime"
+description = "Convert date string or timestamp to Unix timestamp (milliseconds)"
+signature = "number|string -> number"
+example = "to_epoch_ms('2023-12-13T16:00:00Z') -> 1702483200000"
+features = ["core"]
+
+# =============================================================================
+# DURATION FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "duration_hours"
+category = "duration"
+description = "Convert seconds to hours"
+signature = "number -> number"
+example = "duration_hours(`7200`) -> 2"
+features = ["core"]
+
+[[functions]]
+name = "duration_minutes"
+category = "duration"
+description = "Convert seconds to minutes"
+signature = "number -> number"
+example = "duration_minutes(`120`) -> 2"
+features = ["core"]
+
+[[functions]]
+name = "duration_seconds"
+category = "duration"
+description = "Get seconds component"
+signature = "number -> number"
+example = "duration_seconds(`65`) -> 5"
+features = ["core"]
+
+[[functions]]
+name = "format_duration"
+category = "duration"
+description = "Format seconds as duration string"
+signature = "number -> string"
+example = '''format_duration(`5400`) -> \"1h30m\"'''
+features = ["core"]
+
+[[functions]]
+name = "parse_duration"
+category = "duration"
+description = "Parse duration string to seconds"
+signature = "string -> number"
+example = "parse_duration('1h30m') -> 5400"
+features = ["core"]
+
+# =============================================================================
+# ENCODING FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "base64_decode"
+category = "encoding"
+description = "Decode base64 string"
+signature = "string -> string"
+example = '''base64_decode('aGVsbG8=') -> \"hello\"'''
+features = ["core"]
+
+[[functions]]
+name = "base64_encode"
+category = "encoding"
+description = "Encode string to base64"
+signature = "string -> string"
+example = '''base64_encode('hello') -> \"aGVsbG8=\"'''
+features = ["core"]
+
+[[functions]]
+name = "hex_decode"
+category = "encoding"
+description = "Decode hex string"
+signature = "string -> string"
+example = '''hex_decode('68656c6c6f') -> \"hello\"'''
+features = ["core"]
+
+[[functions]]
+name = "hex_encode"
+category = "encoding"
+description = "Encode string to hex"
+signature = "string -> string"
+example = '''hex_encode('hello') -> \"68656c6c6f\"'''
+features = ["core"]
+
+[[functions]]
+name = "jwt_decode"
+category = "encoding"
+description = "Decode JWT payload (claims) without verification"
+signature = "string -> object"
+example = '''jwt_decode(token).sub -> \"user_123\"'''
+features = ["core"]
+
+[[functions]]
+name = "jwt_header"
+category = "encoding"
+description = "Decode JWT header without verification"
+signature = "string -> object"
+example = '''jwt_header(token).alg -> \"HS256\"'''
+features = ["core"]
+
+# =============================================================================
+# EXPRESSION FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "all_expr"
+category = "expression"
+description = "Return true if every element satisfies the expression (short-circuits on false)"
+signature = "array, expression -> boolean"
+example = "all_expr([1, 2, 3], &@ > `0`) -> true"
+aliases = ["every"]
+features = ["core", "fp"]
+
+[[functions]]
+name = "any_expr"
+category = "expression"
+description = "Return true if any element satisfies the expression (short-circuits)"
+signature = "array, expression -> boolean"
+example = "any_expr([1, 2, 3], &@ > `2`) -> true"
+aliases = ["some"]
+features = ["core", "fp"]
+
+[[functions]]
+name = "apply"
+category = "expression"
+description = "Apply a partial function or invoke a function by name with arguments"
+signature = "object|string, ...any -> any"
+example = '''apply(partial('join', `\"-\"`), `[\"a\", \"b\"]`) -> 'a-b''''
+features = ["core"]
+
+[[functions]]
+name = "count_by"
+category = "expression"
+description = "Count occurrences grouped by expression result"
+signature = "string, array -> object"
+example = "count_by('type', [{type: 'a'}, {type: 'b'}, {type: 'a'}]) -> {a: 2, b: 1}"
+features = ["core"]
+
+[[functions]]
+name = "count_expr"
+category = "expression"
+description = "Count how many elements satisfy the expression"
+signature = "array, expression -> number"
+example = "count_expr([1, 2, 3], &@ > `1`) -> 2"
+features = ["core"]
+
+[[functions]]
+name = "drop_while"
+category = "expression"
+description = "Drop elements from array while expression is truthy"
+signature = "string, array -> array"
+example = "drop_while('@ < `4`', [1, 2, 3, 5, 1]) -> [5, 1]"
+features = ["core", "fp"]
+
+[[functions]]
+name = "every"
+category = "expression"
+description = "Check if all elements match (alias for all_expr)"
+signature = "string, array -> boolean"
+example = "every('@ > `0`', [1, 2, 3]) -> true"
+features = ["core", "fp"]
+
+[[functions]]
+name = "filter_expr"
+category = "expression"
+description = "Keep elements where JMESPath expression evaluates to truthy value"
+signature = "array, expression -> array"
+example = "filter_expr([1, 2, 3], &@ > `1`) -> [2, 3]"
+aliases = ["filter"]
+features = ["core", "fp"]
+
+[[functions]]
+name = "find_expr"
+category = "expression"
+description = "Return first element where expression is truthy, or null if none match"
+signature = "array, expression -> any"
+example = "find_expr([1, 2, 3], &@ > `1`) -> 2"
+features = ["core"]
+
+[[functions]]
+name = "find_index_expr"
+category = "expression"
+description = "Return zero-based index of first matching element, or -1 if none match"
+signature = "array, expression -> number | null"
+example = "find_index_expr([1, 2, 3], &@ > `1`) -> 1"
+features = ["core"]
+
+[[functions]]
+name = "flat_map_expr"
+category = "expression"
+description = "Apply expression to each element and flatten all results into one array"
+signature = "array, expression -> array"
+example = "flat_map_expr([[1], [2]], &@) -> [1, 2]"
+features = ["core"]
+
+[[functions]]
+name = "group_by_expr"
+category = "expression"
+description = "Group elements into object keyed by expression result"
+signature = "array, expression -> object"
+example = "group_by_expr([{t: 'a'}, {t: 'b'}], &t) -> {a: [...], b: [...]}"
+features = ["core"]
+
+[[functions]]
+name = "map_expr"
+category = "expression"
+description = "Apply a JMESPath expression to each element, returning transformed array"
+signature = "array, expression -> array"
+example = "map_expr([1, 2], &@ * `2`) -> [2, 4]"
+features = ["core"]
+
+[[functions]]
+name = "map_keys"
+category = "expression"
+description = "Transform object keys using expression"
+signature = "string, object -> object"
+example = "map_keys('upper(@)', {a: 1}) -> {A: 1}"
+features = ["core", "fp"]
+
+[[functions]]
+name = "map_values"
+category = "expression"
+description = "Transform object values using expression"
+signature = "string, object -> object"
+example = "map_values('@ * `2`', {a: 1, b: 2}) -> {a: 2, b: 4}"
+features = ["core", "fp"]
+
+[[functions]]
+name = "max_by_expr"
+category = "expression"
+description = "Return element with largest expression result, or null for empty array"
+signature = "array, expression -> any"
+example = "max_by_expr([{a: 2}, {a: 1}], &a) -> {a: 2}"
+features = ["core"]
+
+[[functions]]
+name = "min_by_expr"
+category = "expression"
+description = "Return element with smallest expression result, or null for empty array"
+signature = "array, expression -> any"
+example = "min_by_expr([{a: 2}, {a: 1}], &a) -> {a: 1}"
+features = ["core"]
+
+[[functions]]
+name = "order_by"
+category = "expression"
+description = "Sort array by multiple fields with ascending/descending control"
+signature = "array, array[[string, string]] -> array"
+example = "order_by(items, [['name', 'asc'], ['price', 'desc']]) -> sorted array"
+features = ["core"]
+
+[[functions]]
+name = "partial"
+category = "expression"
+description = "Create a partial function with some arguments pre-filled"
+signature = "string, ...any -> object"
+example = '''partial('contains', `\"hello\"`) -> {__partial__: true, fn: 'contains', args: ['hello']}'''
+features = ["core"]
+
+[[functions]]
+name = "partition_expr"
+category = "expression"
+description = "Split array into [matches, non-matches] based on expression"
+signature = "array, expression -> array"
+example = "partition_expr([1, 2, 3], &@ > `1`) -> [[2, 3], [1]]"
+features = ["core"]
+
+[[functions]]
+name = "reduce_expr"
+category = "expression"
+description = "Reduce array to single value using accumulator expression"
+signature = "string, array, any -> any"
+example = "reduce_expr('add(accumulator, current)', [1, 2, 3], `0`) -> 6"
+aliases = ["fold"]
+features = ["core", "fp"]
+
+[[functions]]
+name = "reject"
+category = "expression"
+description = "Keep elements where expression is falsy (inverse of filter_expr)"
+signature = "string, array -> array"
+example = "reject('@ > `2`', [1, 2, 3, 4]) -> [1, 2]"
+features = ["core", "fp"]
+
+[[functions]]
+name = "scan_expr"
+category = "expression"
+description = "Like reduce but returns array of intermediate accumulator values"
+signature = "string, array, any -> array"
+example = "scan_expr('add(accumulator, current)', [1, 2, 3], `0`) -> [1, 3, 6]"
+features = ["core", "fp"]
+
+[[functions]]
+name = "some"
+category = "expression"
+description = "Check if any element matches (alias for any_expr)"
+signature = "string, array -> boolean"
+example = "some('@ > `2`', [1, 2, 3]) -> true"
+features = ["core", "fp"]
+
+[[functions]]
+name = "sort_by_expr"
+category = "expression"
+description = "Sort array by expression result in ascending order"
+signature = "array, expression -> array"
+example = "sort_by_expr([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]"
+features = ["core"]
+
+[[functions]]
+name = "take_while"
+category = "expression"
+description = "Take elements from array while expression is truthy"
+signature = "string, array -> array"
+example = "take_while('@ < `4`', [1, 2, 3, 5, 1]) -> [1, 2, 3]"
+features = ["core", "fp"]
+
+[[functions]]
+name = "unique_by_expr"
+category = "expression"
+description = "Remove duplicates by expression result, keeping first occurrence"
+signature = "array, expression -> array"
+example = "unique_by_expr([{a: 1}, {a: 1}], &a) -> [{a: 1}]"
+features = ["core"]
+
+[[functions]]
+name = "zip_with"
+category = "expression"
+description = "Zip two arrays with a custom combiner expression"
+signature = "string, array, array -> array"
+example = "zip_with('add([0], [1])', [1, 2], [10, 20]) -> [11, 22]"
+features = ["core", "fp"]
+
+# =============================================================================
+# FUZZY FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "damerau_levenshtein"
+category = "fuzzy"
+description = "Damerau-Levenshtein distance"
+signature = "string, string -> number"
+example = "damerau_levenshtein('ab', 'ba') -> 1"
+features = ["core"]
+
+[[functions]]
+name = "jaro"
+category = "fuzzy"
+description = "Jaro similarity (0-1)"
+signature = "string, string -> number"
+example = "jaro('hello', 'hallo') -> 0.866..."
+features = ["core"]
+
+[[functions]]
+name = "jaro_winkler"
+category = "fuzzy"
+description = "Jaro-Winkler similarity (0-1)"
+signature = "string, string -> number"
+example = "jaro_winkler('hello', 'hallo') -> 0.88"
+features = ["core"]
+
+[[functions]]
+name = "levenshtein"
+category = "fuzzy"
+description = "Levenshtein edit distance"
+signature = "string, string -> number"
+example = "levenshtein('kitten', 'sitting') -> 3"
+features = ["core"]
+
+[[functions]]
+name = "normalized_levenshtein"
+category = "fuzzy"
+description = "Normalized Levenshtein (0-1)"
+signature = "string, string -> number"
+example = "normalized_levenshtein('ab', 'abc') -> 0.666..."
+features = ["core"]
+
+[[functions]]
+name = "sorensen_dice"
+category = "fuzzy"
+description = "Sorensen-Dice coefficient (0-1)"
+signature = "string, string -> number"
+example = "sorensen_dice('night', 'nacht') -> 0.25"
+features = ["core"]
+
+# =============================================================================
+# GEO FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "geo_bearing"
+category = "geo"
+description = "Bearing between coordinates"
+signature = "number, number, number, number -> number"
+example = "geo_bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 51.2"
+features = ["core"]
+
+[[functions]]
+name = "geo_distance"
+category = "geo"
+description = "Haversine distance in meters"
+signature = "number, number, number, number -> number"
+example = "geo_distance(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570222"
+features = ["core"]
+
+[[functions]]
+name = "geo_distance_km"
+category = "geo"
+description = "Haversine distance in kilometers"
+signature = "number, number, number, number -> number"
+example = "geo_distance_km(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570.2"
+features = ["core"]
+
+[[functions]]
+name = "geo_distance_miles"
+category = "geo"
+description = "Haversine distance in miles"
+signature = "number, number, number, number -> number"
+example = "geo_distance_miles(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 3461.0"
+features = ["core"]
+
+# =============================================================================
+# HASH FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "crc32"
+category = "hash"
+description = "Calculate CRC32 checksum"
+signature = "string -> number"
+example = "crc32('hello') -> 907060870"
+features = ["core"]
+
+[[functions]]
+name = "hmac_md5"
+category = "hash"
+description = "Calculate HMAC-MD5 signature"
+signature = "string, string -> string"
+example = '''hmac_md5('hello', 'secret') -> \"e17e4e4a...\"'''
+features = ["core"]
+
+[[functions]]
+name = "hmac_sha1"
+category = "hash"
+description = "Calculate HMAC-SHA1 signature"
+signature = "string, string -> string"
+example = '''hmac_sha1('hello', 'secret') -> \"5112055c...\"'''
+features = ["core"]
+
+[[functions]]
+name = "hmac_sha256"
+category = "hash"
+description = "Calculate HMAC-SHA256 signature"
+signature = "string, string -> string"
+example = '''hmac_sha256('hello', 'secret') -> \"88aab3ed...\"'''
+features = ["core"]
+
+[[functions]]
+name = "hmac_sha512"
+category = "hash"
+description = "Calculate HMAC-SHA512 signature"
+signature = "string, string -> string"
+example = '''hmac_sha512('hello', 'secret') -> \"d05888a2...\"'''
+features = ["core"]
+
+[[functions]]
+name = "md5"
+category = "hash"
+description = "Calculate MD5 hash"
+signature = "string -> string"
+example = '''md5('hello') -> \"5d41402abc4b2a76b9719d911017c592\"'''
+features = ["core"]
+
+[[functions]]
+name = "sha1"
+category = "hash"
+description = "Calculate SHA-1 hash"
+signature = "string -> string"
+example = '''sha1('hello') -> \"aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d\"'''
+features = ["core"]
+
+[[functions]]
+name = "sha256"
+category = "hash"
+description = "Calculate SHA-256 hash"
+signature = "string -> string"
+example = '''sha256('hello') -> \"2cf24dba...\"'''
+features = ["core"]
+
+[[functions]]
+name = "sha512"
+category = "hash"
+description = "Calculate SHA-512 hash"
+signature = "string -> string"
+example = '''sha512('hello') -> \"9b71d224...\"'''
+features = ["core"]
+
+# =============================================================================
+# IDS FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "nanoid"
+category = "ids"
+description = "Generate nanoid"
+signature = "number? -> string"
+example = '''nanoid() -> \"V1StGXR8_Z5jdHi6B-myT\"'''
+features = ["core"]
+
+[[functions]]
+name = "ulid"
+category = "ids"
+description = "Generate ULID"
+signature = "-> string"
+example = '''ulid() -> \"01ARZ3NDEKTSV4RRFFQ69G5FAV\"'''
+features = ["core"]
+
+[[functions]]
+name = "ulid_timestamp"
+category = "ids"
+description = "Extract timestamp from ULID"
+signature = "string -> number"
+example = "ulid_timestamp('01ARZ3NDEKTSV4RRFFQ69G5FAV') -> 1469918176385"
+features = ["core"]
+
+# =============================================================================
+# JSONPATCH FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "json_diff"
+category = "jsonpatch"
+description = "Generate JSON Patch (RFC 6902) that transforms first object into second"
+signature = "object, object -> array"
+example = "json_diff({a: 1}, {a: 2}) -> [{op: 'replace', path: '/a', value: 2}]"
+features = ["core"]
+
+[[functions]]
+name = "json_merge_patch"
+category = "jsonpatch"
+description = "Apply JSON Merge Patch (RFC 7386) to an object"
+signature = "object, object -> object"
+example = "json_merge_patch({a: 1, b: 2}, {b: 3, c: 4}) -> {a: 1, b: 3, c: 4}"
+features = ["core"]
+
+[[functions]]
+name = "json_patch"
+category = "jsonpatch"
+description = "Apply JSON Patch (RFC 6902) operations to an object"
+signature = "object, array -> object"
+example = "json_patch({a: 1}, [{op: 'add', path: '/b', value: 2}]) -> {a: 1, b: 2}"
+features = ["core"]
+
+# =============================================================================
+# MATH FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "abs_fn"
+category = "math"
+description = "Absolute value"
+signature = "number -> number"
+example = "abs_fn(`-5`) -> 5"
+features = ["core"]
+
+[[functions]]
+name = "add"
+category = "math"
+description = "Add two numbers"
+signature = "number, number -> number"
+example = "add(`2`, `3`) -> 5"
+features = ["core"]
+
+[[functions]]
+name = "ceil_fn"
+category = "math"
+description = "Round up to nearest integer"
+signature = "number -> number"
+example = "ceil_fn(`3.2`) -> 4"
+features = ["core"]
+
+[[functions]]
+name = "clamp"
+category = "math"
+description = "Clamp value to range"
+signature = "number, number, number -> number"
+example = "clamp(`15`, `0`, `10`) -> 10"
+features = ["core"]
+
+[[functions]]
+name = "cos"
+category = "math"
+description = "Cosine function"
+signature = "number -> number"
+example = "cos(`0`) -> 1"
+features = ["core"]
+
+[[functions]]
+name = "covariance"
+category = "math"
+description = "Covariance between two arrays"
+signature = "array, array -> number"
+example = "covariance([1, 2, 3], [1, 2, 3]) -> 0.666..."
+features = ["core"]
+
+[[functions]]
+name = "divide"
+category = "math"
+description = "Divide first number by second"
+signature = "number, number -> number"
+example = "divide(`10`, `2`) -> 5"
+features = ["core"]
+
+[[functions]]
+name = "ewma"
+category = "math"
+description = "Exponential weighted moving average"
+signature = "array, number -> array"
+example = "ewma([1, 2, 3, 4, 5], `0.5`) -> [1, 1.5, 2.25, ...]"
+features = ["core"]
+
+[[functions]]
+name = "floor_fn"
+category = "math"
+description = "Round down to nearest integer"
+signature = "number -> number"
+example = "floor_fn(`3.7`) -> 3"
+features = ["core"]
+
+[[functions]]
+name = "format_number"
+category = "math"
+description = "Format number with separators and optional suffix"
+signature = "number, number?, string? -> string"
+example = '''format_number(`1234567`, `0`) -> \"1,234,567\"'''
+features = ["core"]
+
+[[functions]]
+name = "log"
+category = "math"
+description = "Natural logarithm"
+signature = "number -> number"
+example = "log(`2.718`) -> ~1"
+features = ["core"]
+
+[[functions]]
+name = "median"
+category = "math"
+description = "Calculate median of array"
+signature = "array -> number"
+example = "median([1, 2, 3, 4, 5]) -> 3"
+features = ["core"]
+
+[[functions]]
+name = "mod_fn"
+category = "math"
+description = "Modulo operation"
+signature = "number, number -> number"
+example = "mod_fn(`10`, `3`) -> 1"
+features = ["core"]
+
+[[functions]]
+name = "mode"
+category = "math"
+description = "Find the most common value in an array"
+signature = "array -> any"
+example = "mode([1, 2, 2, 3]) -> 2"
+features = ["core"]
+
+[[functions]]
+name = "moving_avg"
+category = "math"
+description = "Simple moving average with window size"
+signature = "array, number -> array"
+example = "moving_avg([1, 2, 3, 4, 5], `3`) -> [null, null, 2, 3, 4]"
+features = ["core"]
+
+[[functions]]
+name = "multiply"
+category = "math"
+description = "Multiply two numbers"
+signature = "number, number -> number"
+example = "multiply(`4`, `3`) -> 12"
+features = ["core"]
+
+[[functions]]
+name = "percentile"
+category = "math"
+description = "Calculate percentile of array"
+signature = "array, number -> number"
+example = "percentile([1, 2, 3, 4, 5], `50`) -> 3"
+features = ["core"]
+
+[[functions]]
+name = "pow"
+category = "math"
+description = "Raise to power"
+signature = "number, number -> number"
+example = "pow(`2`, `3`) -> 8"
+features = ["core"]
+
+[[functions]]
+name = "quantile"
+category = "math"
+description = "Nth quantile (generalized percentile, q in [0,1])"
+signature = "array, number -> number"
+example = "quantile([1, 2, 3, 4, 5], `0.5`) -> 3"
+features = ["core"]
+
+[[functions]]
+name = "round"
+category = "math"
+description = "Round to specified decimal places"
+signature = "number, number -> number"
+example = "round(`3.14159`, `2`) -> 3.14"
+features = ["core"]
+
+[[functions]]
+name = "sin"
+category = "math"
+description = "Sine function"
+signature = "number -> number"
+example = "sin(`0`) -> 0"
+features = ["core"]
+
+[[functions]]
+name = "sqrt"
+category = "math"
+description = "Square root"
+signature = "number -> number"
+example = "sqrt(`16`) -> 4"
+features = ["core"]
+
+[[functions]]
+name = "standardize"
+category = "math"
+description = "Standardize array to mean=0, std=1 (z-score normalization)"
+signature = "array -> array"
+example = "standardize([10, 20, 30]) -> [-1.22, 0, 1.22]"
+features = ["core"]
+
+[[functions]]
+name = "stddev"
+category = "math"
+description = "Calculate standard deviation of array"
+signature = "array -> number"
+example = "stddev([1, 2, 3, 4, 5]) -> 1.414..."
+features = ["core"]
+
+[[functions]]
+name = "subtract"
+category = "math"
+description = "Subtract second number from first"
+signature = "number, number -> number"
+example = "subtract(`5`, `3`) -> 2"
+features = ["core"]
+
+[[functions]]
+name = "tan"
+category = "math"
+description = "Tangent function"
+signature = "number -> number"
+example = "tan(`0`) -> 0"
+features = ["core"]
+
+[[functions]]
+name = "to_fixed"
+category = "math"
+description = "Format number with exact decimal places"
+signature = "number, number -> string"
+example = '''to_fixed(`3.14159`, `2`) -> \"3.14\"'''
+features = ["core"]
+
+[[functions]]
+name = "variance"
+category = "math"
+description = "Calculate variance of array"
+signature = "array -> number"
+example = "variance([1, 2, 3, 4, 5]) -> 2"
+features = ["core"]
+
+# =============================================================================
+# MULTIMATCH FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "extract_all"
+category = "multimatch"
+description = "Extract all pattern matches with positions (Aho-Corasick)"
+signature = "string, array[string] -> array[object]"
+example = "extract_all('error warning', ['error', 'warning']) -> [{pattern: 'error', match: 'error', start: 0, end: 5}, ...]"
+features = ["core"]
+
+[[functions]]
+name = "extract_between"
+category = "multimatch"
+description = "Extract text between two delimiters"
+signature = "string, string, string -> string|null"
+example = '''extract_between('<title>Page</title>', '<title>', '</title>') -> \"Page\"'''
+features = ["core"]
+
+[[functions]]
+name = "match_all"
+category = "multimatch"
+description = "Check if string contains all of the patterns (Aho-Corasick)"
+signature = "string, array[string] -> boolean"
+example = "match_all('hello world', ['hello', 'world']) -> true"
+features = ["core"]
+
+[[functions]]
+name = "match_any"
+category = "multimatch"
+description = "Check if string contains any of the patterns (Aho-Corasick)"
+signature = "string, array[string] -> boolean"
+example = "match_any('hello world', ['world', 'foo']) -> true"
+features = ["core"]
+
+[[functions]]
+name = "match_count"
+category = "multimatch"
+description = "Count total pattern matches in string (Aho-Corasick)"
+signature = "string, array[string] -> number"
+example = "match_count('abcabc', ['a', 'b']) -> 4"
+features = ["core"]
+
+[[functions]]
+name = "match_positions"
+category = "multimatch"
+description = "Get start/end positions of all pattern matches (Aho-Corasick)"
+signature = "string, array[string] -> array[object]"
+example = "match_positions('The quick fox', ['quick', 'fox']) -> [{pattern: 'quick', start: 4, end: 9}, ...]"
+features = ["core"]
+
+[[functions]]
+name = "match_which"
+category = "multimatch"
+description = "Return array of patterns that match the string (Aho-Corasick)"
+signature = "string, array[string] -> array[string]"
+example = '''match_which('hello world', ['hello', 'foo', 'world']) -> [\"hello\", \"world\"]'''
+features = ["core"]
+
+[[functions]]
+name = "replace_many"
+category = "multimatch"
+description = "Replace multiple patterns simultaneously (Aho-Corasick)"
+signature = "string, object -> string"
+example = '''replace_many('hello world', {hello: 'hi', world: 'earth'}) -> \"hi earth\"'''
+features = ["core"]
+
+[[functions]]
+name = "split_keep"
+category = "multimatch"
+description = "Split string keeping delimiters in result"
+signature = "string, string -> array[string]"
+example = '''split_keep('a-b-c', '-') -> [\"a\", \"-\", \"b\", \"-\", \"c\"]'''
+features = ["core"]
+
+[[functions]]
+name = "tokenize"
+category = "multimatch"
+description = "Smart word tokenization with optional lowercase and min_length"
+signature = "string, object? -> array[string]"
+example = '''tokenize('Hello, World!') -> [\"Hello\", \"World\"]'''
+features = ["core"]
+
+# =============================================================================
+# NETWORK FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "cidr_broadcast"
+category = "network"
+description = "Get broadcast address from CIDR"
+signature = "string -> string"
+example = '''cidr_broadcast('192.168.1.0/24') -> \"192.168.1.255\"'''
+features = ["core"]
+
+[[functions]]
+name = "cidr_contains"
+category = "network"
+description = "Check if IP is in CIDR range"
+signature = "string, string -> boolean"
+example = "cidr_contains('192.168.0.0/16', '192.168.1.1') -> true"
+features = ["core"]
+
+[[functions]]
+name = "cidr_network"
+category = "network"
+description = "Get network address from CIDR"
+signature = "string -> string"
+example = '''cidr_network('192.168.1.0/24') -> \"192.168.1.0\"'''
+features = ["core"]
+
+[[functions]]
+name = "cidr_prefix"
+category = "network"
+description = "Get prefix length from CIDR"
+signature = "string -> number"
+example = "cidr_prefix('192.168.1.0/24') -> 24"
+features = ["core"]
+
+[[functions]]
+name = "int_to_ip"
+category = "network"
+description = "Convert integer to IP address"
+signature = "number -> string"
+example = '''int_to_ip(`3232235777`) -> \"192.168.1.1\"'''
+features = ["core"]
+
+[[functions]]
+name = "ip_to_int"
+category = "network"
+description = "Convert IP address to integer"
+signature = "string -> number"
+example = "ip_to_int('192.168.1.1') -> 3232235777"
+features = ["core"]
+
+[[functions]]
+name = "is_private_ip"
+category = "network"
+description = "Check if IP is in private range"
+signature = "string -> boolean"
+example = "is_private_ip('192.168.1.1') -> true"
+features = ["core"]
+
+# =============================================================================
+# OBJECT FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "deep_diff"
+category = "object"
+description = "Structural diff between two objects"
+signature = "object, object -> object"
+example = "deep_diff({a: 1}, {a: 2}) -> {added: {}, removed: {}, changed: {a: {from: 1, to: 2}}}"
+features = ["core"]
+
+[[functions]]
+name = "deep_equals"
+category = "object"
+description = "Deep equality check for any two values"
+signature = "any, any -> boolean"
+example = "deep_equals({a: {b: 1}}, {a: {b: 1}}) -> true"
+features = ["core"]
+
+[[functions]]
+name = "deep_merge"
+category = "object"
+description = "Recursively merge objects"
+signature = "object, object -> object"
+example = "deep_merge({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}"
+features = ["core"]
+
+[[functions]]
+name = "defaults"
+category = "object"
+description = "Assign default values for missing keys (shallow)"
+signature = "object, object -> object"
+example = "defaults({a: 1}, {a: 2, b: 3}) -> {a: 1, b: 3}"
+features = ["core"]
+
+[[functions]]
+name = "defaults_deep"
+category = "object"
+description = "Recursively assign default values for missing keys"
+signature = "object, object -> object"
+example = "defaults_deep({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}"
+features = ["core"]
+
+[[functions]]
+name = "delete_path"
+category = "object"
+description = "Delete value at JSON pointer path (immutable)"
+signature = "any, string -> any"
+example = "delete_path({a: 1, b: 2}, '/b') -> {a: 1}"
+features = ["core"]
+
+[[functions]]
+name = "flatten_keys"
+category = "object"
+description = "Flatten nested object with dot notation keys"
+signature = "object -> object"
+example = '''flatten_keys({a: {b: 1}}) -> {\"a.b\": 1}'''
+features = ["core"]
+
+[[functions]]
+name = "from_items"
+category = "object"
+description = "Convert array of [key, value] pairs to object"
+signature = "array -> object"
+example = "from_items([['a', 1]]) -> {a: 1}"
+jep = "JEP-013"
+features = ["core", "jep"]
+
+[[functions]]
+name = "get"
+category = "object"
+description = "Get value at dot-separated path with optional default"
+signature = "any, string, any? -> any"
+example = "get({a: {b: 1}}, 'a.b') -> 1"
+features = ["core"]
+
+[[functions]]
+name = "has"
+category = "object"
+description = "Check if dot-separated path exists"
+signature = "any, string -> boolean"
+example = "has({a: {b: 1}}, 'a.b') -> true"
+features = ["core"]
+
+[[functions]]
+name = "invert"
+category = "object"
+description = "Swap keys and values"
+signature = "object -> object"
+example = "invert({a: 'x'}) -> {x: 'a'}"
+features = ["core"]
+
+[[functions]]
+name = "items"
+category = "object"
+description = "Convert object to array of [key, value] pairs"
+signature = "object -> array"
+example = '''items({a: 1}) -> [[\"a\", 1]]'''
+jep = "JEP-013"
+features = ["core", "jep"]
+
+[[functions]]
+name = "leaves"
+category = "object"
+description = "Get all leaf values (non-object, non-array)"
+signature = "any -> array"
+example = "leaves({a: 1, b: [2, 3]}) -> [1, 2, 3]"
+features = ["core"]
+
+[[functions]]
+name = "leaves_with_paths"
+category = "object"
+description = "Get all leaf values with their JSON pointer paths"
+signature = "any -> array"
+example = '''leaves_with_paths({a: 1}) -> [{path: \"/a\", value: 1}]'''
+features = ["core"]
+
+[[functions]]
+name = "omit"
+category = "object"
+description = "Remove specific keys from object"
+signature = "object, array -> object"
+example = "omit({a: 1, b: 2}, ['a']) -> {b: 2}"
+features = ["core"]
+
+[[functions]]
+name = "paths"
+category = "object"
+description = "List all JSON pointer paths in value"
+signature = "any -> array"
+example = '''paths({a: {b: 1}}) -> [\"/a\", \"/a/b\"]'''
+features = ["core"]
+
+[[functions]]
+name = "pick"
+category = "object"
+description = "Select specific keys from object"
+signature = "object, array -> object"
+example = "pick({a: 1, b: 2}, ['a']) -> {a: 1}"
+features = ["core"]
+
+[[functions]]
+name = "rename_keys"
+category = "object"
+description = "Rename object keys"
+signature = "object, object -> object"
+example = "rename_keys({a: 1}, {a: 'b'}) -> {b: 1}"
+features = ["core"]
+
+[[functions]]
+name = "set_path"
+category = "object"
+description = "Set value at JSON pointer path (immutable)"
+signature = "any, string, any -> any"
+example = "set_path({a: 1}, '/b', `2`) -> {a: 1, b: 2}"
+features = ["core"]
+
+# =============================================================================
+# PATH FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "path_basename"
+category = "path"
+description = "Get filename from path"
+signature = "string -> string"
+example = '''path_basename('/foo/bar.txt') -> \"bar.txt\"'''
+features = ["core"]
+
+[[functions]]
+name = "path_dirname"
+category = "path"
+description = "Get directory from path"
+signature = "string -> string"
+example = '''path_dirname('/foo/bar.txt') -> \"/foo\"'''
+features = ["core"]
+
+[[functions]]
+name = "path_ext"
+category = "path"
+description = "Get file extension"
+signature = "string -> string"
+example = '''path_ext('/foo/bar.txt') -> \"txt\"'''
+features = ["core"]
+
+[[functions]]
+name = "path_join"
+category = "path"
+description = "Join path segments"
+signature = "string... -> string"
+example = '''path_join('/foo', 'bar', 'baz') -> \"/foo/bar/baz\"'''
+features = ["core"]
+
+# =============================================================================
+# PHONETIC FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "caverphone"
+category = "phonetic"
+description = "Caverphone code"
+signature = "string -> string"
+example = '''caverphone('Smith') -> \"SMT1111111\"'''
+features = ["core"]
+
+[[functions]]
+name = "caverphone2"
+category = "phonetic"
+description = "Caverphone 2 code"
+signature = "string -> string"
+example = '''caverphone2('Smith') -> \"SMT1111111\"'''
+features = ["core"]
+
+[[functions]]
+name = "double_metaphone"
+category = "phonetic"
+description = "Double Metaphone codes"
+signature = "string -> object"
+example = "double_metaphone('Smith') -> {primary: 'SM0', secondary: 'XMT'}"
+features = ["core"]
+
+[[functions]]
+name = "match_rating_codex"
+category = "phonetic"
+description = "Match Rating codex"
+signature = "string -> string"
+example = '''match_rating_codex('Smith') -> \"SMTH\"'''
+features = ["core"]
+
+[[functions]]
+name = "metaphone"
+category = "phonetic"
+description = "Metaphone phonetic code"
+signature = "string -> string"
+example = '''metaphone('Smith') -> \"SM0\"'''
+features = ["core"]
+
+[[functions]]
+name = "nysiis"
+category = "phonetic"
+description = "NYSIIS phonetic code"
+signature = "string -> string"
+example = '''nysiis('Smith') -> \"SNAT\"'''
+features = ["core"]
+
+[[functions]]
+name = "phonetic_match"
+category = "phonetic"
+description = "Check phonetic match with algorithm"
+signature = "string, string, string -> boolean"
+example = "phonetic_match('Smith', 'Smyth', 'soundex') -> true"
+features = ["core"]
+
+[[functions]]
+name = "soundex"
+category = "phonetic"
+description = "Soundex phonetic code"
+signature = "string -> string"
+example = '''soundex('Robert') -> \"R163\"'''
+features = ["core"]
+
+[[functions]]
+name = "sounds_like"
+category = "phonetic"
+description = "Check if strings sound similar"
+signature = "string, string -> boolean"
+example = "sounds_like('Robert', 'Rupert') -> true"
+features = ["core"]
+
+# =============================================================================
+# RAND FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "random"
+category = "rand"
+description = "Generate random number between 0 and 1"
+signature = "-> number"
+example = "random() -> 0.123456..."
+features = ["core"]
+
+[[functions]]
+name = "sample"
+category = "rand"
+description = "Random sample from array"
+signature = "array, number -> array"
+example = "sample([1, 2, 3, 4], `2`) -> [3, 1]"
+features = ["core"]
+
+[[functions]]
+name = "shuffle"
+category = "rand"
+description = "Randomly shuffle array"
+signature = "array -> array"
+example = "shuffle([1, 2, 3]) -> [2, 3, 1]"
+features = ["core"]
+
+# =============================================================================
+# REGEX FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "regex_extract"
+category = "regex"
+description = "Extract regex matches"
+signature = "string, string -> array"
+example = '''regex_extract('a1b2', '\\\\d+') -> [\"1\", \"2\"]'''
+features = ["core"]
+
+[[functions]]
+name = "regex_match"
+category = "regex"
+description = "Test if string matches regex"
+signature = "string, string -> boolean"
+example = "regex_match('hello', '^h.*o$') -> true"
+features = ["core"]
+
+[[functions]]
+name = "regex_replace"
+category = "regex"
+description = "Replace regex matches"
+signature = "string, string, string -> string"
+example = '''regex_replace('a1b2', '\\\\d+', 'X') -> \"aXbX\"'''
+features = ["core"]
+
+# =============================================================================
+# SEMVER FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "semver_compare"
+category = "semver"
+description = "Compare versions (-1, 0, 1)"
+signature = "string, string -> number"
+example = "semver_compare('1.0.0', '2.0.0') -> -1"
+features = ["core"]
+
+[[functions]]
+name = "semver_is_valid"
+category = "semver"
+description = "Check if string is valid semver"
+signature = "string -> boolean"
+example = "semver_is_valid('1.2.3') -> true"
+features = ["core"]
+
+[[functions]]
+name = "semver_major"
+category = "semver"
+description = "Get major version"
+signature = "string -> number"
+example = "semver_major('1.2.3') -> 1"
+features = ["core"]
+
+[[functions]]
+name = "semver_minor"
+category = "semver"
+description = "Get minor version"
+signature = "string -> number"
+example = "semver_minor('1.2.3') -> 2"
+features = ["core"]
+
+[[functions]]
+name = "semver_parse"
+category = "semver"
+description = "Parse semantic version"
+signature = "string -> object"
+example = "semver_parse('1.2.3') -> {major: 1, minor: 2, patch: 3}"
+features = ["core"]
+
+[[functions]]
+name = "semver_patch"
+category = "semver"
+description = "Get patch version"
+signature = "string -> number"
+example = "semver_patch('1.2.3') -> 3"
+features = ["core"]
+
+[[functions]]
+name = "semver_satisfies"
+category = "semver"
+description = "Check if version matches constraint"
+signature = "string, string -> boolean"
+example = "semver_satisfies('1.2.3', '^1.0.0') -> true"
+features = ["core"]
+
+# =============================================================================
+# STANDARD FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "abs"
+category = "standard"
+description = "Returns the absolute value of a number"
+signature = "number -> number"
+example = "abs(`-5`) -> 5"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "avg"
+category = "standard"
+description = "Returns the average of an array of numbers"
+signature = "array[number] -> number"
+example = "avg([1, 2, 3]) -> 2"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "ceil"
+category = "standard"
+description = "Returns the smallest integer greater than or equal to the number"
+signature = "number -> number"
+example = "ceil(`1.5`) -> 2"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "contains"
+category = "standard"
+description = "Returns true if the subject contains the search value"
+signature = "array|string, any -> boolean"
+example = "contains([1, 2, 3], `2`) -> true"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "ends_with"
+category = "standard"
+description = "Returns true if the subject ends with the suffix"
+signature = "string, string -> boolean"
+example = "ends_with('hello', 'lo') -> true"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "floor"
+category = "standard"
+description = "Returns the largest integer less than or equal to the number"
+signature = "number -> number"
+example = "floor(`1.9`) -> 1"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "join"
+category = "standard"
+description = "Returns array elements joined into a string with a separator"
+signature = "string, array[string] -> string"
+example = '''join(', ', ['a', 'b', 'c']) -> \"a, b, c\"'''
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "keys"
+category = "standard"
+description = "Returns an array of keys from an object"
+signature = "object -> array[string]"
+example = '''keys({a: 1, b: 2}) -> [\"a\", \"b\"]'''
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "length"
+category = "standard"
+description = "Returns the length of an array, object, or string"
+signature = "array|object|string -> number"
+example = "length([1, 2, 3]) -> 3"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "map"
+category = "standard"
+description = "Applies an expression to each element of an array"
+signature = "expression, array -> array"
+example = "map(&a, [{a: 1}, {a: 2}]) -> [1, 2]"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "max"
+category = "standard"
+description = "Returns the maximum value in an array"
+signature = "array[number]|array[string] -> number|string"
+example = "max([1, 3, 2]) -> 3"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "max_by"
+category = "standard"
+description = "Returns the element with maximum value by expression"
+signature = "array, expression -> any"
+example = "max_by([{a: 1}, {a: 2}], &a) -> {a: 2}"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "merge"
+category = "standard"
+description = "Merges objects into a single object"
+signature = "object... -> object"
+example = "merge({a: 1}, {b: 2}) -> {a: 1, b: 2}"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "min"
+category = "standard"
+description = "Returns the minimum value in an array"
+signature = "array[number]|array[string] -> number|string"
+example = "min([1, 3, 2]) -> 1"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "min_by"
+category = "standard"
+description = "Returns the element with minimum value by expression"
+signature = "array, expression -> any"
+example = "min_by([{a: 1}, {a: 2}], &a) -> {a: 1}"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "not_null"
+category = "standard"
+description = "Returns the first non-null argument"
+signature = "any... -> any"
+example = '''not_null(`null`, 'a', 'b') -> \"a\"'''
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "reverse"
+category = "standard"
+description = "Reverses an array or string"
+signature = "array|string -> array|string"
+example = "reverse([1, 2, 3]) -> [3, 2, 1]"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "sort"
+category = "standard"
+description = "Sorts an array of numbers or strings"
+signature = "array[number]|array[string] -> array"
+example = "sort([3, 1, 2]) -> [1, 2, 3]"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "sort_by"
+category = "standard"
+description = "Sorts an array by expression result"
+signature = "array, expression -> array"
+example = "sort_by([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "starts_with"
+category = "standard"
+description = "Returns true if the subject starts with the prefix"
+signature = "string, string -> boolean"
+example = "starts_with('hello', 'he') -> true"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "sum"
+category = "standard"
+description = "Returns the sum of an array of numbers"
+signature = "array[number] -> number"
+example = "sum([1, 2, 3]) -> 6"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "to_array"
+category = "standard"
+description = "Converts a value to an array"
+signature = "any -> array"
+example = '''to_array('hello') -> [\"hello\"]'''
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "to_number"
+category = "standard"
+description = "Converts a value to a number"
+signature = "any -> number"
+example = "to_number('42') -> 42"
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "to_string"
+category = "standard"
+description = "Converts a value to a string"
+signature = "any -> string"
+example = '''to_string(`42`) -> \"42\"'''
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "type"
+category = "standard"
+description = "Returns the type of a value as a string"
+signature = "any -> string"
+example = '''type('hello') -> \"string\"'''
+is_standard = true
+features = ["spec"]
+
+[[functions]]
+name = "values"
+category = "standard"
+description = "Returns an array of values from an object"
+signature = "object -> array"
+example = "values({a: 1, b: 2}) -> [1, 2]"
+is_standard = true
+features = ["spec"]
+
+# =============================================================================
+# STRING FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "abbreviate"
+category = "string"
+description = "Truncate string with ellipsis suffix"
+signature = "string, number, string? -> string"
+example = '''abbreviate('hello world', `8`) -> \"hello...\"'''
+features = ["core"]
+
+[[functions]]
+name = "camel_case"
+category = "string"
+description = "Convert to camelCase"
+signature = "string -> string"
+example = '''camel_case('hello_world') -> \"helloWorld\"'''
+features = ["core"]
+
+[[functions]]
+name = "capitalize"
+category = "string"
+description = "Capitalize the first character"
+signature = "string -> string"
+example = '''capitalize('hello') -> \"Hello\"'''
+features = ["core"]
+
+[[functions]]
+name = "center"
+category = "string"
+description = "Center-pad string to given width"
+signature = "string, number, string? -> string"
+example = '''center('hi', `6`) -> \"  hi  \"'''
+features = ["core"]
+
+[[functions]]
+name = "concat"
+category = "string"
+description = "Concatenate strings"
+signature = "string... -> string"
+example = '''concat('hello', ' ', 'world') -> \"hello world\"'''
+features = ["core"]
+
+[[functions]]
+name = "find_first"
+category = "string"
+description = "Find first occurrence of substring"
+signature = "string, string -> number | null"
+example = "find_first('hello', 'l') -> 2"
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "find_last"
+category = "string"
+description = "Find last occurrence of substring"
+signature = "string, string -> number | null"
+example = "find_last('hello', 'l') -> 3"
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "indices"
+category = "string"
+description = "Find all indices of substring occurrences"
+signature = "string, string -> array"
+example = "indices('hello', 'l') -> [2, 3]"
+features = ["core"]
+
+[[functions]]
+name = "inside"
+category = "string"
+description = "Check if search string is contained in string"
+signature = "string, string -> boolean"
+example = "inside('world', 'hello world') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_blank"
+category = "string"
+description = "Check if string is empty or whitespace-only"
+signature = "string -> boolean"
+example = "is_blank('   ') -> true"
+features = ["core"]
+
+[[functions]]
+name = "kebab_case"
+category = "string"
+description = "Convert to kebab-case"
+signature = "string -> string"
+example = '''kebab_case('helloWorld') -> \"hello-world\"'''
+features = ["core"]
+
+[[functions]]
+name = "lower"
+category = "string"
+description = "Convert string to lowercase"
+signature = "string -> string"
+example = '''lower('HELLO') -> \"hello\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "ltrimstr"
+category = "string"
+description = "Remove prefix from string if present"
+signature = "string, string -> string"
+example = '''ltrimstr('foobar', 'foo') -> \"bar\"'''
+features = ["core"]
+
+[[functions]]
+name = "mask"
+category = "string"
+description = "Mask string, keeping last N characters visible"
+signature = "string, number?, string? -> string"
+example = '''mask('4111111111111111', `4`) -> \"************1111\"'''
+features = ["core"]
+
+[[functions]]
+name = "normalize_whitespace"
+category = "string"
+description = "Collapse multiple whitespace to single space"
+signature = "string -> string"
+example = '''normalize_whitespace('a  b\\n\\nc') -> \"a b c\"'''
+features = ["core"]
+
+[[functions]]
+name = "pad_left"
+category = "string"
+description = "Pad string on the left to reach target length"
+signature = "string, number, string -> string"
+example = '''pad_left('5', `3`, '0') -> \"005\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "pad_right"
+category = "string"
+description = "Pad string on the right to reach target length"
+signature = "string, number, string -> string"
+example = '''pad_right('5', `3`, '0') -> \"500\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "redact"
+category = "string"
+description = "Redact regex pattern matches with replacement"
+signature = "string, string, string? -> string"
+example = '''redact(text, email_pattern, '[EMAIL]') -> \"...[EMAIL]...\"'''
+features = ["core"]
+
+[[functions]]
+name = "repeat"
+category = "string"
+description = "Repeat a string n times"
+signature = "string, number -> string"
+example = '''repeat('ab', `3`) -> \"ababab\"'''
+features = ["core"]
+
+[[functions]]
+name = "replace"
+category = "string"
+description = "Replace occurrences of a substring"
+signature = "string, string, string -> string"
+example = '''replace('hello', 'l', 'L') -> \"heLLo\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "reverse_string"
+category = "string"
+description = "Reverse a string"
+signature = "string -> string"
+example = '''reverse_string('hello') -> \"olleh\"'''
+features = ["core"]
+
+[[functions]]
+name = "rtrimstr"
+category = "string"
+description = "Remove suffix from string if present"
+signature = "string, string -> string"
+example = '''rtrimstr('foobar', 'bar') -> \"foo\"'''
+features = ["core"]
+
+[[functions]]
+name = "slice"
+category = "string"
+description = "Extract substring by start and end index"
+signature = "string, number, number -> string"
+example = '''slice('hello', `1`, `4`) -> \"ell\"'''
+features = ["core"]
+
+[[functions]]
+name = "snake_case"
+category = "string"
+description = "Convert to snake_case"
+signature = "string -> string"
+example = '''snake_case('helloWorld') -> \"hello_world\"'''
+features = ["core"]
+
+[[functions]]
+name = "split"
+category = "string"
+description = "Split string by delimiter"
+signature = "string, string -> array"
+example = '''split('a,b,c', ',') -> [\"a\", \"b\", \"c\"]'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "sprintf"
+category = "string"
+description = "Printf-style string formatting"
+signature = "string, any... -> string"
+example = '''sprintf('Pi is %.2f', `3.14159`) -> \"Pi is 3.14\"'''
+features = ["core"]
+
+[[functions]]
+name = "substr"
+category = "string"
+description = "Extract substring by start index and length"
+signature = "string, number, number -> string"
+example = '''substr('hello', `1`, `3`) -> \"ell\"'''
+features = ["core"]
+
+[[functions]]
+name = "title"
+category = "string"
+description = "Convert to title case"
+signature = "string -> string"
+example = '''title('hello world') -> \"Hello World\"'''
+features = ["core"]
+
+[[functions]]
+name = "trim"
+category = "string"
+description = "Remove leading and trailing whitespace"
+signature = "string -> string"
+example = '''trim('  hello  ') -> \"hello\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "trim_left"
+category = "string"
+description = "Remove leading whitespace"
+signature = "string -> string"
+example = '''trim_left('  hello') -> \"hello\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "trim_right"
+category = "string"
+description = "Remove trailing whitespace"
+signature = "string -> string"
+example = '''trim_right('hello  ') -> \"hello\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "upper"
+category = "string"
+description = "Convert string to uppercase"
+signature = "string -> string"
+example = '''upper('hello') -> \"HELLO\"'''
+jep = "JEP-014"
+features = ["core", "jep"]
+
+[[functions]]
+name = "wrap"
+category = "string"
+description = "Wrap text to specified width"
+signature = "string, number -> string"
+example = '''wrap('hello world', `5`) -> \"hello\\nworld\"'''
+features = ["core"]
+
+# =============================================================================
+# TEXT FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "char_count"
+category = "text"
+description = "Count characters in text"
+signature = "string -> number"
+example = "char_count('hello') -> 5"
+features = ["core"]
+
+[[functions]]
+name = "char_frequencies"
+category = "text"
+description = "Count character frequencies"
+signature = "string -> object"
+example = "char_frequencies('aab') -> {a: 2, b: 1}"
+features = ["core"]
+
+[[functions]]
+name = "paragraph_count"
+category = "text"
+description = "Count paragraphs in text"
+signature = "string -> number"
+example = '''paragraph_count('A\\n\\nB') -> 2'''
+features = ["core"]
+
+[[functions]]
+name = "reading_time"
+category = "text"
+description = "Estimate reading time"
+signature = "string -> string"
+example = '''reading_time('...long text...') -> \"2 min read\"'''
+features = ["core"]
+
+[[functions]]
+name = "reading_time_seconds"
+category = "text"
+description = "Estimate reading time in seconds"
+signature = "string -> number"
+example = "reading_time_seconds('...text...') -> 120"
+features = ["core"]
+
+[[functions]]
+name = "sentence_count"
+category = "text"
+description = "Count sentences in text"
+signature = "string -> number"
+example = "sentence_count('Hello. World!') -> 2"
+features = ["core"]
+
+[[functions]]
+name = "word_count"
+category = "text"
+description = "Count words in text"
+signature = "string -> number"
+example = "word_count('hello world') -> 2"
+features = ["core"]
+
+[[functions]]
+name = "word_frequencies"
+category = "text"
+description = "Count word frequencies"
+signature = "string -> object"
+example = "word_frequencies('a a b') -> {a: 2, b: 1}"
+features = ["core"]
+
+# =============================================================================
+# TYPE FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "is_array"
+category = "type"
+description = "Check if value is an array"
+signature = "any -> boolean"
+example = "is_array([1, 2]) -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_boolean"
+category = "type"
+description = "Check if value is a boolean"
+signature = "any -> boolean"
+example = "is_boolean(`true`) -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_empty"
+category = "type"
+description = "Check if value is empty"
+signature = "any -> boolean"
+example = "is_empty([]) -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_null"
+category = "type"
+description = "Check if value is null"
+signature = "any -> boolean"
+example = "is_null(`null`) -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_number"
+category = "type"
+description = "Check if value is a number"
+signature = "any -> boolean"
+example = "is_number(`42`) -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_object"
+category = "type"
+description = "Check if value is an object"
+signature = "any -> boolean"
+example = "is_object({a: 1}) -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_string"
+category = "type"
+description = "Check if value is a string"
+signature = "any -> boolean"
+example = "is_string('hello') -> true"
+features = ["core"]
+
+[[functions]]
+name = "to_boolean"
+category = "type"
+description = "Convert value to boolean"
+signature = "any -> boolean"
+example = "to_boolean('true') -> true"
+features = ["core"]
+
+[[functions]]
+name = "type_of"
+category = "type"
+description = "Get the type of a value"
+signature = "any -> string"
+example = '''type_of(`42`) -> \"number\"'''
+features = ["core"]
+
+# =============================================================================
+# URL FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "url_decode"
+category = "url"
+description = "URL decode a string"
+signature = "string -> string"
+example = '''url_decode('hello%20world') -> \"hello world\"'''
+features = ["core"]
+
+[[functions]]
+name = "url_encode"
+category = "url"
+description = "URL encode a string"
+signature = "string -> string"
+example = '''url_encode('hello world') -> \"hello%20world\"'''
+features = ["core"]
+
+[[functions]]
+name = "url_parse"
+category = "url"
+description = "Parse URL into components"
+signature = "string -> object"
+example = "url_parse('https://example.com/path') -> {scheme: 'https', ...}"
+features = ["core"]
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "coalesce"
+category = "utility"
+description = "Return first non-null value"
+signature = "any... -> any"
+example = '''coalesce(`null`, `null`, 'value') -> \"value\"'''
+features = ["core"]
+
+[[functions]]
+name = "default"
+category = "utility"
+description = "Return default value if null"
+signature = "any, any -> any"
+example = '''default(`null`, 'fallback') -> \"fallback\"'''
+features = ["core"]
+
+[[functions]]
+name = "if"
+category = "utility"
+description = "Conditional expression"
+signature = "boolean, any, any -> any"
+example = '''if(`true`, 'yes', 'no') -> \"yes\"'''
+features = ["core"]
+
+[[functions]]
+name = "json_decode"
+category = "utility"
+description = "Parse JSON string"
+signature = "string -> any"
+example = '''json_decode('{\"a\": 1}') -> {a: 1}'''
+features = ["core"]
+
+[[functions]]
+name = "json_encode"
+category = "utility"
+description = "Serialize value to JSON string"
+signature = "any -> string"
+example = '''json_encode({a: 1}) -> \"{\\\"a\\\":1}\"'''
+features = ["core"]
+
+[[functions]]
+name = "json_pointer"
+category = "utility"
+description = "Access value using JSON Pointer (RFC 6901)"
+signature = "any, string -> any"
+example = "json_pointer({foo: {bar: 1}}, '/foo/bar') -> 1"
+features = ["core"]
+
+[[functions]]
+name = "now"
+category = "utility"
+description = "Current Unix timestamp in seconds"
+signature = "-> number"
+example = "now() -> 1699900000"
+features = ["core"]
+
+[[functions]]
+name = "now_ms"
+category = "utility"
+description = "Current Unix timestamp in milliseconds"
+signature = "-> number"
+example = "now_ms() -> 1699900000000"
+features = ["core"]
+
+# =============================================================================
+# UUID FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "uuid"
+category = "uuid"
+description = "Generate a UUID v4"
+signature = "-> string"
+example = '''uuid() -> \"550e8400-e29b-41d4-a716-446655440000\"'''
+features = ["core"]
+
+# =============================================================================
+# VALIDATION FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "is_base64"
+category = "validation"
+description = "Check if valid Base64 encoding"
+signature = "string -> boolean"
+example = "is_base64('SGVsbG8=') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_credit_card"
+category = "validation"
+description = "Validate credit card number (Luhn check + length)"
+signature = "string -> boolean"
+example = "is_credit_card('4111111111111111') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_email"
+category = "validation"
+description = "Validate email address format"
+signature = "string -> boolean"
+example = "is_email('user@example.com') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_hex"
+category = "validation"
+description = "Check if valid hexadecimal string"
+signature = "string -> boolean"
+example = "is_hex('deadbeef') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_ipv4"
+category = "validation"
+description = "Validate IPv4 address format"
+signature = "string -> boolean"
+example = "is_ipv4('192.168.1.1') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_ipv6"
+category = "validation"
+description = "Validate IPv6 address format"
+signature = "string -> boolean"
+example = "is_ipv6('::1') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_iso_date"
+category = "validation"
+description = "Validate ISO 8601 date format"
+signature = "string -> boolean"
+example = "is_iso_date('2023-12-13T15:30:00Z') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_json"
+category = "validation"
+description = "Check if string is valid JSON"
+signature = "string -> boolean"
+example = '''is_json('{\"a\": 1}') -> true'''
+features = ["core"]
+
+[[functions]]
+name = "is_jwt"
+category = "validation"
+description = "Check if valid JWT structure (3 base64url parts)"
+signature = "string -> boolean"
+example = "is_jwt('eyJhbGci...') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_phone"
+category = "validation"
+description = "Validate phone number format"
+signature = "string -> boolean"
+example = "is_phone('+1-555-123-4567') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_url"
+category = "validation"
+description = "Validate URL format"
+signature = "string -> boolean"
+example = "is_url('https://example.com') -> true"
+features = ["core"]
+
+[[functions]]
+name = "is_uuid"
+category = "validation"
+description = "Validate UUID format"
+signature = "string -> boolean"
+example = "is_uuid('550e8400-e29b-41d4-a716-446655440000') -> true"
+features = ["core"]
+
+[[functions]]
+name = "luhn_check"
+category = "validation"
+description = "Generic Luhn algorithm check"
+signature = "string -> boolean"
+example = "luhn_check('79927398713') -> true"
+features = ["core"]
+

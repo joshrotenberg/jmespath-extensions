@@ -1,95 +1,19 @@
-//! JSON Patch and Merge Patch functions.
+//! JSON Patch (RFC 6902) functions.
 //!
-//! This module provides functions for RFC 6902 JSON Patch and RFC 7386 JSON Merge Patch operations.
+//! This module provides jsonpatch functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category jsonpatch`.
 //!
-//! | Function | Signature | Description |
-//! |----------|-----------|-------------|
-//! | [`json_patch`](#json_patch) | `json_patch(obj, patch) → object` | Apply JSON Patch (RFC 6902) |
-//! | [`json_merge_patch`](#json_merge_patch) | `json_merge_patch(obj, patch) → object` | Apply JSON Merge Patch (RFC 7386) |
-//! | [`json_diff`](#json_diff) | `json_diff(a, b) → array` | Generate JSON Patch from two objects |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::jsonpatch;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! jsonpatch::register(&mut runtime);
-//!
-//! // Apply a JSON Patch
-//! let data = Variable::from_json(r#"{"doc": {"a": 1}, "patch": [{"op": "add", "path": "/b", "value": 2}]}"#).unwrap();
-//! let expr = runtime.compile("json_patch(doc, patch)").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: {"a": 1, "b": 2}
-//! ```
-//!
-//! # Function Details
-//!
-//! ## json_patch
-//!
-//! Applies a JSON Patch (RFC 6902) to an object. The patch is an array of operations.
-//!
-//! Supported operations:
-//! - `add` - Add a value at a path
-//! - `remove` - Remove a value at a path
-//! - `replace` - Replace a value at a path
-//! - `move` - Move a value from one path to another
-//! - `copy` - Copy a value from one path to another
-//! - `test` - Test that a value equals expected (fails if not)
-//!
-//! ```text
-//! json_patch(obj, patch) → object
-//!
-//! json_patch({"a": 1}, [{"op": "add", "path": "/b", "value": 2}])
-//!     → {"a": 1, "b": 2}
-//!
-//! json_patch({"a": 1, "b": 2}, [{"op": "remove", "path": "/b"}])
-//!     → {"a": 1}
-//!
-//! json_patch({"a": 1}, [{"op": "replace", "path": "/a", "value": 99}])
-//!     → {"a": 99}
-//! ```
-//!
-//! ## json_merge_patch
-//!
-//! Applies a JSON Merge Patch (RFC 7386) to an object. This is simpler than JSON Patch:
-//! - Values in the patch replace values in the target
-//! - `null` values in the patch remove keys from the target
-//! - Objects are merged recursively
-//!
-//! ```text
-//! json_merge_patch(obj, patch) → object
-//!
-//! json_merge_patch({"a": 1, "b": 2}, {"b": 3, "c": 4})
-//!     → {"a": 1, "b": 3, "c": 4}
-//!
-//! json_merge_patch({"a": 1, "b": 2}, {"b": null})
-//!     → {"a": 1}
-//!
-//! json_merge_patch({"a": {"x": 1}}, {"a": {"y": 2}})
-//!     → {"a": {"x": 1, "y": 2}}
-//! ```
-//!
-//! ## json_diff
-//!
-//! Generates a JSON Patch (RFC 6902) that transforms the first object into the second.
-//! The resulting patch can be applied with `json_patch`.
-//!
-//! ```text
-//! json_diff(a, b) → array
-//!
-//! json_diff({"a": 1}, {"a": 1, "b": 2})
-//!     → [{"op": "add", "path": "/b", "value": 2}]
-//!
-//! json_diff({"a": 1, "b": 2}, {"a": 1})
-//!     → [{"op": "remove", "path": "/b"}]
-//!
-//! json_diff({"a": 1}, {"a": 2})
-//!     → [{"op": "replace", "path": "/a", "value": 2}]
 //! ```
 
 use std::rc::Rc;
