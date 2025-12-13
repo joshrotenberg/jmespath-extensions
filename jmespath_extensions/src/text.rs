@@ -35,6 +35,9 @@ pub fn register(runtime: &mut Runtime) {
     );
     runtime.register_function("char_frequencies", Box::new(CharFrequenciesFn::new()));
     runtime.register_function("word_frequencies", Box::new(WordFrequenciesFn::new()));
+    runtime.register_function("ngrams", Box::new(NgramsFn::new()));
+    runtime.register_function("bigrams", Box::new(BigramsFn::new()));
+    runtime.register_function("trigrams", Box::new(TrigramsFn::new()));
 }
 
 // Average reading speed in words per minute
@@ -349,6 +352,182 @@ impl Function for WordFrequenciesFn {
     }
 }
 
+// =============================================================================
+// ngrams(s, n, type?) -> array
+// Generate n-grams from text. Type can be "word" (default) or "char".
+// =============================================================================
+
+pub struct NgramsFn {
+    signature: Signature,
+}
+
+impl Default for NgramsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NgramsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(
+                vec![ArgumentType::String, ArgumentType::Number],
+                Some(ArgumentType::String),
+            ),
+        }
+    }
+}
+
+impl Function for NgramsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+        let n = args[1].as_number().unwrap() as usize;
+
+        // Default to "word" if not specified
+        let ngram_type = if args.len() > 2 {
+            args[2].as_string().map(|s| s.as_str()).unwrap_or("word")
+        } else {
+            "word"
+        };
+
+        if n == 0 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let result = match ngram_type {
+            "char" => {
+                // Character n-grams
+                let chars: Vec<char> = s.chars().collect();
+                if chars.len() < n {
+                    vec![]
+                } else {
+                    chars
+                        .windows(n)
+                        .map(|w| Rc::new(Variable::String(w.iter().collect())))
+                        .collect()
+                }
+            }
+            _ => {
+                // Word n-grams (default)
+                let words: Vec<&str> = s.split_whitespace().collect();
+                if words.len() < n {
+                    vec![]
+                } else {
+                    words
+                        .windows(n)
+                        .map(|w| {
+                            let arr: Vec<Rcvar> = w
+                                .iter()
+                                .map(|word| Rc::new(Variable::String(word.to_string())))
+                                .collect();
+                            Rc::new(Variable::Array(arr))
+                        })
+                        .collect()
+                }
+            }
+        };
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// bigrams(s) -> array
+// Convenience function for word bigrams (2-grams).
+// =============================================================================
+
+pub struct BigramsFn {
+    signature: Signature,
+}
+
+impl Default for BigramsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BigramsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], None),
+        }
+    }
+}
+
+impl Function for BigramsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+
+        let words: Vec<&str> = s.split_whitespace().collect();
+        if words.len() < 2 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let result: Vec<Rcvar> = words
+            .windows(2)
+            .map(|w| {
+                let arr: Vec<Rcvar> = w
+                    .iter()
+                    .map(|word| Rc::new(Variable::String(word.to_string())))
+                    .collect();
+                Rc::new(Variable::Array(arr))
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// trigrams(s) -> array
+// Convenience function for word trigrams (3-grams).
+// =============================================================================
+
+pub struct TrigramsFn {
+    signature: Signature,
+}
+
+impl Default for TrigramsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TrigramsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], None),
+        }
+    }
+}
+
+impl Function for TrigramsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+
+        let words: Vec<&str> = s.split_whitespace().collect();
+        if words.len() < 3 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let result: Vec<Rcvar> = words
+            .windows(3)
+            .map(|w| {
+                let arr: Vec<Rcvar> = w
+                    .iter()
+                    .map(|word| Rc::new(Variable::String(word.to_string())))
+                    .collect();
+                Rc::new(Variable::Array(arr))
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -480,5 +659,95 @@ mod tests {
         let obj = result.as_object().unwrap();
         // All normalized to "hello"
         assert_eq!(obj.get("hello").unwrap().as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_ngrams_char() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""hello""#).unwrap();
+        let expr = runtime.compile("ngrams(@, `3`, 'char')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_string().unwrap(), "hel");
+        assert_eq!(arr[1].as_string().unwrap(), "ell");
+        assert_eq!(arr[2].as_string().unwrap(), "llo");
+    }
+
+    #[test]
+    fn test_ngrams_word() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""the quick brown fox""#).unwrap();
+        let expr = runtime.compile("ngrams(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // Each element is an array of words
+        let first = arr[0].as_array().unwrap();
+        assert_eq!(first[0].as_string().unwrap(), "the");
+        assert_eq!(first[1].as_string().unwrap(), "quick");
+    }
+
+    #[test]
+    fn test_ngrams_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""hi""#).unwrap();
+        // Asking for 3-grams from a 2-char string
+        let expr = runtime.compile("ngrams(@, `3`, 'char')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_bigrams() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""a b c d""#).unwrap();
+        let expr = runtime.compile("bigrams(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // [["a", "b"], ["b", "c"], ["c", "d"]]
+        let first = arr[0].as_array().unwrap();
+        assert_eq!(first[0].as_string().unwrap(), "a");
+        assert_eq!(first[1].as_string().unwrap(), "b");
+        let last = arr[2].as_array().unwrap();
+        assert_eq!(last[0].as_string().unwrap(), "c");
+        assert_eq!(last[1].as_string().unwrap(), "d");
+    }
+
+    #[test]
+    fn test_bigrams_single_word() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""hello""#).unwrap();
+        let expr = runtime.compile("bigrams(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_trigrams() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""a b c d e""#).unwrap();
+        let expr = runtime.compile("trigrams(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        // [["a", "b", "c"], ["b", "c", "d"], ["c", "d", "e"]]
+        let first = arr[0].as_array().unwrap();
+        assert_eq!(first[0].as_string().unwrap(), "a");
+        assert_eq!(first[1].as_string().unwrap(), "b");
+        assert_eq!(first[2].as_string().unwrap(), "c");
+    }
+
+    #[test]
+    fn test_trigrams_too_short() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""a b""#).unwrap();
+        let expr = runtime.compile("trigrams(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
     }
 }
