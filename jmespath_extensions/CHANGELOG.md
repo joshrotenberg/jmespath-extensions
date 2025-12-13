@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.0...v0.6.1) - 2025-12-13
+
+### Added
+
+- add ngrams, bigrams, trigrams text functions ([#154](https://github.com/joshrotenberg/jmespath-extensions/pull/154))
+- auto-generate docs and registry from functions.toml ([#153](https://github.com/joshrotenberg/jmespath-extensions/pull/153))
+- add multi-match extension functions ([#152](https://github.com/joshrotenberg/jmespath-extensions/pull/152))
+- add statistics functions for time-series and analytics ([#151](https://github.com/joshrotenberg/jmespath-extensions/pull/151))
+- add validation functions for credit cards, phone, JWT, dates, JSON, and encoding ([#150](https://github.com/joshrotenberg/jmespath-extensions/pull/150))
+- add JSON/Object path operations and schema discovery functions ([#149](https://github.com/joshrotenberg/jmespath-extensions/pull/149))
+- add epoch conversion, period boundaries, and comparison datetime functions ([#148](https://github.com/joshrotenberg/jmespath-extensions/pull/148))
+- add array functional programming functions ([#147](https://github.com/joshrotenberg/jmespath-extensions/pull/147))
+- add string utility functions (mask, redact, normalize_whitespace, is_blank, abbreviate, center, reverse_string) ([#146](https://github.com/joshrotenberg/jmespath-extensions/pull/146))
+- add crypto/security functions (HMAC, SHA-512, JWT) and flatten ([#144](https://github.com/joshrotenberg/jmespath-extensions/pull/144))
+
+### Other
+
+- add jsonpatch and multi-match to CI and benchmarks ([#155](https://github.com/joshrotenberg/jmespath-extensions/pull/155))
+
 ## [0.6.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.5.0...v0.6.0) - 2025-12-12
 
 ### Other

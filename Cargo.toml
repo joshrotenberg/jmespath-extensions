@@ -52,7 +52,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 # Note: criterion 0.7 has breaking changes, staying on 0.5 for now
 
 # Internal crate
-jmespath_extensions = { path = "jmespath_extensions", version = "0.6.0" }
+jmespath_extensions = { path = "jmespath_extensions", version = "0.6.1" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
