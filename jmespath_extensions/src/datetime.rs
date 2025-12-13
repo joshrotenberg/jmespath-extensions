@@ -97,6 +97,19 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("is_before", Box::new(IsBeforeFn::new()));
     runtime.register_function("is_between", Box::new(IsBetweenFn::new()));
     runtime.register_function("time_ago", Box::new(TimeAgoFn::new()));
+    runtime.register_function("from_epoch", Box::new(FromEpochFn::new()));
+    runtime.register_function("from_epoch_ms", Box::new(FromEpochMsFn::new()));
+    runtime.register_function("to_epoch", Box::new(ToEpochFn::new()));
+    runtime.register_function("to_epoch_ms", Box::new(ToEpochMsFn::new()));
+    runtime.register_function("duration_since", Box::new(DurationSinceFn::new()));
+    runtime.register_function("start_of_day", Box::new(StartOfDayFn::new()));
+    runtime.register_function("end_of_day", Box::new(EndOfDayFn::new()));
+    runtime.register_function("start_of_week", Box::new(StartOfWeekFn::new()));
+    runtime.register_function("start_of_month", Box::new(StartOfMonthFn::new()));
+    runtime.register_function("start_of_year", Box::new(StartOfYearFn::new()));
+    runtime.register_function("is_same_day", Box::new(IsSameDayFn::new()));
+    // epoch_ms is an alias for now_millis (common name)
+    runtime.register_function("epoch_ms", Box::new(NowMillisFn::new()));
 }
 
 // now() -> number
@@ -630,6 +643,358 @@ impl Function for TimeAgoFn {
         };
 
         Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// from_epoch(seconds) -> string
+// =============================================================================
+
+// Parse Unix epoch (seconds) to ISO datetime string
+define_function!(FromEpochFn, vec![ArgumentType::Number], None);
+
+impl Function for FromEpochFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let epoch = args[0].as_number().unwrap() as i64;
+
+        match DateTime::from_timestamp(epoch, 0) {
+            Some(dt) => Ok(Rc::new(Variable::String(
+                dt.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            ))),
+            None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// =============================================================================
+// from_epoch_ms(milliseconds) -> string
+// =============================================================================
+
+// Parse Unix epoch (milliseconds) to ISO datetime string
+define_function!(FromEpochMsFn, vec![ArgumentType::Number], None);
+
+impl Function for FromEpochMsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let epoch_ms = args[0].as_number().unwrap() as i64;
+        let seconds = epoch_ms / 1000;
+        let nanos = ((epoch_ms % 1000) * 1_000_000) as u32;
+
+        match DateTime::from_timestamp(seconds, nanos) {
+            Some(dt) => Ok(Rc::new(Variable::String(
+                dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string(),
+            ))),
+            None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// =============================================================================
+// to_epoch(datetime) -> number
+// =============================================================================
+
+// Convert datetime string or timestamp to Unix epoch (seconds)
+define_function!(ToEpochFn, vec![ArgumentType::Any], None);
+
+impl Function for ToEpochFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        match parse_date_value(&args[0]) {
+            Some(ts) => Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(ts as f64).unwrap(),
+            ))),
+            None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// =============================================================================
+// to_epoch_ms(datetime) -> number
+// =============================================================================
+
+// Convert datetime string or timestamp to Unix epoch (milliseconds)
+define_function!(ToEpochMsFn, vec![ArgumentType::Any], None);
+
+impl Function for ToEpochMsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        match parse_date_value(&args[0]) {
+            Some(ts) => {
+                let ts_ms = ts * 1000;
+                Ok(Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(ts_ms as f64).unwrap(),
+                )))
+            }
+            None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// =============================================================================
+// duration_since(datetime) -> object
+// =============================================================================
+
+// Get duration from a timestamp to now as a structured object
+define_function!(DurationSinceFn, vec![ArgumentType::Any], None);
+
+impl Function for DurationSinceFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let now = Utc::now().timestamp();
+        let diff = now - ts;
+
+        // Calculate components
+        let is_future = diff < 0;
+        let abs_diff = diff.abs();
+
+        let days = abs_diff / 86400;
+        let hours = (abs_diff % 86400) / 3600;
+        let minutes = (abs_diff % 3600) / 60;
+        let seconds = abs_diff % 60;
+
+        // Build human-readable string
+        let human = if days > 0 {
+            if days == 1 {
+                "1 day".to_string()
+            } else {
+                format!("{} days", days)
+            }
+        } else if hours > 0 {
+            if hours == 1 {
+                "1 hour".to_string()
+            } else {
+                format!("{} hours", hours)
+            }
+        } else if minutes > 0 {
+            if minutes == 1 {
+                "1 minute".to_string()
+            } else {
+                format!("{} minutes", minutes)
+            }
+        } else if seconds == 1 {
+            "1 second".to_string()
+        } else {
+            format!("{} seconds", seconds)
+        };
+
+        let human_with_direction = if is_future {
+            format!("in {}", human)
+        } else {
+            format!("{} ago", human)
+        };
+
+        // Build result object
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "seconds".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(abs_diff)),
+        );
+        map.insert(
+            "minutes".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(abs_diff / 60)),
+        );
+        map.insert(
+            "hours".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(abs_diff / 3600)),
+        );
+        map.insert(
+            "days".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(abs_diff / 86400)),
+        );
+        map.insert("is_future".to_string(), serde_json::Value::Bool(is_future));
+        map.insert(
+            "human".to_string(),
+            serde_json::Value::String(human_with_direction),
+        );
+
+        Ok(Rc::new(
+            Variable::from_json(&serde_json::to_string(&map).unwrap()).unwrap(),
+        ))
+    }
+}
+
+// =============================================================================
+// start_of_day(datetime) -> string
+// =============================================================================
+
+// Truncate datetime to start of day (00:00:00)
+define_function!(StartOfDayFn, vec![ArgumentType::Any], None);
+
+impl Function for StartOfDayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let dt = DateTime::from_timestamp(ts, 0).unwrap();
+        let start = dt.date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc();
+
+        Ok(Rc::new(Variable::String(
+            start.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        )))
+    }
+}
+
+// =============================================================================
+// end_of_day(datetime) -> string
+// =============================================================================
+
+// Truncate datetime to end of day (23:59:59)
+define_function!(EndOfDayFn, vec![ArgumentType::Any], None);
+
+impl Function for EndOfDayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let dt = DateTime::from_timestamp(ts, 0).unwrap();
+        let end = dt.date_naive().and_hms_opt(23, 59, 59).unwrap().and_utc();
+
+        Ok(Rc::new(Variable::String(
+            end.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        )))
+    }
+}
+
+// =============================================================================
+// start_of_week(datetime) -> string
+// =============================================================================
+
+// Truncate datetime to start of week (Monday 00:00:00)
+define_function!(StartOfWeekFn, vec![ArgumentType::Any], None);
+
+impl Function for StartOfWeekFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let dt = DateTime::from_timestamp(ts, 0).unwrap();
+
+        // Calculate days since Monday (Monday = 0)
+        let days_since_monday = dt.weekday().num_days_from_monday();
+        let monday = dt.date_naive() - chrono::Duration::days(days_since_monday as i64);
+        let start = monday.and_hms_opt(0, 0, 0).unwrap().and_utc();
+
+        Ok(Rc::new(Variable::String(
+            start.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        )))
+    }
+}
+
+// =============================================================================
+// start_of_month(datetime) -> string
+// =============================================================================
+
+// Truncate datetime to start of month
+define_function!(StartOfMonthFn, vec![ArgumentType::Any], None);
+
+impl Function for StartOfMonthFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let dt = DateTime::from_timestamp(ts, 0).unwrap();
+
+        let start = dt
+            .date_naive()
+            .with_day(1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_utc();
+
+        Ok(Rc::new(Variable::String(
+            start.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        )))
+    }
+}
+
+// =============================================================================
+// start_of_year(datetime) -> string
+// =============================================================================
+
+// Truncate datetime to start of year
+define_function!(StartOfYearFn, vec![ArgumentType::Any], None);
+
+impl Function for StartOfYearFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let dt = DateTime::from_timestamp(ts, 0).unwrap();
+
+        let start = chrono::NaiveDate::from_ymd_opt(dt.year(), 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_utc();
+
+        Ok(Rc::new(Variable::String(
+            start.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        )))
+    }
+}
+
+// =============================================================================
+// is_same_day(datetime1, datetime2) -> boolean
+// =============================================================================
+
+// Check if two datetimes fall on the same day
+define_function!(
+    IsSameDayFn,
+    vec![ArgumentType::Any, ArgumentType::Any],
+    None
+);
+
+impl Function for IsSameDayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let ts1 = match parse_date_value(&args[0]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let ts2 = match parse_date_value(&args[1]) {
+            Some(t) => t,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+
+        let dt1 = match DateTime::from_timestamp(ts1, 0) {
+            Some(dt) => dt,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+        let dt2 = match DateTime::from_timestamp(ts2, 0) {
+            Some(dt) => dt,
+            None => return Ok(Rc::new(Variable::Null)),
+        };
+
+        let same_day = dt1.date_naive() == dt2.date_naive();
+
+        Ok(Rc::new(Variable::Bool(same_day)))
     }
 }
 
@@ -1221,5 +1586,148 @@ mod tests {
         let expr = runtime.compile("time_ago(@)").unwrap();
         let result = expr.search(&data).unwrap();
         assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_from_epoch() {
+        let runtime = setup();
+        // 2023-12-13T00:00:00Z
+        let expr = runtime.compile("from_epoch(`1702425600`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "2023-12-13T00:00:00Z");
+    }
+
+    #[test]
+    fn test_from_epoch_ms() {
+        let runtime = setup();
+        // 2023-12-13T00:00:00.500Z
+        let expr = runtime.compile("from_epoch_ms(`1702425600500`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "2023-12-13T00:00:00.500Z");
+    }
+
+    #[test]
+    fn test_to_epoch() {
+        let runtime = setup();
+        let data = Variable::String("2023-12-13T00:00:00Z".to_string());
+        let expr = runtime.compile("to_epoch(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 1702425600);
+    }
+
+    #[test]
+    fn test_to_epoch_ms() {
+        let runtime = setup();
+        let data = Variable::String("2023-12-13T00:00:00Z".to_string());
+        let expr = runtime.compile("to_epoch_ms(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 1702425600000);
+    }
+
+    #[test]
+    fn test_to_epoch_from_number() {
+        let runtime = setup();
+        // Pass through if already a number
+        let expr = runtime.compile("to_epoch(`1702425600`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 1702425600);
+    }
+
+    #[test]
+    fn test_duration_since() {
+        let runtime = setup();
+        // Use a timestamp 2 days ago
+        let two_days_ago = Utc::now().timestamp() - 172800;
+        let expr_str = format!("duration_since(`{}`)", two_days_ago);
+        let expr = runtime.compile(&expr_str).unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("days").unwrap().as_number().unwrap() as i64, 2);
+        assert!(!obj.get("is_future").unwrap().as_boolean().unwrap());
+        assert!(
+            obj.get("human")
+                .unwrap()
+                .as_string()
+                .unwrap()
+                .contains("2 days ago")
+        );
+    }
+
+    #[test]
+    fn test_start_of_day() {
+        let runtime = setup();
+        let data = Variable::String("2023-12-13T15:30:45Z".to_string());
+        let expr = runtime.compile("start_of_day(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "2023-12-13T00:00:00Z");
+    }
+
+    #[test]
+    fn test_end_of_day() {
+        let runtime = setup();
+        let data = Variable::String("2023-12-13T15:30:45Z".to_string());
+        let expr = runtime.compile("end_of_day(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "2023-12-13T23:59:59Z");
+    }
+
+    #[test]
+    fn test_start_of_week() {
+        let runtime = setup();
+        // 2023-12-13 is a Wednesday
+        let data = Variable::String("2023-12-13T15:30:45Z".to_string());
+        let expr = runtime.compile("start_of_week(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // Monday is 2023-12-11
+        assert_eq!(result.as_string().unwrap(), "2023-12-11T00:00:00Z");
+    }
+
+    #[test]
+    fn test_start_of_month() {
+        let runtime = setup();
+        let data = Variable::String("2023-12-13T15:30:45Z".to_string());
+        let expr = runtime.compile("start_of_month(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "2023-12-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_start_of_year() {
+        let runtime = setup();
+        let data = Variable::String("2023-12-13T15:30:45Z".to_string());
+        let expr = runtime.compile("start_of_year(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "2023-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_is_same_day_true() {
+        let runtime = setup();
+        let expr = runtime
+            .compile("is_same_day(`\"2023-12-13T10:00:00Z\"`, `\"2023-12-13T23:00:00Z\"`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_is_same_day_false() {
+        let runtime = setup();
+        let expr = runtime
+            .compile("is_same_day(`\"2023-12-13T10:00:00Z\"`, `\"2023-12-14T10:00:00Z\"`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(!result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_epoch_ms_alias() {
+        let runtime = setup();
+        // epoch_ms should work like now_millis
+        let expr = runtime.compile("epoch_ms()").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let ts = result.as_number().unwrap() as i64;
+        // Should be a reasonable current timestamp in milliseconds
+        assert!(ts > 1700000000000);
     }
 }
