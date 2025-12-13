@@ -76,6 +76,7 @@ multi-match = ["dep:aho-corasick"]
 
 [build-dependencies]
 toml = "0.8"
+# Note: toml 0.9 has breaking API changes, staying on 0.8 for now
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
