@@ -5,6 +5,9 @@
 //! - Registry code is generated from a single source of truth
 //! - jpx introspection uses the same data
 
+// Allow nested if for compatibility with older Rust versions that don't support let chains
+#![allow(clippy::collapsible_if)]
+
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
