@@ -1207,7 +1207,7 @@ mod tests {
         // 2024-01-13 is a Saturday - timestamp: 1705104000
         let expr = runtime.compile("is_weekend(`1705104000`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1216,7 +1216,7 @@ mod tests {
         // 2024-01-14 is a Sunday - timestamp: 1705190400
         let expr = runtime.compile("is_weekend(`1705190400`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1225,7 +1225,7 @@ mod tests {
         // 2024-01-15 is a Monday - timestamp: 1705276800
         let expr = runtime.compile("is_weekend(`1705276800`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1234,7 +1234,7 @@ mod tests {
         // 2024-01-15 is a Monday - timestamp: 1705276800
         let expr = runtime.compile("is_weekday(`1705276800`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1243,7 +1243,7 @@ mod tests {
         // 2024-01-13 is a Saturday - timestamp: 1705104000
         let expr = runtime.compile("is_weekday(`1705104000`)").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1348,7 +1348,7 @@ mod tests {
             .compile("is_after(`1720000000`, `1710000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1359,7 +1359,7 @@ mod tests {
             .compile("is_after(`1710000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1368,7 +1368,7 @@ mod tests {
         let data = Variable::from_json(r#"{"d1": "2024-07-15", "d2": "2024-01-01"}"#).unwrap();
         let expr = runtime.compile("is_after(d1, d2)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1379,7 +1379,7 @@ mod tests {
                 .unwrap();
         let expr = runtime.compile("is_after(d1, d2)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1389,7 +1389,7 @@ mod tests {
         let data = Variable::from_json(r#"{"d": "2024-01-01"}"#).unwrap();
         let expr = runtime.compile("is_after(`1720000000`, d)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1399,7 +1399,7 @@ mod tests {
             .compile("is_after(`1720000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1421,7 +1421,7 @@ mod tests {
             .compile("is_before(`1710000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1432,7 +1432,7 @@ mod tests {
             .compile("is_before(`1720000000`, `1710000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1441,7 +1441,7 @@ mod tests {
         let data = Variable::from_json(r#"{"d1": "2024-01-01", "d2": "2024-07-15"}"#).unwrap();
         let expr = runtime.compile("is_before(d1, d2)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1451,7 +1451,7 @@ mod tests {
             .compile("is_before(`1720000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     // Tests for is_between
@@ -1464,7 +1464,7 @@ mod tests {
             .compile("is_between(`1715000000`, `1710000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1475,7 +1475,7 @@ mod tests {
             .compile("is_between(`1700000000`, `1710000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1487,7 +1487,7 @@ mod tests {
         .unwrap();
         let expr = runtime.compile("is_between(d, start, end)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1498,7 +1498,7 @@ mod tests {
             .compile("is_between(`1710000000`, `1710000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1509,7 +1509,7 @@ mod tests {
             .compile("is_between(`1720000000`, `1710000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1520,7 +1520,7 @@ mod tests {
             .compile("is_between(`1730000000`, `1710000000`, `1720000000`)")
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     // Tests for time_ago

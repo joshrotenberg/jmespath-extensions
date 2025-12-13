@@ -402,7 +402,7 @@ mod tests {
         let expr = runtime.compile("random()").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
         let value = result.as_number().unwrap();
-        assert!(value >= 0.0 && value < 1.0);
+        assert!((0.0..1.0).contains(&value));
     }
 
     #[cfg(feature = "rand")]

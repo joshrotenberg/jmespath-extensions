@@ -1562,7 +1562,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": {"b": 1}, "c": {"b": 1}}"#).unwrap();
         let expr = runtime.compile("deep_equals(a, c)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1571,7 +1571,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": {"b": 1}, "c": {"b": 2}}"#).unwrap();
         let expr = runtime.compile("deep_equals(a, c)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1580,7 +1580,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": [1, [2, 3]], "b": [1, [2, 3]]}"#).unwrap();
         let expr = runtime.compile("deep_equals(a, b)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1589,7 +1589,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": [1, 2], "b": [2, 1]}"#).unwrap();
         let expr = runtime.compile("deep_equals(a, b)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1599,11 +1599,11 @@ mod tests {
 
         let expr = runtime.compile("deep_equals(a, b)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         let expr = runtime.compile("deep_equals(a, c)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1717,7 +1717,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": {"b": 1}}"#).unwrap();
         let expr = runtime.compile("has(@, 'a.b')").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1726,7 +1726,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
         let expr = runtime.compile("has(@, 'a.b.c')").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1735,7 +1735,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": [1, 2, 3]}"#).unwrap();
         let expr = runtime.compile("has(@, 'a[1]')").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -1744,7 +1744,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": [1, 2]}"#).unwrap();
         let expr = runtime.compile("has(@, 'a[5]')").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]

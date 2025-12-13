@@ -26,7 +26,7 @@
 //! let expr = runtime.compile("regex_match(@, '^[0-9]+$')").unwrap();
 //! let data = jmespath::Variable::String("12345".to_string());
 //! let result = expr.search(&data).unwrap();
-//! assert_eq!(result.as_boolean().unwrap(), true);
+//! assert!(result.as_boolean().unwrap());
 //! ```
 //!
 //! # Function Details

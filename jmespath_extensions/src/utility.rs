@@ -411,7 +411,7 @@ mod tests {
         let result = expr.search(&Variable::Null).unwrap();
         assert_eq!(result.as_string().unwrap(), "fallback");
 
-        let result = expr.search(&Variable::String("value".to_string())).unwrap();
+        let result = expr.search(Variable::String("value".to_string())).unwrap();
         assert_eq!(result.as_string().unwrap(), "value");
     }
 
