@@ -1,43 +1,19 @@
 //! Color manipulation functions.
 //!
-//! This module provides functions for working with colors in hex and RGB formats.
+//! This module provides color functions for JMESPath queries.
 //!
-//! # Feature
-//!
-//! This module requires the `color` feature flag (no external dependencies).
-//!
-//! # Functions
-//!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `hex_to_rgb(string)` | Convert hex color to RGB object |
-//! | `rgb_to_hex(r, g, b)` | Convert RGB values to hex string |
-//! | `lighten(hex, amount)` | Lighten a color by percentage (0-100) |
-//! | `darken(hex, amount)` | Darken a color by percentage (0-100) |
-//! | `color_mix(hex1, hex2, weight?)` | Mix two colors (weight 0-1, default 0.5) |
-//! | `color_invert(hex)` | Invert a color |
-//! | `color_grayscale(hex)` | Convert to grayscale |
-//! | `color_complement(hex)` | Get complementary color |
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category color`.
 //!
 //! # Example
 //!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
-//! use jmespath_extensions::register_all;
+//! use jmespath_extensions::color;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
-//! register_all(&mut runtime);
-//!
-//! // Convert hex to RGB
-//! let expr = runtime.compile("hex_to_rgb('#ff5500')").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! // Result: {"r": 255, "g": 85, "b": 0}
-//!
-//! // Convert RGB to hex
-//! let expr = runtime.compile("rgb_to_hex(`255`, `85`, `0`)").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "#ff5500");
+//! color::register(&mut runtime);
 //! ```
 
 use crate::common::{

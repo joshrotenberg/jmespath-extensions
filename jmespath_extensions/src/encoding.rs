@@ -1,132 +1,19 @@
-//! Encoding functions.
+//! Encoding and decoding functions.
 //!
-//! This module provides binary-to-text encoding and decoding capabilities for JMESPath expressions.
-//! It supports Base64 and hexadecimal encoding schemes, allowing you to encode strings to these
-//! formats and decode them back to their original form. It also includes JWT (JSON Web Token)
-//! decoding functions for extracting claims from tokens.
+//! This module provides encoding functions for JMESPath queries.
 //!
-//! **Note:** This module requires the `encoding` feature to be enabled.
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category encoding`.
 //!
-//! # Function Reference
-//!
-//! | Function | Arguments | Returns | Description |
-//! |----------|-----------|---------|-------------|
-//! | `base64_encode` | `(text: string)` | `string` | Encode string to Base64 |
-//! | `base64_decode` | `(base64: string)` | `string` | Decode Base64 to string |
-//! | `hex_encode` | `(text: string)` | `string` | Encode string to hexadecimal |
-//! | `hex_decode` | `(hex: string)` | `string` | Decode hexadecimal to string |
-//! | `jwt_decode` | `(token: string)` | `object` | Decode JWT payload (no verification) |
-//! | `jwt_header` | `(token: string)` | `object` | Decode JWT header |
-//!
-//! # Examples
+//! # Example
 //!
 //! ```rust
-//! use jmespath_extensions::Runtime;
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::encoding;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
-//! jmespath_extensions::register_all(&mut runtime);
-//!
-//! let expr = runtime.compile("base64_encode(@)").unwrap();
-//! let data = jmespath::Variable::String("hello".to_string());
-//! let result = expr.search(&data).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "aGVsbG8=");
-//! ```
-//!
-//! # Function Details
-//!
-//! ## Base64 Encoding
-//!
-//! ### `base64_encode(text: string) -> string`
-//!
-//! Encodes a string to Base64 format using the standard Base64 alphabet (RFC 4648).
-//! The output uses padding characters (=) as needed.
-//!
-//! ```text
-//! base64_encode('hello')                   // "aGVsbG8="
-//! base64_encode('Hello World')             // "SGVsbG8gV29ybGQ="
-//! base64_encode('')                        // ""
-//! base64_encode('test123')                 // "dGVzdDEyMw=="
-//! ```
-//!
-//! ### `base64_decode(base64: string) -> string`
-//!
-//! Decodes a Base64-encoded string back to its original form. Returns an error if the input
-//! is not valid Base64 or if the decoded bytes are not valid UTF-8.
-//!
-//! ```text
-//! base64_decode('aGVsbG8=')                // "hello"
-//! base64_decode('SGVsbG8gV29ybGQ=')        // "Hello World"
-//! base64_decode('dGVzdDEyMw==')            // "test123"
-//! base64_decode('invalid!')                // Error: Invalid base64 input
-//! ```
-//!
-//! ## Hexadecimal Encoding
-//!
-//! ### `hex_encode(text: string) -> string`
-//!
-//! Encodes a string to lowercase hexadecimal format. Each byte is represented by two
-//! hexadecimal digits.
-//!
-//! ```text
-//! hex_encode('hello')                      // "68656c6c6f"
-//! hex_encode('Hello World')                // "48656c6c6f20576f726c64"
-//! hex_encode('')                           // ""
-//! hex_encode('ABC')                        // "414243"
-//! ```
-//!
-//! ### `hex_decode(hex: string) -> string`
-//!
-//! Decodes a hexadecimal string back to its original form. Accepts both lowercase and
-//! uppercase hex digits. Returns null if the input is not valid hexadecimal or if
-//! the decoded bytes are not valid UTF-8.
-//!
-//! ```text
-//! hex_decode('68656c6c6f')                 // "hello"
-//! hex_decode('48656C6C6F20576F726C64')     // "Hello World" (uppercase works)
-//! hex_decode('414243')                     // "ABC"
-//! hex_decode('invalid')                    // null (invalid hex input)
-//! hex_decode('123')                        // null (odd length hex string)
-//! ```
-//!
-//! ## JWT Functions
-//!
-//! JWT (JSON Web Token) functions decode tokens to extract their contents. These functions
-//! perform decoding only - they do NOT verify signatures. Use these for:
-//! - Extracting claims for routing/filtering decisions
-//! - Inspecting token contents for debugging
-//! - Pre-processing before signature verification elsewhere
-//!
-//! **Security Note:** Never trust JWT contents without proper signature verification.
-//! These functions are for inspection only, not authentication.
-//!
-//! ### `jwt_decode(token: string) -> object`
-//!
-//! Decodes a JWT and returns the payload (claims) as a JSON object. Returns null if the
-//! token is malformed or cannot be decoded.
-//!
-//! ```text
-//! jwt_decode('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
-//! // Returns: {"sub": "1234567890", "name": "John Doe", "iat": 1516239022}
-//!
-//! // Extract a specific claim:
-//! jwt_decode(token).sub                    // "1234567890"
-//!
-//! // Use in filtering:
-//! requests[?jwt_decode(auth_token).role == `"admin"`]
-//! ```
-//!
-//! ### `jwt_header(token: string) -> object`
-//!
-//! Decodes a JWT and returns the header as a JSON object. Returns null if the token
-//! is malformed or cannot be decoded.
-//!
-//! ```text
-//! jwt_header('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U')
-//! // Returns: {"alg": "HS256", "typ": "JWT"}
-//!
-//! // Check algorithm:
-//! jwt_header(token).alg                    // "HS256"
+//! encoding::register(&mut runtime);
 //! ```
 
 use std::rc::Rc;

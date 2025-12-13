@@ -1,43 +1,19 @@
-//! Phonetic encoding functions for JMESPath.
+//! Phonetic encoding functions.
 //!
-//! This module provides phonetic algorithms for encoding strings based on
-//! pronunciation, useful for fuzzy name matching and search.
+//! This module provides phonetic functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category phonetic`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `soundex(string)` | Classic 4-character Soundex code |
-//! | `metaphone(string)` | Improved phonetic encoding |
-//! | `double_metaphone(string)` | Returns [primary, alternate] encodings |
-//! | `nysiis(string)` | NY State Identification System |
-//! | `match_rating_codex(string)` | Western name matching code |
-//! | `caverphone(string)` | Caverphone 1.0 (NZ optimized) |
-//! | `caverphone2(string)` | Caverphone 2.0 (improved) |
-//! | `sounds_like(s1, s2)` | Check if two strings sound alike (Soundex) |
-//! | `phonetic_match(s1, s2, algorithm?)` | Compare using specified algorithm |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::phonetic;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! phonetic::register(&mut runtime);
-//!
-//! // Soundex encoding
-//! let data = Variable::from_json(r#""Robert""#).unwrap();
-//! let expr = runtime.compile("soundex(@)").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: "R163"
-//!
-//! // Check if names sound alike
-//! let data = Variable::from_json(r#"["Robert", "Rupert"]"#).unwrap();
-//! let expr = runtime.compile("sounds_like(@[0], @[1])").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: true
 //! ```
 
 use std::rc::Rc;

@@ -4,7 +4,7 @@
 [![Downloads](https://img.shields.io/crates/d/jpx.svg)](https://crates.io/crates/jpx)
 [![License](https://img.shields.io/crates/l/jpx.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
 
-A command-line tool for querying JSON data using JMESPath expressions with 190+ additional functions beyond the standard JMESPath specification.
+A command-line tool for querying JSON data using JMESPath expressions with 320+ additional functions beyond the standard JMESPath specification.
 
 Built on the [`jmespath`](https://crates.io/crates/jmespath) crate by [@mtdowling](https://github.com/mtdowling), which provides the complete Rust implementation of the [JMESPath specification](https://jmespath.org/specification.html) including parsing, evaluation, and all 26 standard built-in functions.
 
@@ -84,7 +84,7 @@ jpx 'upper(name)' data.json  # Extension functions work
 
 ```bash
 # List all available functions grouped by category
-# Shows 26 standard JMESPath functions and 189 extension functions
+# Shows 26 standard JMESPath functions and 320+ extension functions
 jpx --list-functions
 
 # List functions in a specific category

@@ -1,43 +1,19 @@
-//! Fuzzy string matching functions for JMESPath.
+//! Fuzzy string matching functions.
 //!
-//! This module provides string similarity and distance metrics using the `strsim` crate.
+//! This module provides fuzzy functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category fuzzy`.
 //!
-//! | Function | Description | Returns |
-//! |----------|-------------|---------|
-//! | `levenshtein(s1, s2)` | Edit distance (insertions, deletions, substitutions) | number |
-//! | `normalized_levenshtein(s1, s2)` | Normalized edit distance | 0.0-1.0 |
-//! | `damerau_levenshtein(s1, s2)` | Edit distance with transpositions | number |
-//! | `jaro(s1, s2)` | Jaro similarity | 0.0-1.0 |
-//! | `jaro_winkler(s1, s2)` | Jaro-Winkler similarity (boosts common prefixes) | 0.0-1.0 |
-//! | `sorensen_dice(s1, s2)` | Sørensen-Dice coefficient (bigram-based) | 0.0-1.0 |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
-//! # #[cfg(feature = "fuzzy")]
-//! # fn main() {
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::fuzzy;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! fuzzy::register(&mut runtime);
-//!
-//! // Levenshtein distance
-//! let expr = runtime.compile("levenshtein('kitten', 'sitting')").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! assert_eq!(result.as_number().unwrap(), 3.0);
-//!
-//! // Jaro-Winkler similarity
-//! let expr = runtime.compile("jaro_winkler('hello', 'hallo')").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! let sim = result.as_number().unwrap();
-//! assert!(sim > 0.8); // High similarity
-//! # }
-//! # #[cfg(not(feature = "fuzzy"))]
-//! # fn main() {}
 //! ```
 
 use std::rc::Rc;

@@ -1,189 +1,19 @@
-//! Type conversion and checking functions.
+//! Type checking and conversion functions.
 //!
-//! This module provides comprehensive type introspection, conversion, and validation capabilities
-//! for JMESPath expressions. It includes functions to convert between types, check type identity,
-//! and validate data characteristics like emptiness and JSON validity.
+//! This module provides type_conv functions for JMESPath queries.
 //!
-//! # Function Reference
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category type_conv`.
 //!
-//! | Function | Arguments | Returns | Description |
-//! |----------|-----------|---------|-------------|
-//! | `to_string` | `(any)` | `string` | Convert any value to string representation |
-//! | `to_number` | `(any)` | `number\|null` | Convert value to number, or null if invalid |
-//! | `to_boolean` | `(any)` | `boolean` | Convert value to boolean (truthiness) |
-//! | `type_of` | `(any)` | `string` | Get type name of value |
-//! | `is_string` | `(any)` | `boolean` | Check if value is a string |
-//! | `is_number` | `(any)` | `boolean` | Check if value is a number |
-//! | `is_boolean` | `(any)` | `boolean` | Check if value is a boolean |
-//! | `is_array` | `(any)` | `boolean` | Check if value is an array |
-//! | `is_object` | `(any)` | `boolean` | Check if value is an object |
-//! | `is_null` | `(any)` | `boolean` | Check if value is null |
-//! | `is_empty` | `(any)` | `boolean` | Check if string/array/object is empty |
-//! | `is_blank` | `(any)` | `boolean` | Check if string is empty or whitespace-only |
-//! | `is_json` | `(string)` | `boolean` | Check if string is valid JSON |
-//!
-//! # Examples
+//! # Example
 //!
 //! ```rust
-//! use jmespath_extensions::Runtime;
+//! use jmespath::{Runtime, Variable};
+//! use jmespath_extensions::type_conv;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
-//! jmespath_extensions::register_all(&mut runtime);
-//!
-//! let expr = runtime.compile("type_of(@)").unwrap();
-//! let data = jmespath::Variable::String("hello".to_string());
-//! let result = expr.search(&data).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "string");
-//! ```
-//!
-//! # Function Details
-//!
-//! ## Type Conversion Functions
-//!
-//! ### `to_string(value: any) -> string`
-//!
-//! Converts any value to its string representation.
-//!
-//! ```text
-//! to_string(`42`)           // "42"
-//! to_string(`true`)         // "true"
-//! to_string(`null`)         // "null"
-//! to_string(`[1, 2, 3]`)    // "[1,2,3]"
-//! ```
-//!
-//! ### `to_number(value: any) -> number|null`
-//!
-//! Converts a value to a number. Returns null if conversion fails.
-//!
-//! ```text
-//! to_number(`"42"`)         // 42
-//! to_number(`"3.14"`)       // 3.14
-//! to_number(`true`)         // 1
-//! to_number(`false`)        // 0
-//! to_number(`"abc"`)        // null
-//! ```
-//!
-//! ### `to_boolean(value: any) -> boolean`
-//!
-//! Converts a value to boolean based on truthiness rules.
-//!
-//! ```text
-//! to_boolean(`null`)        // false
-//! to_boolean(`""`)          // false
-//! to_boolean(`0`)           // false
-//! to_boolean(`[]`)          // false
-//! to_boolean(`{}`)          // false
-//! to_boolean(`"hello"`)     // true
-//! to_boolean(`42`)          // true
-//! ```
-//!
-//! ## Type Checking Functions
-//!
-//! ### `type_of(value: any) -> string`
-//!
-//! Returns the type name of a value.
-//!
-//! ```text
-//! type_of(`"hello"`)        // "string"
-//! type_of(`42`)             // "number"
-//! type_of(`true`)           // "boolean"
-//! type_of(`null`)           // "null"
-//! type_of(`[]`)             // "array"
-//! type_of(`{}`)             // "object"
-//! ```
-//!
-//! ### `is_string(value: any) -> boolean`
-//!
-//! Checks if value is a string type.
-//!
-//! ```text
-//! is_string(`"hello"`)      // true
-//! is_string(`42`)           // false
-//! ```
-//!
-//! ### `is_number(value: any) -> boolean`
-//!
-//! Checks if value is a number type.
-//!
-//! ```text
-//! is_number(`42`)           // true
-//! is_number(`"42"`)         // false
-//! ```
-//!
-//! ### `is_boolean(value: any) -> boolean`
-//!
-//! Checks if value is a boolean type.
-//!
-//! ```text
-//! is_boolean(`true`)        // true
-//! is_boolean(`1`)           // false
-//! ```
-//!
-//! ### `is_array(value: any) -> boolean`
-//!
-//! Checks if value is an array type.
-//!
-//! ```text
-//! is_array(`[1, 2, 3]`)     // true
-//! is_array(`{}`)            // false
-//! ```
-//!
-//! ### `is_object(value: any) -> boolean`
-//!
-//! Checks if value is an object type.
-//!
-//! ```text
-//! is_object(`{a: 1}`)       // true
-//! is_object(`[]`)           // false
-//! ```
-//!
-//! ### `is_null(value: any) -> boolean`
-//!
-//! Checks if value is null.
-//!
-//! ```text
-//! is_null(`null`)           // true
-//! is_null(`""`)             // false
-//! ```
-//!
-//! ## Content Validation Functions
-//!
-//! ### `is_empty(value: any) -> boolean`
-//!
-//! Checks if a string, array, or object is empty. Null values are considered empty.
-//!
-//! ```text
-//! is_empty(`""`)            // true
-//! is_empty(`[]`)            // true
-//! is_empty(`{}`)            // true
-//! is_empty(`null`)          // true
-//! is_empty(`"hello"`)       // false
-//! is_empty(`[1, 2]`)        // false
-//! ```
-//!
-//! ### `is_blank(value: any) -> boolean`
-//!
-//! Checks if a string is empty or contains only whitespace. Null values are considered blank.
-//!
-//! ```text
-//! is_blank(`""`)            // true
-//! is_blank(`"   "`)         // true
-//! is_blank(`" \t\n "`)      // true
-//! is_blank(`null`)          // true
-//! is_blank(`"hello"`)       // false
-//! ```
-//!
-//! ### `is_json(value: string) -> boolean`
-//!
-//! Checks if a string contains valid JSON.
-//!
-//! ```text
-//! is_json(`"{\"a\":1}"`)    // true
-//! is_json(`"[1,2,3]"`)      // true
-//! is_json(`"42"`)           // true
-//! is_json(`"not json"`)     // false
-//! is_json(`"{bad}"`)        // false
+//! type_conv::register(&mut runtime);
 //! ```
 
 use std::rc::Rc;

@@ -1,31 +1,19 @@
-//! ID generation functions for JMESPath.
+//! ID generation functions (nanoid, ulid).
 //!
-//! This module provides functions for generating various types of unique identifiers.
+//! This module provides ids functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category ids`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `nanoid()` | Generate a 21-character NanoID |
-//! | `nanoid(size)` | Generate a NanoID with custom size |
-//! | `ulid()` | Generate a ULID (Universally Unique Lexicographically Sortable Identifier) |
-//! | `ulid_timestamp(ulid)` | Extract Unix timestamp (ms) from ULID |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::ids;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! ids::register(&mut runtime);
-//!
-//! // Generate a NanoID
-//! let data = Variable::Null;
-//! let expr = runtime.compile("nanoid()").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: "V1StGXR8_Z5jdHi6B-myT" (21 chars)
 //! ```
 
 use std::rc::Rc;

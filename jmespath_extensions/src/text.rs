@@ -1,35 +1,19 @@
-//! Text analysis functions for JMESPath.
+//! Text analysis functions.
 //!
-//! This module provides functions for analyzing text content.
+//! This module provides text functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category text`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `word_count(s)` | Count words in string |
-//! | `char_count(s)` | Count characters (excluding whitespace) |
-//! | `sentence_count(s)` | Count sentences |
-//! | `paragraph_count(s)` | Count paragraphs |
-//! | `reading_time(s)` | Estimated reading time in minutes |
-//! | `reading_time_seconds(s)` | Estimated reading time in seconds |
-//! | `char_frequencies(s)` | Character frequency map |
-//! | `word_frequencies(s)` | Word frequency map |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::text;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! text::register(&mut runtime);
-//!
-//! // Count words
-//! let data = Variable::from_json(r#""Hello world, this is a test.""#).unwrap();
-//! let expr = runtime.compile("word_count(@)").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: 6
 //! ```
 
 use std::collections::BTreeMap;

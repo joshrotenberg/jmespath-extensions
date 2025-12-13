@@ -1,39 +1,19 @@
-//! Multi-pattern matching functions using Aho-Corasick algorithm.
+//! Multi-pattern matching functions.
 //!
-//! This module provides efficient multi-pattern string matching functions
-//! using the [aho-corasick](https://docs.rs/aho-corasick) crate. These functions
-//! can find multiple patterns in a single pass through the text.
+//! This module provides multi_match functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category multi_match`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `match_any(string, patterns)` | Returns true if any pattern matches |
-//! | `match_all(string, patterns)` | Returns true if all patterns match |
-//! | `match_which(string, patterns)` | Returns array of patterns that matched |
-//! | `match_count(string, patterns)` | Count total matches across all patterns |
-//! | `replace_many(string, replacements)` | Replace multiple patterns at once |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
-//! # #[cfg(feature = "multi-match")]
-//! # fn main() {
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::multi_match;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! multi_match::register(&mut runtime);
-//!
-//! // Check if any pattern matches
-//! let expr = runtime.compile("match_any(@, ['error', 'warning'])").unwrap();
-//! let data = Variable::String("an error occurred".to_string());
-//! let result = expr.search(&data).unwrap();
-//! assert!(result.as_boolean().unwrap());
-//! # }
-//! # #[cfg(not(feature = "multi-match"))]
-//! # fn main() {}
 //! ```
 
 use std::rc::Rc;

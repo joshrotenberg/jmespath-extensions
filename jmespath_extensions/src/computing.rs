@@ -1,44 +1,19 @@
-//! Computing utility functions.
+//! Computing and bitwise functions.
 //!
-//! This module provides functions for working with bytes, bitwise operations, and other computing utilities.
+//! This module provides computing functions for JMESPath queries.
 //!
-//! # Feature
-//!
-//! This module requires the `computing` feature flag (no external dependencies).
-//!
-//! # Functions
-//!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `parse_bytes(string)` | Parse byte string to number ("1.5 GB" → 1500000000) |
-//! | `format_bytes(number)` | Format bytes as human-readable (1500000000 → "1.5 GB") |
-//! | `format_bytes_binary(number)` | Format using binary units (1073741824 → "1 GiB") |
-//! | `bit_and(a, b)` | Bitwise AND |
-//! | `bit_or(a, b)` | Bitwise OR |
-//! | `bit_xor(a, b)` | Bitwise XOR |
-//! | `bit_not(a)` | Bitwise NOT |
-//! | `bit_shift_left(a, n)` | Left shift |
-//! | `bit_shift_right(a, n)` | Right shift |
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category computing`.
 //!
 //! # Example
 //!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
-//! use jmespath_extensions::register_all;
+//! use jmespath_extensions::computing;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
-//! register_all(&mut runtime);
-//!
-//! // Parse byte string
-//! let expr = runtime.compile("parse_bytes('1.5 GB')").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! assert_eq!(result.as_number().unwrap() as i64, 1_500_000_000);
-//!
-//! // Format bytes
-//! let expr = runtime.compile("format_bytes(`1500000000`)").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "1.5 GB");
+//! computing::register(&mut runtime);
 //! ```
 
 use crate::common::{

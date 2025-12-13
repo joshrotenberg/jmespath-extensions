@@ -1,40 +1,19 @@
 //! Duration parsing and formatting functions.
 //!
-//! This module provides functions for working with human-readable durations.
+//! This module provides duration functions for JMESPath queries.
 //!
-//! # Feature
-//!
-//! This module requires the `duration` feature flag (no external dependencies).
-//!
-//! # Functions
-//!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `parse_duration(string)` | Parse duration string to seconds |
-//! | `format_duration(seconds)` | Format seconds as human-readable |
-//! | `duration_hours(seconds)` | Extract hours component |
-//! | `duration_minutes(seconds)` | Extract minutes component |
-//! | `duration_seconds(seconds)` | Extract seconds component |
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category duration`.
 //!
 //! # Example
 //!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
-//! use jmespath_extensions::register_all;
+//! use jmespath_extensions::duration;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
-//! register_all(&mut runtime);
-//!
-//! // Parse duration string
-//! let expr = runtime.compile("parse_duration('1h30m')").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! assert_eq!(result.as_number().unwrap() as i64, 5400);
-//!
-//! // Format seconds as duration
-//! let expr = runtime.compile("format_duration(`5400`)").unwrap();
-//! let result = expr.search(&Variable::Null).unwrap();
-//! assert_eq!(result.as_string().unwrap(), "1h30m");
+//! duration::register(&mut runtime);
 //! ```
 
 use crate::common::{

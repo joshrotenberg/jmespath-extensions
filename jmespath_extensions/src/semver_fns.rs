@@ -1,34 +1,19 @@
-//! Semantic versioning functions for JMESPath.
+//! Semantic versioning functions.
 //!
-//! This module provides functions for parsing and comparing semantic versions.
+//! This module provides semver_fns functions for JMESPath queries.
 //!
-//! # Functions
+//! For complete function reference with signatures and examples, see the
+//! [`functions`](crate::functions) module documentation or use `jpx --list-category semver_fns`.
 //!
-//! | Function | Description |
-//! |----------|-------------|
-//! | `semver_parse(s)` | Parse version into {major, minor, patch, pre, build} |
-//! | `semver_major(s)` | Extract major version number |
-//! | `semver_minor(s)` | Extract minor version number |
-//! | `semver_patch(s)` | Extract patch version number |
-//! | `semver_compare(v1, v2)` | Compare versions: -1, 0, or 1 |
-//! | `semver_satisfies(version, requirement)` | Check if version matches requirement |
-//! | `semver_is_valid(s)` | Check if string is valid semver |
+//! # Example
 //!
-//! # Examples
-//!
-//! ```
+//! ```rust
 //! use jmespath::{Runtime, Variable};
 //! use jmespath_extensions::semver_fns;
 //!
 //! let mut runtime = Runtime::new();
 //! runtime.register_builtin_functions();
 //! semver_fns::register(&mut runtime);
-//!
-//! // Compare versions
-//! let data = Variable::from_json(r#"["1.2.3", "2.0.0"]"#).unwrap();
-//! let expr = runtime.compile("semver_compare(@[0], @[1])").unwrap();
-//! let result = expr.search(&data).unwrap();
-//! // Result: -1 (first is less than second)
 //! ```
 
 use std::rc::Rc;
