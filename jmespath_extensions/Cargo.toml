@@ -6,9 +6,9 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Extended functions for JMESPath queries - 150+ functions for strings, arrays, dates, hashing, encoding, geo, and more"
+description = "Extended functions for JMESPath queries - 320+ functions for strings, arrays, dates, hashing, encoding, geo, and more"
 documentation = "https://docs.rs/jmespath_extensions"
-readme = "README.md"
+readme = "../README.md"
 keywords = ["jmespath", "json", "query", "transform", "filter"]
 categories = ["data-structures", "parsing", "text-processing"]
 
