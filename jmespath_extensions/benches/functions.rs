@@ -253,6 +253,74 @@ fn bench_text_functions(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "multi-match")]
+fn bench_multi_match_functions(c: &mut Criterion) {
+    let runtime = create_runtime();
+    let mut group = c.benchmark_group("multi-match");
+
+    let text = Variable::String("The quick brown fox jumps over the lazy dog".to_string());
+
+    let expr = runtime
+        .compile("match_any(@, ['fox', 'cat', 'dog'])")
+        .unwrap();
+    group.bench_function("match_any", |b| b.iter(|| expr.search(black_box(&text))));
+
+    let expr = runtime
+        .compile("match_all(@, ['quick', 'fox', 'dog'])")
+        .unwrap();
+    group.bench_function("match_all", |b| b.iter(|| expr.search(black_box(&text))));
+
+    let expr = runtime
+        .compile("match_which(@, ['quick', 'slow', 'fox', 'cat'])")
+        .unwrap();
+    group.bench_function("match_which", |b| b.iter(|| expr.search(black_box(&text))));
+
+    let expr = runtime.compile("match_count(@, ['o', 'e', 'a'])").unwrap();
+    group.bench_function("match_count", |b| b.iter(|| expr.search(black_box(&text))));
+
+    // Larger text
+    let large_text = Variable::String("The quick brown fox. ".repeat(100));
+    let expr = runtime
+        .compile("match_count(@, ['quick', 'fox', 'the'])")
+        .unwrap();
+    group.bench_with_input(
+        BenchmarkId::new("match_count", "large"),
+        &large_text,
+        |b, data| b.iter(|| expr.search(black_box(data))),
+    );
+
+    group.finish();
+}
+
+#[cfg(feature = "jsonpatch")]
+fn bench_jsonpatch_functions(c: &mut Criterion) {
+    let runtime = create_runtime();
+    let mut group = c.benchmark_group("jsonpatch");
+
+    let data = Variable::from_json(r#"{"a": 1, "b": {"c": 2}}"#).unwrap();
+
+    let expr = runtime
+        .compile("json_patch(@, [{\"op\": \"add\", \"path\": \"/d\", \"value\": 3}])")
+        .unwrap();
+    group.bench_function("json_patch/add", |b| {
+        b.iter(|| expr.search(black_box(&data)))
+    });
+
+    let expr = runtime
+        .compile("json_merge_patch(@, {\"b\": {\"d\": 4}})")
+        .unwrap();
+    group.bench_function("json_merge_patch", |b| {
+        b.iter(|| expr.search(black_box(&data)))
+    });
+
+    // Diff two objects
+    let pair = Variable::from_json(r#"[{"a": 1, "b": 2}, {"a": 1, "b": 3, "c": 4}]"#).unwrap();
+    let expr = runtime.compile("json_diff(@[0], @[1])").unwrap();
+    group.bench_function("json_diff", |b| b.iter(|| expr.search(black_box(&pair))));
+
+    group.finish();
+}
+
 // Compile-time registration benchmark
 fn bench_registration(c: &mut Criterion) {
     c.bench_function("register_all", |b| {
@@ -323,6 +391,12 @@ criterion_group!(expression_benches, bench_expression_functions);
 #[cfg(feature = "text")]
 criterion_group!(text_benches, bench_text_functions);
 
+#[cfg(feature = "multi-match")]
+criterion_group!(multi_match_benches, bench_multi_match_functions);
+
+#[cfg(feature = "jsonpatch")]
+criterion_group!(jsonpatch_benches, bench_jsonpatch_functions);
+
 // Full feature set
 #[cfg(all(
     feature = "hash",
@@ -330,7 +404,9 @@ criterion_group!(text_benches, bench_text_functions);
     feature = "phonetic",
     feature = "geo",
     feature = "expression",
-    feature = "text"
+    feature = "text",
+    feature = "multi-match",
+    feature = "jsonpatch"
 ))]
 criterion_main!(
     core_benches,
@@ -339,7 +415,9 @@ criterion_main!(
     phonetic_benches,
     geo_benches,
     expression_benches,
-    text_benches
+    text_benches,
+    multi_match_benches,
+    jsonpatch_benches
 );
 
 // Fallback for minimal feature sets
@@ -349,6 +427,8 @@ criterion_main!(
     feature = "phonetic",
     feature = "geo",
     feature = "expression",
-    feature = "text"
+    feature = "text",
+    feature = "multi-match",
+    feature = "jsonpatch"
 )))]
 criterion_main!(core_benches);
