@@ -215,6 +215,11 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("has", Box::new(HasFn::new()));
     runtime.register_function("defaults", Box::new(DefaultsFn::new()));
     runtime.register_function("defaults_deep", Box::new(DefaultsDeepFn::new()));
+    runtime.register_function("set_path", Box::new(SetPathFn::new()));
+    runtime.register_function("delete_path", Box::new(DeletePathFn::new()));
+    runtime.register_function("paths", Box::new(PathsFn::new()));
+    runtime.register_function("leaves", Box::new(LeavesFn::new()));
+    runtime.register_function("leaves_with_paths", Box::new(LeavesWithPathsFn::new()));
 }
 
 // =============================================================================
@@ -1100,6 +1105,353 @@ impl Function for DefaultsDeepFn {
     }
 }
 
+// =============================================================================
+// set_path(object, path, value) -> new object with value set at JSON pointer path
+// =============================================================================
+
+define_function!(
+    SetPathFn,
+    vec![ArgumentType::Any, ArgumentType::String, ArgumentType::Any],
+    None
+);
+
+impl Function for SetPathFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let path = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string path argument".to_owned()),
+            )
+        })?;
+
+        let value = args[2].clone();
+
+        // Parse JSON pointer path (RFC 6901)
+        let parts = parse_json_pointer(path);
+        if parts.is_empty() {
+            // Empty path means replace the entire value
+            return Ok(value);
+        }
+
+        // Deep clone and set value at path
+        let result = set_at_path(&args[0], &parts, value);
+        Ok(result)
+    }
+}
+
+fn parse_json_pointer(path: &str) -> Vec<String> {
+    if path.is_empty() {
+        return vec![];
+    }
+
+    // RFC 6901: path must start with /
+    let path = path.strip_prefix('/').unwrap_or(path);
+
+    if path.is_empty() {
+        return vec![];
+    }
+
+    path.split('/')
+        .map(|s| {
+            // RFC 6901: ~1 -> /, ~0 -> ~
+            s.replace("~1", "/").replace("~0", "~")
+        })
+        .collect()
+}
+
+fn set_at_path(value: &Rcvar, parts: &[String], new_value: Rcvar) -> Rcvar {
+    if parts.is_empty() {
+        return new_value;
+    }
+
+    let key = &parts[0];
+    let remaining = &parts[1..];
+
+    match value.as_ref() {
+        Variable::Object(obj) => {
+            let mut new_obj = obj.clone();
+            if remaining.is_empty() {
+                new_obj.insert(key.clone(), new_value);
+            } else {
+                let existing = obj
+                    .get(key)
+                    .cloned()
+                    .unwrap_or_else(|| Rc::new(Variable::Null));
+                new_obj.insert(key.clone(), set_at_path(&existing, remaining, new_value));
+            }
+            Rc::new(Variable::Object(new_obj))
+        }
+        Variable::Array(arr) => {
+            if let Ok(idx) = key.parse::<usize>() {
+                let mut new_arr = arr.clone();
+                // Extend array if needed
+                while new_arr.len() <= idx {
+                    new_arr.push(Rc::new(Variable::Null));
+                }
+                if remaining.is_empty() {
+                    new_arr[idx] = new_value;
+                } else {
+                    new_arr[idx] = set_at_path(
+                        &arr.get(idx)
+                            .cloned()
+                            .unwrap_or_else(|| Rc::new(Variable::Null)),
+                        remaining,
+                        new_value,
+                    );
+                }
+                Rc::new(Variable::Array(new_arr))
+            } else {
+                // Can't use non-numeric key on array, return unchanged
+                value.clone()
+            }
+        }
+        _ => {
+            // Create object structure if we have path parts
+            if remaining.is_empty() {
+                let mut new_obj = BTreeMap::new();
+                new_obj.insert(key.clone(), new_value);
+                Rc::new(Variable::Object(new_obj))
+            } else {
+                let mut new_obj = BTreeMap::new();
+                new_obj.insert(
+                    key.clone(),
+                    set_at_path(&Rc::new(Variable::Null), remaining, new_value),
+                );
+                Rc::new(Variable::Object(new_obj))
+            }
+        }
+    }
+}
+
+// =============================================================================
+// delete_path(object, path) -> new object with value removed at JSON pointer path
+// =============================================================================
+
+define_function!(
+    DeletePathFn,
+    vec![ArgumentType::Any, ArgumentType::String],
+    None
+);
+
+impl Function for DeletePathFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let path = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string path argument".to_owned()),
+            )
+        })?;
+
+        let parts = parse_json_pointer(path);
+        if parts.is_empty() {
+            // Empty path means delete everything -> return null
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let result = delete_at_path(&args[0], &parts);
+        Ok(result)
+    }
+}
+
+fn delete_at_path(value: &Rcvar, parts: &[String]) -> Rcvar {
+    if parts.is_empty() {
+        return Rc::new(Variable::Null);
+    }
+
+    let key = &parts[0];
+    let remaining = &parts[1..];
+
+    match value.as_ref() {
+        Variable::Object(obj) => {
+            let mut new_obj = obj.clone();
+            if remaining.is_empty() {
+                new_obj.remove(key);
+            } else if let Some(existing) = obj.get(key) {
+                new_obj.insert(key.clone(), delete_at_path(existing, remaining));
+            }
+            Rc::new(Variable::Object(new_obj))
+        }
+        Variable::Array(arr) => {
+            if let Ok(idx) = key.parse::<usize>() {
+                if idx < arr.len() {
+                    let mut new_arr = arr.clone();
+                    if remaining.is_empty() {
+                        new_arr.remove(idx);
+                    } else {
+                        new_arr[idx] = delete_at_path(&arr[idx], remaining);
+                    }
+                    Rc::new(Variable::Array(new_arr))
+                } else {
+                    value.clone()
+                }
+            } else {
+                value.clone()
+            }
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// paths(value) -> array of all JSON pointer paths in the value
+// =============================================================================
+
+define_function!(PathsFn, vec![ArgumentType::Any], None);
+
+impl Function for PathsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let mut paths = Vec::new();
+        collect_paths(&args[0], String::new(), &mut paths);
+
+        let result: Vec<Rcvar> = paths
+            .into_iter()
+            .map(|p| Rc::new(Variable::String(p)) as Rcvar)
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+fn collect_paths(value: &Rcvar, current_path: String, paths: &mut Vec<String>) {
+    match value.as_ref() {
+        Variable::Object(obj) => {
+            if !current_path.is_empty() {
+                paths.push(current_path.clone());
+            }
+            for (key, val) in obj.iter() {
+                // Escape special characters per RFC 6901
+                let escaped_key = key.replace('~', "~0").replace('/', "~1");
+                let new_path = format!("{}/{}", current_path, escaped_key);
+                collect_paths(val, new_path, paths);
+            }
+        }
+        Variable::Array(arr) => {
+            if !current_path.is_empty() {
+                paths.push(current_path.clone());
+            }
+            for (idx, val) in arr.iter().enumerate() {
+                let new_path = format!("{}/{}", current_path, idx);
+                collect_paths(val, new_path, paths);
+            }
+        }
+        _ => {
+            if !current_path.is_empty() {
+                paths.push(current_path);
+            }
+        }
+    }
+}
+
+// =============================================================================
+// leaves(value) -> array of all leaf values (non-object, non-array)
+// =============================================================================
+
+define_function!(LeavesFn, vec![ArgumentType::Any], None);
+
+impl Function for LeavesFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let mut leaves = Vec::new();
+        collect_leaves(&args[0], &mut leaves);
+
+        Ok(Rc::new(Variable::Array(leaves)))
+    }
+}
+
+fn collect_leaves(value: &Rcvar, leaves: &mut Vec<Rcvar>) {
+    match value.as_ref() {
+        Variable::Object(obj) => {
+            for (_, val) in obj.iter() {
+                collect_leaves(val, leaves);
+            }
+        }
+        Variable::Array(arr) => {
+            for val in arr.iter() {
+                collect_leaves(val, leaves);
+            }
+        }
+        _ => {
+            leaves.push(value.clone());
+        }
+    }
+}
+
+// =============================================================================
+// leaves_with_paths(value) -> array of {path, value} objects for all leaves
+// =============================================================================
+
+define_function!(LeavesWithPathsFn, vec![ArgumentType::Any], None);
+
+impl Function for LeavesWithPathsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let mut leaves = Vec::new();
+        collect_leaves_with_paths(&args[0], String::new(), &mut leaves);
+
+        let result: Vec<Rcvar> = leaves
+            .into_iter()
+            .map(|(path, value)| {
+                let mut obj = BTreeMap::new();
+                obj.insert("path".to_string(), Rc::new(Variable::String(path)));
+                obj.insert("value".to_string(), value);
+                Rc::new(Variable::Object(obj)) as Rcvar
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+fn collect_leaves_with_paths(
+    value: &Rcvar,
+    current_path: String,
+    leaves: &mut Vec<(String, Rcvar)>,
+) {
+    match value.as_ref() {
+        Variable::Object(obj) => {
+            if obj.is_empty() && !current_path.is_empty() {
+                // Empty object is a leaf
+                leaves.push((current_path, value.clone()));
+            } else {
+                for (key, val) in obj.iter() {
+                    let escaped_key = key.replace('~', "~0").replace('/', "~1");
+                    let new_path = format!("{}/{}", current_path, escaped_key);
+                    collect_leaves_with_paths(val, new_path, leaves);
+                }
+            }
+        }
+        Variable::Array(arr) => {
+            if arr.is_empty() && !current_path.is_empty() {
+                // Empty array is a leaf
+                leaves.push((current_path, value.clone()));
+            } else {
+                for (idx, val) in arr.iter().enumerate() {
+                    let new_path = format!("{}/{}", current_path, idx);
+                    collect_leaves_with_paths(val, new_path, leaves);
+                }
+            }
+        }
+        _ => {
+            let path = if current_path.is_empty() {
+                "/".to_string()
+            } else {
+                current_path
+            };
+            leaves.push((path, value.clone()));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1442,5 +1794,170 @@ mod tests {
         assert_eq!(obj.get("x").unwrap().as_number().unwrap(), 1.0); // original kept
         let y = obj.get("y").unwrap().as_object().unwrap();
         assert_eq!(y.get("z").unwrap().as_number().unwrap(), 3.0); // default added
+    }
+
+    #[test]
+    fn test_set_path_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
+        let expr = runtime.compile("set_path(@, '/c', `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap(), 1.0);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap(), 2.0);
+        assert_eq!(obj.get("c").unwrap().as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_set_path_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1}}"#).unwrap();
+        let expr = runtime.compile("set_path(@, '/a/c', `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let a = obj.get("a").unwrap().as_object().unwrap();
+        assert_eq!(a.get("b").unwrap().as_number().unwrap(), 1.0);
+        assert_eq!(a.get("c").unwrap().as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_set_path_create_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{}"#).unwrap();
+        let expr = runtime
+            .compile("set_path(@, '/a/b/c', `\"deep\"`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let a = obj.get("a").unwrap().as_object().unwrap();
+        let b = a.get("b").unwrap().as_object().unwrap();
+        assert_eq!(b.get("c").unwrap().as_string().unwrap(), "deep");
+    }
+
+    #[test]
+    fn test_set_path_array_index() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"items": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("set_path(@, '/items/1', `99`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let items = obj.get("items").unwrap().as_array().unwrap();
+        assert_eq!(items[0].as_number().unwrap(), 1.0);
+        assert_eq!(items[1].as_number().unwrap(), 99.0);
+        assert_eq!(items[2].as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_delete_path_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": 2, "c": 3}"#).unwrap();
+        let expr = runtime.compile("delete_path(@, '/b')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert!(obj.contains_key("a"));
+        assert!(obj.contains_key("c"));
+        assert!(!obj.contains_key("b"));
+    }
+
+    #[test]
+    fn test_delete_path_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1, "c": 2}}"#).unwrap();
+        let expr = runtime.compile("delete_path(@, '/a/b')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let a = obj.get("a").unwrap().as_object().unwrap();
+        assert_eq!(a.len(), 1);
+        assert!(a.contains_key("c"));
+        assert!(!a.contains_key("b"));
+    }
+
+    #[test]
+    fn test_delete_path_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"items": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("delete_path(@, '/items/1')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let items = obj.get("items").unwrap().as_array().unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].as_number().unwrap(), 1.0);
+        assert_eq!(items[1].as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_paths_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1}, "c": 2}"#).unwrap();
+        let expr = runtime.compile("paths(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let paths = result.as_array().unwrap();
+        assert!(paths.len() >= 3); // /a, /a/b, /c
+    }
+
+    #[test]
+    fn test_paths_with_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"items": [1, 2]}"#).unwrap();
+        let expr = runtime.compile("paths(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let paths: Vec<String> = result
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p.as_string().unwrap().to_string())
+            .collect();
+        assert!(paths.contains(&"/items".to_string()));
+        assert!(paths.contains(&"/items/0".to_string()));
+        assert!(paths.contains(&"/items/1".to_string()));
+    }
+
+    #[test]
+    fn test_leaves_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": {"c": 2}, "d": [3, 4]}"#).unwrap();
+        let expr = runtime.compile("leaves(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let leaves = result.as_array().unwrap();
+        assert_eq!(leaves.len(), 4); // 1, 2, 3, 4
+    }
+
+    #[test]
+    fn test_leaves_strings() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"name": "alice", "tags": ["a", "b"]}"#).unwrap();
+        let expr = runtime.compile("leaves(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let leaves = result.as_array().unwrap();
+        assert_eq!(leaves.len(), 3); // "alice", "a", "b"
+    }
+
+    #[test]
+    fn test_leaves_with_paths_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": {"c": 2}}"#).unwrap();
+        let expr = runtime.compile("leaves_with_paths(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let leaves = result.as_array().unwrap();
+        assert_eq!(leaves.len(), 2);
+        // Each leaf should have path and value
+        let first = leaves[0].as_object().unwrap();
+        assert!(first.contains_key("path"));
+        assert!(first.contains_key("value"));
+    }
+
+    #[test]
+    fn test_set_path_immutable() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let expr = runtime.compile("set_path(@, '/b', `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // Original should be unchanged (immutable semantics)
+        let original = data.as_object().unwrap();
+        assert!(!original.contains_key("b"));
+        // Result should have the new key
+        let new_obj = result.as_object().unwrap();
+        assert!(new_obj.contains_key("b"));
     }
 }
