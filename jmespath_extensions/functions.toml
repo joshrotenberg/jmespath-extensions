@@ -1,5 +1,5 @@
 # JMESPath Extensions Function Registry
-# 
+#
 # This file is the single source of truth for:
 # - Function metadata (name, signature, description)
 # - Rustdoc generation (via build.rs)
@@ -2437,6 +2437,30 @@ signature = "string -> object"
 example = "word_frequencies('a a b') -> {a: 2, b: 1}"
 features = ["core"]
 
+[[functions]]
+name = "ngrams"
+category = "text"
+description = "Generate n-grams from text (word or character)"
+signature = "string, number, string? -> array"
+example = "ngrams('hello', `3`, 'char') -> \\['hel', 'ell', 'llo'\\]"
+features = ["core"]
+
+[[functions]]
+name = "bigrams"
+category = "text"
+description = "Generate word bigrams (2-grams)"
+signature = "string -> array"
+example = "bigrams('a b c') -> \\[\\['a', 'b'\\], \\['b', 'c'\\]\\]"
+features = ["core"]
+
+[[functions]]
+name = "trigrams"
+category = "text"
+description = "Generate word trigrams (3-grams)"
+signature = "string -> array"
+example = "trigrams('a b c d') -> \\[\\['a', 'b', 'c'\\], \\['b', 'c', 'd'\\]\\]"
+features = ["core"]
+
 # =============================================================================
 # TYPE FUNCTIONS
 # =============================================================================
@@ -2728,4 +2752,3 @@ description = "Generic Luhn algorithm check"
 signature = "string -> boolean"
 example = "luhn_check('79927398713') -> true"
 features = ["core"]
-
