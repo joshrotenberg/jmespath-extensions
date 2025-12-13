@@ -374,6 +374,11 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("normalize", Box::new(NormalizeFn::new()));
     runtime.register_function("z_score", Box::new(ZScoreFn::new()));
     runtime.register_function("correlation", Box::new(CorrelationFn::new()));
+    runtime.register_function("quantile", Box::new(QuantileFn::new()));
+    runtime.register_function("moving_avg", Box::new(MovingAvgFn::new()));
+    runtime.register_function("ewma", Box::new(EwmaFn::new()));
+    runtime.register_function("covariance", Box::new(CovarianceFn::new()));
+    runtime.register_function("standardize", Box::new(StandardizeFn::new()));
 }
 
 // =============================================================================
@@ -1711,6 +1716,289 @@ impl Function for CorrelationFn {
     }
 }
 
+// =============================================================================
+// quantile(array, q) -> number
+// Nth quantile (generalized percentile), q in [0, 1]
+// =============================================================================
+
+define_function!(
+    QuantileFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    None
+);
+
+impl Function for QuantileFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let q = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for quantile".to_owned()),
+            )
+        })?;
+
+        if !(0.0..=1.0).contains(&q) {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let mut values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        let n = values.len();
+        let pos = q * (n - 1) as f64;
+        let lower = pos.floor() as usize;
+        let upper = pos.ceil() as usize;
+        let frac = pos - lower as f64;
+
+        let result = if lower == upper {
+            values[lower]
+        } else {
+            values[lower] * (1.0 - frac) + values[upper] * frac
+        };
+
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(result).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+// =============================================================================
+// moving_avg(array, window) -> array
+// Simple moving average
+// =============================================================================
+
+define_function!(
+    MovingAvgFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    None
+);
+
+impl Function for MovingAvgFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let window = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for window size".to_owned()),
+            )
+        })? as usize;
+
+        if window == 0 {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() || window > values.len() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let mut result: Vec<Rcvar> = Vec::new();
+
+        // Compute moving averages for each position where we have enough data
+        for i in 0..values.len() {
+            if i + 1 < window {
+                // Not enough data yet, use null
+                result.push(Rc::new(Variable::Null));
+            } else {
+                let start = i + 1 - window;
+                let sum: f64 = values[start..=i].iter().sum();
+                let avg = sum / window as f64;
+                result.push(Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(avg)
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                )));
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// ewma(array, alpha) -> array
+// Exponential weighted moving average
+// =============================================================================
+
+define_function!(
+    EwmaFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    None
+);
+
+impl Function for EwmaFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let alpha = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for alpha".to_owned()),
+            )
+        })?;
+
+        if !(0.0..=1.0).contains(&alpha) {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let mut result: Vec<Rcvar> = Vec::new();
+        let mut ewma = values[0];
+
+        for value in &values {
+            ewma = alpha * value + (1.0 - alpha) * ewma;
+            result.push(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(ewma).unwrap_or_else(|| serde_json::Number::from(0)),
+            )));
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// covariance(arr1, arr2) -> number
+// Covariance between two arrays
+// =============================================================================
+
+define_function!(
+    CovarianceFn,
+    vec![ArgumentType::Array, ArgumentType::Array],
+    None
+);
+
+impl Function for CovarianceFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr1 = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let arr2 = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let values1: Vec<f64> = arr1.iter().filter_map(|v| v.as_number()).collect();
+        let values2: Vec<f64> = arr2.iter().filter_map(|v| v.as_number()).collect();
+
+        if values1.is_empty() || values1.len() != values2.len() {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        let n = values1.len() as f64;
+        let mean1: f64 = values1.iter().sum::<f64>() / n;
+        let mean2: f64 = values2.iter().sum::<f64>() / n;
+
+        let cov: f64 = values1
+            .iter()
+            .zip(values2.iter())
+            .map(|(x, y)| (x - mean1) * (y - mean2))
+            .sum::<f64>()
+            / n;
+
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(cov).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+// =============================================================================
+// standardize(array) -> array
+// Standardize to mean=0, std=1 (z-score normalization)
+// =============================================================================
+
+define_function!(StandardizeFn, vec![ArgumentType::Array], None);
+
+impl Function for StandardizeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let n = values.len() as f64;
+        let mean: f64 = values.iter().sum::<f64>() / n;
+        let variance: f64 = values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n;
+        let std_dev = variance.sqrt();
+
+        let result: Vec<Rcvar> = values
+            .iter()
+            .map(|x| {
+                let standardized = if std_dev.abs() < f64::EPSILON {
+                    0.0
+                } else {
+                    (x - mean) / std_dev
+                };
+                Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(standardized)
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                ))
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1918,5 +2206,103 @@ mod tests {
             .unwrap();
         let result = expr.search(&Variable::Null).unwrap();
         assert!((result.as_number().unwrap() - (-1.0)).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quantile_median() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("quantile(`[1, 2, 3, 4, 5]`, `0.5`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_quantile_quartiles() {
+        let runtime = setup_runtime();
+        // First quartile
+        let expr = runtime
+            .compile("quantile(`[1, 2, 3, 4, 5]`, `0.25`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 2.0);
+
+        // Third quartile
+        let expr = runtime
+            .compile("quantile(`[1, 2, 3, 4, 5]`, `0.75`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 4.0);
+    }
+
+    #[test]
+    fn test_moving_avg() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("moving_avg(`[1, 2, 3, 4, 5, 6]`, `3`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 6);
+        assert!(arr[0].is_null());
+        assert!(arr[1].is_null());
+        assert_eq!(arr[2].as_number().unwrap(), 2.0); // (1+2+3)/3
+        assert_eq!(arr[3].as_number().unwrap(), 3.0); // (2+3+4)/3
+        assert_eq!(arr[4].as_number().unwrap(), 4.0); // (3+4+5)/3
+        assert_eq!(arr[5].as_number().unwrap(), 5.0); // (4+5+6)/3
+    }
+
+    #[test]
+    fn test_ewma() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("ewma(`[1, 2, 3, 4, 5]`, `0.5`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+        // First value is just the first value
+        assert_eq!(arr[0].as_number().unwrap(), 1.0);
+        // Subsequent values: alpha * current + (1-alpha) * prev_ewma
+        assert_eq!(arr[1].as_number().unwrap(), 1.5); // 0.5*2 + 0.5*1
+        assert_eq!(arr[2].as_number().unwrap(), 2.25); // 0.5*3 + 0.5*1.5
+    }
+
+    #[test]
+    fn test_covariance() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("covariance(`[1, 2, 3]`, `[1, 2, 3]`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        // Variance of [1,2,3] is 2/3
+        assert!((result.as_number().unwrap() - 0.666666).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_covariance_negative() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("covariance(`[1, 2, 3]`, `[3, 2, 1]`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!((result.as_number().unwrap() - (-0.666666)).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_standardize() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("standardize(`[10, 20, 30, 40, 50]`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+        // Mean is 30, std is ~14.14
+        // First value: (10-30)/14.14 ≈ -1.41
+        assert!((arr[0].as_number().unwrap() - (-1.414)).abs() < 0.01);
+        // Middle value should be 0
+        assert!(arr[2].as_number().unwrap().abs() < 0.001);
+        // Last value: (50-30)/14.14 ≈ 1.41
+        assert!((arr[4].as_number().unwrap() - 1.414).abs() < 0.01);
     }
 }
