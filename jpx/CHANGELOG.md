@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.10...jpx-v0.1.11) - 2025-12-13
+
+### Added
+
+- auto-generate docs and registry from functions.toml ([#153](https://github.com/joshrotenberg/jmespath-extensions/pull/153))
+
 ## [0.1.10](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.9...jpx-v0.1.10) - 2025-12-12
 
 ### Other
