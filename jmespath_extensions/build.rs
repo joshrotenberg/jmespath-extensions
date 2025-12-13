@@ -91,10 +91,10 @@ fn generate_module_docs(out_dir: &str, by_category: &BTreeMap<String, Vec<&Funct
                 doc.push_str(&format!("**JEP:** {}\n\n", jep));
             }
 
-            if let Some(aliases) = &func.aliases
-                && !aliases.is_empty()
-            {
-                doc.push_str(&format!("**Aliases:** {}\n\n", aliases.join(", ")));
+            if let Some(aliases) = &func.aliases {
+                if !aliases.is_empty() {
+                    doc.push_str(&format!("**Aliases:** {}\n\n", aliases.join(", ")));
+                }
             }
 
             if !func.example.is_empty() {
