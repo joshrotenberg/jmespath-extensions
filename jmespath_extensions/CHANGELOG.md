@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.1...v0.6.2) - 2025-12-13
+
+### Fixed
+
+- add missing chrono and base64 deps to validation feature ([#157](https://github.com/joshrotenberg/jmespath-extensions/pull/157))
+
 ## [0.6.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.0...v0.6.1) - 2025-12-13
 
 ### Added
