@@ -28,7 +28,7 @@
 //! let expr = runtime.compile("is_ipv4(@)").unwrap();
 //! let data = jmespath::Variable::String("192.168.1.1".to_string());
 //! let result = expr.search(&data).unwrap();
-//! assert_eq!(result.as_boolean().unwrap(), true);
+//! assert!(result.as_boolean().unwrap());
 //! ```
 //!
 //! # Function Details

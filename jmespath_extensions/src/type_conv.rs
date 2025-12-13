@@ -466,11 +466,11 @@ mod tests {
         let runtime = setup_runtime();
         let expr = runtime.compile("type_of(@)").unwrap();
 
-        let result = expr.search(&Variable::String("hello".to_string())).unwrap();
+        let result = expr.search(Variable::String("hello".to_string())).unwrap();
         assert_eq!(result.as_string().unwrap(), "string");
 
         let result = expr
-            .search(&Variable::Number(serde_json::Number::from(42)))
+            .search(Variable::Number(serde_json::Number::from(42)))
             .unwrap();
         assert_eq!(result.as_string().unwrap(), "number");
     }
@@ -480,10 +480,10 @@ mod tests {
         let runtime = setup_runtime();
         let expr = runtime.compile("is_empty(@)").unwrap();
 
-        let result = expr.search(&Variable::String("".to_string())).unwrap();
+        let result = expr.search(Variable::String("".to_string())).unwrap();
         assert!(result.as_boolean().unwrap());
 
-        let result = expr.search(&Variable::String("hello".to_string())).unwrap();
+        let result = expr.search(Variable::String("hello".to_string())).unwrap();
         assert!(!result.as_boolean().unwrap());
     }
 }
