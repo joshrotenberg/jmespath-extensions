@@ -703,8 +703,14 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                 let full_query = if needs_continuation(line) {
                     let mut lines = vec![line.to_string()];
                     loop {
-                        match rl.readline("... ") {
-                            Ok(cont) => {
+                        // Use simple stdin for continuation to avoid highlighting glitches
+                        print!("{}...{} ", colors::PROMPT, colors::RESET);
+                        std::io::Write::flush(&mut std::io::stdout()).ok();
+
+                        let mut cont = String::new();
+                        match std::io::stdin().read_line(&mut cont) {
+                            Ok(0) => break, // EOF
+                            Ok(_) => {
                                 let cont = cont.trim();
                                 if cont.is_empty() {
                                     break;
@@ -714,11 +720,6 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                                 if !needs_continuation(&combined) {
                                     break;
                                 }
-                            }
-                            Err(ReadlineError::Interrupted) => {
-                                println!("{}Cancelled{}", colors::INFO, colors::RESET);
-                                lines.clear();
-                                break;
                             }
                             Err(_) => break,
                         }
