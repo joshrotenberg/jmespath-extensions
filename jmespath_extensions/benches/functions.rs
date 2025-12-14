@@ -300,14 +300,14 @@ fn bench_jsonpatch_functions(c: &mut Criterion) {
     let data = Variable::from_json(r#"{"a": 1, "b": {"c": 2}}"#).unwrap();
 
     let expr = runtime
-        .compile("json_patch(@, [{\"op\": \"add\", \"path\": \"/d\", \"value\": 3}])")
+        .compile("json_patch(@, `[{\"op\": \"add\", \"path\": \"/d\", \"value\": 3}]`)")
         .unwrap();
     group.bench_function("json_patch/add", |b| {
         b.iter(|| expr.search(black_box(&data)))
     });
 
     let expr = runtime
-        .compile("json_merge_patch(@, {\"b\": {\"d\": 4}})")
+        .compile("json_merge_patch(@, `{\"b\": {\"d\": 4}}`)")
         .unwrap();
     group.bench_function("json_merge_patch", |b| {
         b.iter(|| expr.search(black_box(&data)))
