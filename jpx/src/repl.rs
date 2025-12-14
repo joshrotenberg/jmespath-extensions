@@ -50,12 +50,23 @@ mod colors {
 }
 
 /// Demo themes with pre-loaded data and suggested queries
+/// Query complexity level (1-5)
+/// 1: Basic field access, simple projections
+/// 2: Filters, sorting, basic functions
+/// 3: Aggregations, grouping, transforms
+/// 4: Pipelines, chained operations
+/// 5: Advanced patterns, complex expressions
+pub type QueryLevel = u8;
+
+/// A query example with description and complexity level
+pub type QueryExample = (&'static str, &'static str, QueryLevel); // (query, description, level)
+
 pub struct Demo {
     pub name: &'static str,
     pub description: &'static str,
     pub data: &'static str,
     pub root_key: &'static str, // The main data field name (e.g., "users", "events")
-    pub queries: &'static [(&'static str, &'static str)], // (query, description)
+    pub queries: &'static [QueryExample],
 }
 
 pub const DEMOS: &[Demo] = &[
@@ -73,17 +84,19 @@ pub const DEMOS: &[Demo] = &[
 }"#,
         root_key: "users",
         queries: &[
-            ("users[*].name", "Get all user names"),
-            ("users[?active].name", "Get active user names"),
-            ("users[?age > `30`]", "Users older than 30"),
-            ("group_by_expr('role', users)", "Group users by role"),
+            ("users[*].name", "Get all user names", 1),
+            ("users[?active].name", "Get active user names", 2),
+            ("users[?age > `30`]", "Users older than 30", 2),
+            ("group_by_expr('role', users)", "Group users by role", 3),
             (
                 "users | sort_by_expr(@, &age) | [].{name: name, age: age}",
                 "Sort by age",
+                4,
             ),
             (
                 "{oldest: max_by(users, &age).name, youngest: min_by(users, &age).name}",
                 "Oldest and youngest",
+                4,
             ),
         ],
     },
@@ -102,22 +115,26 @@ pub const DEMOS: &[Demo] = &[
 }"#,
         root_key: "cities",
         queries: &[
-            ("cities[*].name", "List all cities"),
+            ("cities[*].name", "List all cities", 1),
             (
                 "cities | sort_by(@, &population) | reverse(@) | [0:3].name",
                 "Top 3 by population",
+                4,
             ),
             (
                 "geo_distance_km(origin.lat, origin.lon, cities[0].lat, cities[0].lon)",
                 "Distance SF to NYC (km)",
+                3,
             ),
             (
                 "geo_bearing(origin.lat, origin.lon, cities[2].lat, cities[2].lon)",
                 "Bearing SF to London",
+                3,
             ),
             (
                 "cities[*].{name: name, pop_millions: divide(population, `1000000`)}",
                 "Population in millions",
+                2,
             ),
         ],
     },
@@ -136,20 +153,28 @@ pub const DEMOS: &[Demo] = &[
             (
                 "articles[0].body | word_count(@)",
                 "Count words in first article",
+                2,
             ),
             (
                 "articles[*].body | [*].word_count(@)",
                 "Word counts for all articles",
+                3,
             ),
-            ("articles[0].body | ngrams(@, `2`)", "Word bigrams"),
+            ("articles[0].body | ngrams(@, `2`)", "Word bigrams", 3),
             (
                 "ngrams(articles[1].body, `3`, 'char') | [0:5]",
                 "First 5 character trigrams",
+                4,
             ),
-            ("words[*].{word: @, soundex: soundex(@)}", "Soundex codes"),
+            (
+                "words[*].{word: @, soundex: soundex(@)}",
+                "Soundex codes",
+                3,
+            ),
             (
                 "levenshtein(words[0], words[1])",
                 "Edit distance: hello vs hallo",
+                2,
             ),
         ],
     },
@@ -169,22 +194,27 @@ pub const DEMOS: &[Demo] = &[
             (
                 "events[*].{name: name, date: format_date(timestamp, '%Y-%m-%d')}",
                 "Format dates",
+                2,
             ),
             (
                 "events[*].{name: name, duration_sec: parse_duration(duration)}",
                 "Parse durations",
+                2,
             ),
             (
                 "events[*].{name: name, ago: time_ago(timestamp)}",
                 "Time ago strings",
+                2,
             ),
             (
-                "events | filter_expr(@, &timestamp > `1704100000`)",
+                "filter_expr('timestamp > `1704100000`', events)",
                 "Events after timestamp",
+                3,
             ),
             (
                 "now() | format_date(@, '%A, %B %d, %Y')",
                 "Current date formatted",
+                3,
             ),
         ],
     },
@@ -204,16 +234,19 @@ pub const DEMOS: &[Demo] = &[
             (
                 "orders[*].{id: id, total: sum(items[*].multiply(qty, price))}",
                 "Order totals",
+                3,
             ),
             (
                 "orders[].items[] | unique_by(@, &sku)",
                 "Unique products ordered",
+                4,
             ),
-            ("group_by_expr('customer', orders)", "Orders by customer"),
-            ("orders[?status == 'pending'].id", "Pending order IDs"),
+            ("group_by_expr('customer', orders)", "Orders by customer", 3),
+            ("orders[?status == 'pending'].id", "Pending order IDs", 2),
             (
                 "orders[*].items[*].price | flatten(@) | {min: min(@), max: max(@), avg: avg(@)}",
                 "Price stats",
+                5,
             ),
         ],
     },
@@ -629,6 +662,7 @@ fn needs_continuation(line: &str) -> bool {
 pub struct Suggestion {
     pub query: String,
     pub description: String,
+    pub level: QueryLevel,
 }
 
 /// Analyze JSON structure and suggest relevant queries
@@ -649,6 +683,7 @@ pub fn suggest_queries(var: &Variable) -> Vec<Suggestion> {
             suggestions.push(Suggestion {
                 query: "@".to_string(),
                 description: "Current value".to_string(),
+                level: 3,
             });
         }
     }
@@ -673,10 +708,12 @@ fn suggest_for_object(
         suggestions.push(Suggestion {
             query: "keys(@)".to_string(),
             description: format!("List all {} keys", keys.len()),
+            level: 3,
         });
         suggestions.push(Suggestion {
             query: "values(@)".to_string(),
             description: "Get all values".to_string(),
+            level: 3,
         });
     }
 
@@ -694,6 +731,7 @@ fn suggest_for_object(
                     suggestions.push(Suggestion {
                         query: format!("{}[*]", field_path),
                         description: format!("All {} items in {}", arr.len(), key),
+                        level: 3,
                     });
 
                     // Check if array of objects
@@ -705,6 +743,7 @@ fn suggest_for_object(
                             suggestions.push(Suggestion {
                                 query: format!("{}[*].{}", field_path, inner_keys[0]),
                                 description: format!("Get {} from each item", inner_keys[0]),
+                                level: 3,
                             });
                         }
 
@@ -715,20 +754,24 @@ fn suggest_for_object(
                                     suggestions.push(Suggestion {
                                         query: format!("{}[?{}]", field_path, inner_key),
                                         description: format!("Filter where {} is true", inner_key),
+                                        level: 3,
                                     });
                                 }
                                 Variable::Number(_) => {
                                     suggestions.push(Suggestion {
                                         query: format!("{}[?{} > `0`]", field_path, inner_key),
                                         description: format!("Filter by {} comparison", inner_key),
+                                        level: 3,
                                     });
                                     suggestions.push(Suggestion {
                                         query: format!("sum({}[*].{})", field_path, inner_key),
                                         description: format!("Sum of {}", inner_key),
+                                        level: 3,
                                     });
                                     suggestions.push(Suggestion {
                                         query: format!("avg({}[*].{})", field_path, inner_key),
                                         description: format!("Average of {}", inner_key),
+                                        level: 3,
                                     });
                                 }
                                 Variable::String(s) => {
@@ -740,6 +783,7 @@ fn suggest_for_object(
                                                 field_path, inner_key
                                             ),
                                             description: format!("Format {} dates", inner_key),
+                level: 3,
                                         });
                                     } else {
                                         suggestions.push(Suggestion {
@@ -750,6 +794,7 @@ fn suggest_for_object(
                                                 s.chars().take(10).collect::<String>()
                                             ),
                                             description: format!("Filter by {}", inner_key),
+                                            level: 3,
                                         });
                                     }
                                     suggestions.push(Suggestion {
@@ -758,6 +803,7 @@ fn suggest_for_object(
                                             inner_key, field_path
                                         ),
                                         description: format!("Group by {}", inner_key),
+                                        level: 3,
                                     });
                                 }
                                 _ => {}
@@ -776,6 +822,7 @@ fn suggest_for_object(
                                     inner_keys.first().unwrap_or(&sort_key)
                                 ),
                                 description: format!("Sort by {}", sort_key),
+                                level: 3,
                             });
                         }
                     }
@@ -788,6 +835,7 @@ fn suggest_for_object(
                         suggestions.push(Suggestion {
                             query: format!("sum({})", field_path),
                             description: format!("Sum of {}", key),
+                            level: 3,
                         });
                         suggestions.push(Suggestion {
                             query: format!(
@@ -795,6 +843,7 @@ fn suggest_for_object(
                                 field_path, field_path, field_path
                             ),
                             description: format!("Stats for {}", key),
+                            level: 3,
                         });
                     }
                 }
@@ -802,6 +851,7 @@ fn suggest_for_object(
                     suggestions.push(Suggestion {
                         query: format!("{} | keys(@)", field_path),
                         description: format!("Keys in {}", key),
+                        level: 3,
                     });
                     // Recurse one level
                     if prefix.is_empty() {
@@ -812,6 +862,7 @@ fn suggest_for_object(
                     suggestions.push(Suggestion {
                         query: field_path.clone(),
                         description: format!("Get {} (number)", key),
+                        level: 3,
                     });
                 }
                 Variable::String(s) => {
@@ -819,11 +870,13 @@ fn suggest_for_object(
                         suggestions.push(Suggestion {
                             query: format!("format_date({}, '%B %d, %Y')", field_path),
                             description: format!("Format {} as date", key),
+                            level: 3,
                         });
                     } else if looks_like_url(s) {
                         suggestions.push(Suggestion {
                             query: format!("parse_url({})", field_path),
                             description: format!("Parse {} as URL", key),
+                            level: 3,
                         });
                     }
                 }
@@ -843,6 +896,7 @@ fn suggest_for_array(arr: &[Rc<Variable>], prefix: &str, suggestions: &mut Vec<S
     suggestions.push(Suggestion {
         query: format!("length({})", path),
         description: format!("Count items ({})", arr.len()),
+        level: 3,
     });
 
     if arr.is_empty() {
@@ -860,28 +914,33 @@ fn suggest_for_array(arr: &[Rc<Variable>], prefix: &str, suggestions: &mut Vec<S
                 suggestions.push(Suggestion {
                     query: format!("[*].{}", keys[0]),
                     description: format!("Get {} from each item", keys[0]),
+                    level: 3,
                 });
 
                 if keys.len() >= 2 {
                     suggestions.push(Suggestion {
                         query: format!("[*].{{{}:{}, {}:{}}}", keys[0], keys[0], keys[1], keys[1]),
                         description: "Select specific fields".to_string(),
+                        level: 3,
                     });
                 }
 
                 suggestions.push(Suggestion {
                     query: "[0]".to_string(),
                     description: "First item".to_string(),
+                    level: 3,
                 });
 
                 suggestions.push(Suggestion {
                     query: "[-1]".to_string(),
                     description: "Last item".to_string(),
+                    level: 3,
                 });
 
                 suggestions.push(Suggestion {
                     query: "[*] | unique_by(@, &".to_string() + keys[0] + ")",
                     description: format!("Unique by {}", keys[0]),
+                    level: 3,
                 });
             }
 
@@ -892,26 +951,31 @@ fn suggest_for_array(arr: &[Rc<Variable>], prefix: &str, suggestions: &mut Vec<S
                         suggestions.push(Suggestion {
                             query: format!("[?{}]", key),
                             description: format!("Filter where {} is true", key),
+                            level: 3,
                         });
                         suggestions.push(Suggestion {
                             query: format!("[?!{}]", key),
                             description: format!("Filter where {} is false", key),
+                            level: 3,
                         });
                     }
                     Variable::Number(_) => {
                         suggestions.push(Suggestion {
                             query: format!("max_by(@, &{}).{}", key, keys.first().unwrap_or(&key)),
                             description: format!("Item with highest {}", key),
+                            level: 3,
                         });
                         suggestions.push(Suggestion {
                             query: format!("min_by(@, &{}).{}", key, keys.first().unwrap_or(&key)),
                             description: format!("Item with lowest {}", key),
+                            level: 3,
                         });
                     }
                     Variable::String(_) => {
                         suggestions.push(Suggestion {
                             query: format!("[*].{} | unique(@)", key),
                             description: format!("Unique {} values", key),
+                            level: 3,
                         });
                     }
                     _ => {}
@@ -922,28 +986,34 @@ fn suggest_for_array(arr: &[Rc<Variable>], prefix: &str, suggestions: &mut Vec<S
             suggestions.push(Suggestion {
                 query: "sum(@)".to_string(),
                 description: "Sum all values".to_string(),
+                level: 3,
             });
             suggestions.push(Suggestion {
                 query: "{min: min(@), max: max(@), avg: avg(@)}".to_string(),
                 description: "Statistics".to_string(),
+                level: 3,
             });
             suggestions.push(Suggestion {
                 query: "sort(@)".to_string(),
                 description: "Sort ascending".to_string(),
+                level: 3,
             });
         }
         Variable::String(_) => {
             suggestions.push(Suggestion {
                 query: "unique(@)".to_string(),
                 description: "Unique values".to_string(),
+                level: 3,
             });
             suggestions.push(Suggestion {
                 query: "sort(@)".to_string(),
                 description: "Sort alphabetically".to_string(),
+                level: 3,
             });
             suggestions.push(Suggestion {
                 query: "[*] | [?contains(@, 'search')]".to_string(),
                 description: "Search for text".to_string(),
+                level: 3,
             });
         }
         _ => {}
@@ -1011,6 +1081,7 @@ fn suggest_advanced_object(
                         cat_field, field_name
                     ),
                     description: format!("Count by {}", cat_field),
+                    level: 3,
                 });
 
                 // If we have a numeric field too, sum by category
@@ -1021,6 +1092,7 @@ fn suggest_advanced_object(
                             cat_field, field_name, num_field
                         ),
                         description: format!("Sum {} by {}", num_field, cat_field),
+                        level: 3,
                     });
                 }
             }
@@ -1045,6 +1117,7 @@ fn suggest_advanced_object(
                             num_field
                         ),
                         description: format!("Top items by {}", num_field),
+                        level: 3,
                     });
                 }
             }
@@ -1057,6 +1130,7 @@ fn suggest_advanced_object(
                     suggestions.push(Suggestion {
                         query: format!("{}[].{}[] | flatten(@) | unique(@)", field_name, key),
                         description: format!("Flatten and unique {}", key),
+                        level: 3,
                     });
                 }
             }
@@ -1071,6 +1145,7 @@ fn suggest_advanced_object(
                 suggestions.push(Suggestion {
                     query: format!("{{{}}}", stats.join(", ")),
                     description: "Multi-field averages".to_string(),
+                    level: 3,
                 });
             }
 
@@ -1082,6 +1157,7 @@ fn suggest_advanced_object(
                         field_name
                     ),
                     description: "Transform each item with map_expr".to_string(),
+                    level: 3,
                 });
             }
         }
@@ -1100,6 +1176,7 @@ fn suggest_advanced_object(
                     .join(", ")
             ),
             description: "Compare array sizes".to_string(),
+            level: 3,
         });
     }
 }
@@ -1139,6 +1216,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
             suggestions.push(Suggestion {
                 query: format!("reduce_expr(@, &add(acc, @.{}), `0`)", num_field),
                 description: format!("Running total of {} with reduce", num_field),
+                level: 3,
             });
         }
 
@@ -1150,6 +1228,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
                     bool_field, num_field, bool_field, num_field
                 ),
                 description: format!("Sum {} split by {}", num_field, bool_field),
+                level: 3,
             });
         }
 
@@ -1162,6 +1241,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
                     cat_field, val_field
                 ),
                 description: format!("Pivot: aggregate {} by {}", val_field, cat_field),
+                level: 3,
             });
         }
 
@@ -1177,6 +1257,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
                     num_field, display_field, display_field, num_field, num_field
                 ),
                 description: format!("Top 3 by {}", num_field),
+                level: 3,
             });
         }
 
@@ -1185,6 +1266,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
             suggestions.push(Suggestion {
                 query: format!("scan_expr(@, &add(acc, @.{}), `0`)", num_field),
                 description: format!("Running sum of {}", num_field),
+                level: 3,
             });
         }
 
@@ -1199,6 +1281,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
                     "Count where {} and {} > 0",
                     bool_fields[0], numeric_fields[0]
                 ),
+                level: 4,
             });
         }
 
@@ -1210,9 +1293,74 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
                     suggestions.push(Suggestion {
                         query: format!("[*].{} | [*].{}", key, nested_keys[0]),
                         description: format!("Extract nested {}.{}", key, nested_keys[0]),
+                        level: 3,
                     });
                 }
             }
+        }
+    }
+}
+
+/// Validate a query against the current data, returning true if it executes without error
+fn validate_query(query: &str, var: &Variable, runtime: &Runtime) -> bool {
+    match runtime.compile(query) {
+        Ok(expr) => expr.search(var).is_ok(),
+        Err(_) => false,
+    }
+}
+
+/// Print a list of queries with validation, filtering out any that fail
+/// Groups queries by level and shows level indicators
+fn print_validated_queries(
+    queries: &[QueryExample],
+    var: &Variable,
+    runtime: &Runtime,
+    header: &str,
+    max_level: Option<QueryLevel>,
+) {
+    let max_lvl = max_level.unwrap_or(5);
+
+    let valid_queries: Vec<_> = queries
+        .iter()
+        .filter(|(query, _, level)| *level <= max_lvl && validate_query(query, var, runtime))
+        .collect();
+
+    if valid_queries.is_empty() {
+        return;
+    }
+
+    println!("{}{}{}", colors::INFO, header, colors::RESET);
+
+    // Group by level
+    for level in 1..=max_lvl {
+        let level_queries: Vec<_> = valid_queries
+            .iter()
+            .filter(|(_, _, l)| *l == level)
+            .collect();
+
+        if level_queries.is_empty() {
+            continue;
+        }
+
+        let level_label = match level {
+            1 => "Basic",
+            2 => "Filters & Functions",
+            3 => "Aggregations",
+            4 => "Pipelines",
+            5 => "Advanced",
+            _ => "Other",
+        };
+
+        println!(
+            "  {}[L{}] {}:{}",
+            colors::HINT,
+            level,
+            level_label,
+            colors::RESET
+        );
+        for (query, desc, _) in level_queries {
+            println!("    {}# {}{}", colors::HINT, desc, colors::RESET);
+            println!("    {}", query);
         }
     }
 }
@@ -1230,16 +1378,10 @@ pub fn print_suggestions(var: &Variable, runtime: &Runtime) {
         return;
     }
 
-    // Validate each suggestion before displaying
+    // Validate and filter suggestions
     let valid_suggestions: Vec<_> = suggestions
         .into_iter()
-        .filter(|s| {
-            // Try to compile and execute the query
-            match runtime.compile(&s.query) {
-                Ok(expr) => expr.search(var).is_ok(),
-                Err(_) => false,
-            }
-        })
+        .filter(|s| validate_query(&s.query, var, runtime))
         .collect();
 
     if valid_suggestions.is_empty() {
@@ -1251,15 +1393,39 @@ pub fn print_suggestions(var: &Variable, runtime: &Runtime) {
         return;
     }
 
-    println!("{}Suggested queries:{}", colors::BOLD, colors::RESET);
-    for suggestion in valid_suggestions {
+    println!("{}Suggested queries:{}", colors::INFO, colors::RESET);
+
+    // Group by level
+    for level in 1..=5u8 {
+        let level_queries: Vec<_> = valid_suggestions
+            .iter()
+            .filter(|s| s.level == level)
+            .collect();
+
+        if level_queries.is_empty() {
+            continue;
+        }
+
+        let level_label = match level {
+            1 => "Basic",
+            2 => "Filters & Functions",
+            3 => "Aggregations",
+            4 => "Pipelines",
+            5 => "Advanced",
+            _ => "Other",
+        };
+
         println!(
-            "  {}# {}{}",
+            "  {}[L{}] {}:{}",
             colors::HINT,
-            suggestion.description,
+            level,
+            level_label,
             colors::RESET
         );
-        println!("  {}", suggestion.query);
+        for s in level_queries {
+            println!("    {}# {}{}", colors::HINT, s.description, colors::RESET);
+            println!("    {}", s.query);
+        }
     }
 }
 
@@ -1345,11 +1511,13 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                 describe_value(data.as_ref().unwrap()),
                 demo.root_key
             );
-            println!("{}Try these queries:{}", colors::INFO, colors::RESET);
-            for (query, desc) in demo.queries {
-                println!("  {}# {}{}", colors::HINT, desc, colors::RESET);
-                println!("  {}", query);
-            }
+            print_validated_queries(
+                demo.queries,
+                data.as_ref().unwrap(),
+                &runtime,
+                "Try these queries:",
+                Some(2), // Show basic queries on initial load
+            );
             println!();
         } else {
             println!(
@@ -1648,11 +1816,13 @@ fn handle_command(
                     describe_value(data.as_ref().unwrap()),
                     demo.root_key
                 );
-                println!("{}Try these queries:{}", colors::INFO, colors::RESET);
-                for (query, desc) in demo.queries {
-                    println!("  {}# {}{}", colors::HINT, desc, colors::RESET);
-                    println!("  {}", query);
-                }
+                print_validated_queries(
+                    demo.queries,
+                    data.as_ref().unwrap(),
+                    runtime,
+                    "Try these queries:",
+                    Some(2), // Show basic queries on initial load
+                );
             } else {
                 println!(
                     "{}Unknown demo '{}'. Available: {}{}",
