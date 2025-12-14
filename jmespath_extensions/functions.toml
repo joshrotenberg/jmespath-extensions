@@ -29,7 +29,11 @@ name = "compact"
 category = "array"
 description = "Remove null values from array"
 signature = "array -> array"
-example = "compact([1, null, 2, null]) -> [1, 2]"
+examples = [
+    { code = "compact([1, null, 2, null]) -> [1, 2]", description = "Remove nulls" },
+    { code = "compact([null, null]) -> []", description = "All nulls" },
+    { code = "compact([1, 2, 3]) -> [1, 2, 3]", description = "No nulls" },
+]
 features = ["core"]
 
 [[functions]]
@@ -37,7 +41,11 @@ name = "difference"
 category = "array"
 description = "Elements in first array not in second"
 signature = "array, array -> array"
-example = "difference([1, 2, 3], [2]) -> [1, 3]"
+examples = [
+    { code = "difference([1, 2, 3], [2]) -> [1, 3]", description = "Remove matching elements" },
+    { code = "difference([1, 2, 3], [4, 5]) -> [1, 2, 3]", description = "No overlap" },
+    { code = "difference([1, 2], [1, 2]) -> []", description = "All removed" },
+]
 features = ["core"]
 
 [[functions]]
@@ -45,7 +53,11 @@ name = "drop"
 category = "array"
 description = "Drop first n elements"
 signature = "array, number -> array"
-example = "drop([1, 2, 3, 4], `2`) -> [3, 4]"
+examples = [
+    { code = "drop([1, 2, 3, 4], `2`) -> [3, 4]", description = "Drop first 2" },
+    { code = "drop([1, 2, 3], `0`) -> [1, 2, 3]", description = "Drop none" },
+    { code = "drop([1, 2], `5`) -> []", description = "Drop more than length" },
+]
 features = ["core"]
 
 [[functions]]
@@ -53,7 +65,11 @@ name = "find_index"
 category = "array"
 description = "Find index of value in array"
 signature = "array, any -> number | null"
-example = "find_index([1, 2, 3], `2`) -> 1"
+examples = [
+    { code = "find_index([1, 2, 3], `2`) -> 1", description = "Find existing value" },
+    { code = "find_index(['a', 'b', 'c'], 'b') -> 1", description = "Find string" },
+    { code = "find_index([1, 2, 3], `99`) -> null", description = "Value not found" },
+]
 features = ["core"]
 
 [[functions]]
@@ -61,7 +77,11 @@ name = "first"
 category = "array"
 description = "Get first element of array"
 signature = "array -> any"
-example = "first([1, 2, 3]) -> 1"
+examples = [
+    { code = "first([1, 2, 3]) -> 1", description = "Get first number" },
+    { code = "first(['a', 'b']) -> 'a'", description = "Get first string" },
+    { code = "first([]) -> null", description = "Empty array returns null" },
+]
 features = ["core"]
 
 [[functions]]
@@ -69,7 +89,11 @@ name = "flatten"
 category = "array"
 description = "Flatten array one level deep"
 signature = "array -> array"
-example = "flatten([[1, 2], [3]]) -> [1, 2, 3]"
+examples = [
+    { code = "flatten([[1, 2], [3]]) -> [1, 2, 3]", description = "Flatten nested arrays" },
+    { code = "flatten([[1, [2]], [3]]) -> [1, [2], 3]", description = "Only one level deep" },
+    { code = "flatten([1, 2, 3]) -> [1, 2, 3]", description = "Already flat" },
+]
 features = ["core"]
 
 [[functions]]
@@ -77,7 +101,11 @@ name = "flatten_deep"
 category = "array"
 description = "Recursively flatten nested arrays"
 signature = "array -> array"
-example = "flatten_deep([[1, [2]], [3]]) -> [1, 2, 3]"
+examples = [
+    { code = "flatten_deep([[1, [2]], [3]]) -> [1, 2, 3]", description = "Deeply nested" },
+    { code = "flatten_deep([[[1]], [[2]], [[3]]]) -> [1, 2, 3]", description = "Multiple levels" },
+    { code = "flatten_deep([1, 2, 3]) -> [1, 2, 3]", description = "Already flat" },
+]
 features = ["core"]
 
 [[functions]]
@@ -85,7 +113,11 @@ name = "frequencies"
 category = "array"
 description = "Count occurrences of each value"
 signature = "array -> object"
-example = "frequencies(['a', 'b', 'a']) -> {a: 2, b: 1}"
+examples = [
+    { code = "frequencies(['a', 'b', 'a']) -> {a: 2, b: 1}", description = "Count strings" },
+    { code = "frequencies([1, 2, 1, 1]) -> {1: 3, 2: 1}", description = "Count numbers" },
+    { code = "frequencies([]) -> {}", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -105,7 +137,11 @@ name = "includes"
 category = "array"
 description = "Check if array contains value"
 signature = "array, any -> boolean"
-example = "includes([1, 2, 3], `2`) -> true"
+examples = [
+    { code = "includes([1, 2, 3], `2`) -> true", description = "Value found" },
+    { code = "includes([1, 2, 3], `99`) -> false", description = "Value not found" },
+    { code = "includes(['a', 'b'], 'a') -> true", description = "String value" },
+]
 features = ["core"]
 
 [[functions]]
@@ -113,7 +149,11 @@ name = "index_at"
 category = "array"
 description = "Get element at index (supports negative)"
 signature = "array, number -> any"
-example = "index_at([1, 2, 3], `-1`) -> 3"
+examples = [
+    { code = "index_at([1, 2, 3], `0`) -> 1", description = "First element" },
+    { code = "index_at([1, 2, 3], `-1`) -> 3", description = "Last element (negative index)" },
+    { code = "index_at([1, 2, 3], `99`) -> null", description = "Out of bounds" },
+]
 features = ["core"]
 
 [[functions]]
@@ -121,7 +161,11 @@ name = "intersection"
 category = "array"
 description = "Elements common to both arrays"
 signature = "array, array -> array"
-example = "intersection([1, 2], [2, 3]) -> [2]"
+examples = [
+    { code = "intersection([1, 2], [2, 3]) -> [2]", description = "Common elements" },
+    { code = "intersection([1, 2], [3, 4]) -> []", description = "No overlap" },
+    { code = "intersection([1, 2, 3], [1, 2, 3]) -> [1, 2, 3]", description = "Identical arrays" },
+]
 features = ["core"]
 
 [[functions]]
@@ -129,7 +173,11 @@ name = "last"
 category = "array"
 description = "Get last element of array"
 signature = "array -> any"
-example = "last([1, 2, 3]) -> 3"
+examples = [
+    { code = "last([1, 2, 3]) -> 3", description = "Get last number" },
+    { code = "last(['a', 'b']) -> 'b'", description = "Get last string" },
+    { code = "last([]) -> null", description = "Empty array returns null" },
+]
 features = ["core"]
 
 [[functions]]
@@ -137,7 +185,11 @@ name = "pairwise"
 category = "array"
 description = "Return adjacent pairs from array"
 signature = "array -> array"
-example = "pairwise([1, 2, 3]) -> [[1, 2], [2, 3]]"
+examples = [
+    { code = "pairwise([1, 2, 3]) -> [[1, 2], [2, 3]]", description = "Adjacent pairs" },
+    { code = "pairwise([1, 2]) -> [[1, 2]]", description = "Single pair" },
+    { code = "pairwise([1]) -> []", description = "Too few elements" },
+]
 features = ["core"]
 
 [[functions]]
@@ -145,7 +197,11 @@ name = "range"
 category = "array"
 description = "Generate array of numbers"
 signature = "number, number -> array"
-example = "range(`1`, `5`) -> [1, 2, 3, 4]"
+examples = [
+    { code = "range(`1`, `5`) -> [1, 2, 3, 4]", description = "Range 1 to 4" },
+    { code = "range(`0`, `3`) -> [0, 1, 2]", description = "Range from zero" },
+    { code = "range(`5`, `5`) -> []", description = "Empty range" },
+]
 features = ["core"]
 
 [[functions]]
@@ -153,7 +209,11 @@ name = "sliding_window"
 category = "array"
 description = "Create overlapping windows of size n (alias for window)"
 signature = "array, number -> array"
-example = "sliding_window([1, 2, 3, 4], `2`) -> [[1, 2], [2, 3], [3, 4]]"
+examples = [
+    { code = "sliding_window([1, 2, 3, 4], `2`) -> [[1, 2], [2, 3], [3, 4]]", description = "Size 2 windows" },
+    { code = "sliding_window([1, 2, 3, 4], `3`) -> [[1, 2, 3], [2, 3, 4]]", description = "Size 3 windows" },
+    { code = "sliding_window([1, 2], `3`) -> []", description = "Window larger than array" },
+]
 aliases = ["window"]
 features = ["core"]
 
@@ -162,7 +222,11 @@ name = "take"
 category = "array"
 description = "Take first n elements"
 signature = "array, number -> array"
-example = "take([1, 2, 3, 4], `2`) -> [1, 2]"
+examples = [
+    { code = "take([1, 2, 3, 4], `2`) -> [1, 2]", description = "Take first 2" },
+    { code = "take([1, 2, 3], `0`) -> []", description = "Take none" },
+    { code = "take([1, 2], `5`) -> [1, 2]", description = "Take more than length" },
+]
 features = ["core"]
 
 [[functions]]
@@ -170,7 +234,11 @@ name = "transpose"
 category = "array"
 description = "Transpose a 2D array (swap rows and columns)"
 signature = "array -> array"
-example = "transpose([[1, 2], [3, 4]]) -> [[1, 3], [2, 4]]"
+examples = [
+    { code = "transpose([[1, 2], [3, 4]]) -> [[1, 3], [2, 4]]", description = "Swap rows/columns" },
+    { code = "transpose([[1, 2, 3], [4, 5, 6]]) -> [[1, 4], [2, 5], [3, 6]]", description = "2x3 to 3x2" },
+    { code = "transpose([]) -> []", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -178,7 +246,11 @@ name = "union"
 category = "array"
 description = "Unique elements from both arrays"
 signature = "array, array -> array"
-example = "union([1, 2], [2, 3]) -> [1, 2, 3]"
+examples = [
+    { code = "union([1, 2], [2, 3]) -> [1, 2, 3]", description = "Combine with dedup" },
+    { code = "union([1, 2], [3, 4]) -> [1, 2, 3, 4]", description = "No overlap" },
+    { code = "union([], [1, 2]) -> [1, 2]", description = "Empty first array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -359,7 +431,12 @@ name = "business_days_between"
 category = "datetime"
 description = "Count business days (weekdays) between two timestamps"
 signature = "number, number -> number"
-example = "business_days_between(`1704067200`, `1705276800`) -> 10"
+examples = [
+    { code = "business_days_between(`1704067200`, `1705276800`) -> 10", description = "Count weekdays" },
+    { code = "business_days_between(start_ts, end_ts) -> count", description = "Between two timestamps" },
+    { code = "business_days_between(`0`, `604800`) -> 5", description = "One week = 5 days" },
+    { code = "business_days_between(`0`, `0`) -> 0", description = "Same day" },
+]
 features = ["core"]
 
 [[functions]]
@@ -367,7 +444,12 @@ name = "date_add"
 category = "datetime"
 description = "Add time to timestamp"
 signature = "number, number, string -> number"
-example = "date_add(`0`, `1`, 'days') -> 86400"
+examples = [
+    { code = "date_add(`0`, `1`, 'days') -> 86400", description = "Add 1 day" },
+    { code = "date_add(`0`, `2`, 'hours') -> 7200", description = "Add 2 hours" },
+    { code = "date_add(timestamp, `7`, 'days') -> next week", description = "Add 1 week" },
+    { code = "date_add(`0`, `30`, 'minutes') -> 1800", description = "Add 30 minutes" },
+]
 features = ["core"]
 
 [[functions]]
@@ -375,7 +457,12 @@ name = "date_diff"
 category = "datetime"
 description = "Difference between timestamps"
 signature = "number, number, string -> number"
-example = "date_diff(`86400`, `0`, 'days') -> 1"
+examples = [
+    { code = "date_diff(`86400`, `0`, 'days') -> 1", description = "Diff in days" },
+    { code = "date_diff(`7200`, `0`, 'hours') -> 2", description = "Diff in hours" },
+    { code = "date_diff(end_ts, start_ts, 'minutes') -> minutes", description = "Diff in minutes" },
+    { code = "date_diff(`604800`, `0`, 'weeks') -> 1", description = "Diff in weeks" },
+]
 features = ["core"]
 
 [[functions]]
@@ -383,7 +470,12 @@ name = "duration_since"
 category = "datetime"
 description = "Get detailed duration object from timestamp to now"
 signature = "number|string -> object"
-example = "duration_since(`1702396800`) -> {days: 1, hours: 0, ...}"
+examples = [
+    { code = "duration_since(`1702396800`) -> {days: 1, hours: 0, ...}", description = "From timestamp" },
+    { code = "duration_since('2023-01-01') -> {days: N, ...}", description = "From date string" },
+    { code = "duration_since(created_at) -> elapsed time", description = "Time since creation" },
+    { code = "duration_since(now() - 3600) -> {hours: 1, ...}", description = "One hour ago" },
+]
 features = ["core"]
 
 [[functions]]
@@ -391,7 +483,12 @@ name = "end_of_day"
 category = "datetime"
 description = "Get ISO 8601 string for end of day (23:59:59)"
 signature = "number|string -> string"
-example = '''end_of_day('2023-12-13T15:30:00Z') -> \"2023-12-13T23:59:59Z\"'''
+examples = [
+    { code = '''end_of_day('2023-12-13T15:30:00Z') -> \"2023-12-13T23:59:59Z\"''', description = "From ISO string" },
+    { code = "end_of_day(`1702483200`) -> end of that day", description = "From timestamp" },
+    { code = "end_of_day('2024-01-01') -> last second of day", description = "From date only" },
+    { code = "end_of_day(now()) -> today end", description = "End of today" },
+]
 features = ["core"]
 
 [[functions]]
@@ -399,7 +496,11 @@ name = "epoch_ms"
 category = "datetime"
 description = "Current Unix timestamp in milliseconds (alias for now_ms)"
 signature = "-> number"
-example = "epoch_ms() -> 1702483200000"
+examples = [
+    { code = "epoch_ms() -> 1702483200000", description = "Current time in ms" },
+    { code = "epoch_ms() / `1000` -> seconds", description = "Convert to seconds" },
+    { code = "epoch_ms() - start_ms -> elapsed", description = "Calculate duration" },
+]
 features = ["core"]
 
 [[functions]]
@@ -407,7 +508,12 @@ name = "format_date"
 category = "datetime"
 description = "Format timestamp to string"
 signature = "number, string -> string"
-example = '''format_date(`1705276800`, '%Y-%m-%d') -> \"2024-01-15\"'''
+examples = [
+    { code = '''format_date(`1705276800`, '%Y-%m-%d') -> \"2024-01-15\"''', description = "ISO date format" },
+    { code = '''format_date(ts, '%B %d, %Y') -> \"January 15, 2024\"''', description = "Long date format" },
+    { code = '''format_date(ts, '%H:%M:%S') -> \"10:30:00\"''', description = "Time only" },
+    { code = '''format_date(ts, '%Y-%m-%dT%H:%M:%SZ') -> ISO string''', description = "Full ISO 8601" },
+]
 features = ["core"]
 
 [[functions]]
@@ -415,7 +521,12 @@ name = "from_epoch"
 category = "datetime"
 description = "Convert Unix timestamp (seconds) to ISO 8601 string"
 signature = "number -> string"
-example = '''from_epoch(`1702483200`) -> \"2023-12-13T16:00:00Z\"'''
+examples = [
+    { code = '''from_epoch(`1702483200`) -> \"2023-12-13T16:00:00Z\"''', description = "Convert seconds" },
+    { code = '''from_epoch(`0`) -> \"1970-01-01T00:00:00Z\"''', description = "Unix epoch" },
+    { code = "from_epoch(created_at) -> ISO string", description = "Convert field" },
+    { code = "from_epoch(now()) -> current ISO", description = "Current time" },
+]
 features = ["core"]
 
 [[functions]]
@@ -423,7 +534,12 @@ name = "from_epoch_ms"
 category = "datetime"
 description = "Convert Unix timestamp (milliseconds) to ISO 8601 string"
 signature = "number -> string"
-example = '''from_epoch_ms(`1702483200000`) -> \"2023-12-13T16:00:00Z\"'''
+examples = [
+    { code = '''from_epoch_ms(`1702483200000`) -> \"2023-12-13T16:00:00Z\"''', description = "From milliseconds" },
+    { code = '''from_epoch_ms(`0`) -> \"1970-01-01T00:00:00Z\"''', description = "Unix epoch" },
+    { code = "from_epoch_ms(js_timestamp) -> ISO", description = "JS timestamp" },
+    { code = "from_epoch_ms(epoch_ms()) -> current", description = "Current time" },
+]
 features = ["core"]
 
 [[functions]]
@@ -431,7 +547,12 @@ name = "is_after"
 category = "datetime"
 description = "Check if first date is after second date (accepts timestamps or date strings)"
 signature = "number|string, number|string -> boolean"
-example = "is_after('2024-07-15', '2024-01-01') -> true"
+examples = [
+    { code = "is_after('2024-07-15', '2024-01-01') -> true", description = "String comparison" },
+    { code = "is_after(`1705276800`, `1704067200`) -> true", description = "Timestamp comparison" },
+    { code = "is_after(end_date, start_date) -> true/false", description = "Field comparison" },
+    { code = "is_after('2024-01-01', '2024-01-01') -> false", description = "Same date" },
+]
 features = ["core"]
 
 [[functions]]
@@ -439,7 +560,12 @@ name = "is_before"
 category = "datetime"
 description = "Check if first date is before second date (accepts timestamps or date strings)"
 signature = "number|string, number|string -> boolean"
-example = "is_before('2024-01-01', '2024-07-15') -> true"
+examples = [
+    { code = "is_before('2024-01-01', '2024-07-15') -> true", description = "String comparison" },
+    { code = "is_before(`1704067200`, `1705276800`) -> true", description = "Timestamp comparison" },
+    { code = "is_before(start_date, end_date) -> true/false", description = "Field comparison" },
+    { code = "is_before('2024-01-01', '2024-01-01') -> false", description = "Same date" },
+]
 features = ["core"]
 
 [[functions]]
@@ -447,7 +573,12 @@ name = "is_between"
 category = "datetime"
 description = "Check if date is between start and end (inclusive, accepts timestamps or date strings)"
 signature = "number|string, number|string, number|string -> boolean"
-example = "is_between('2024-06-15', '2024-01-01', '2024-12-31') -> true"
+examples = [
+    { code = "is_between('2024-06-15', '2024-01-01', '2024-12-31') -> true", description = "Within range" },
+    { code = "is_between('2023-06-15', '2024-01-01', '2024-12-31') -> false", description = "Before range" },
+    { code = "is_between(event_date, start, end) -> true/false", description = "Check event date" },
+    { code = "is_between('2024-01-01', '2024-01-01', '2024-12-31') -> true", description = "Inclusive start" },
+]
 features = ["core"]
 
 [[functions]]
@@ -455,7 +586,12 @@ name = "is_same_day"
 category = "datetime"
 description = "Check if two timestamps/dates are on the same day"
 signature = "number|string, number|string -> boolean"
-example = "is_same_day('2023-12-13T10:00:00Z', '2023-12-13T23:00:00Z') -> true"
+examples = [
+    { code = "is_same_day('2023-12-13T10:00:00Z', '2023-12-13T23:00:00Z') -> true", description = "Same day, different time" },
+    { code = "is_same_day('2023-12-13', '2023-12-14') -> false", description = "Different days" },
+    { code = "is_same_day(created_at, updated_at) -> true/false", description = "Compare fields" },
+    { code = "is_same_day(now(), event_time) -> true/false", description = "Today check" },
+]
 features = ["core"]
 
 [[functions]]
@@ -463,7 +599,12 @@ name = "is_weekday"
 category = "datetime"
 description = "Check if timestamp falls on weekday (Monday-Friday)"
 signature = "number -> boolean"
-example = "is_weekday(`1705276800`) -> true"
+examples = [
+    { code = "is_weekday(`1705276800`) -> true", description = "Monday is weekday" },
+    { code = "is_weekday(now()) -> true/false", description = "Check current day" },
+    { code = "is_weekday(event_timestamp) -> true/false", description = "Check event day" },
+    { code = "is_weekday(`1705104000`) -> false", description = "Saturday is not weekday" },
+]
 features = ["core"]
 
 [[functions]]
@@ -471,7 +612,12 @@ name = "is_weekend"
 category = "datetime"
 description = "Check if timestamp falls on weekend (Saturday or Sunday)"
 signature = "number -> boolean"
-example = "is_weekend(`1705104000`) -> true"
+examples = [
+    { code = "is_weekend(`1705104000`) -> true", description = "Saturday is weekend" },
+    { code = "is_weekend(now()) -> true/false", description = "Check current day" },
+    { code = "is_weekend(`1705276800`) -> false", description = "Monday is not weekend" },
+    { code = "is_weekend(event_timestamp) -> true/false", description = "Check event day" },
+]
 features = ["core"]
 
 [[functions]]
@@ -479,7 +625,12 @@ name = "parse_date"
 category = "datetime"
 description = "Parse date string to timestamp"
 signature = "string, string? -> number"
-example = "parse_date('2024-01-15', '%Y-%m-%d') -> 1705276800"
+examples = [
+    { code = "parse_date('2024-01-15', '%Y-%m-%d') -> 1705276800", description = "ISO date format" },
+    { code = "parse_date('01/15/2024', '%m/%d/%Y') -> timestamp", description = "US date format" },
+    { code = "parse_date('15-Jan-2024', '%d-%b-%Y') -> timestamp", description = "Named month" },
+    { code = "parse_date('2024-01-15T10:30:00', '%Y-%m-%dT%H:%M:%S') -> timestamp", description = "With time" },
+]
 features = ["core"]
 
 [[functions]]
@@ -487,7 +638,12 @@ name = "quarter"
 category = "datetime"
 description = "Get quarter of year (1-4) from timestamp"
 signature = "number -> number"
-example = "quarter(`1713139200`) -> 2"
+examples = [
+    { code = "quarter(`1713139200`) -> 2", description = "April is Q2" },
+    { code = "quarter(`1704067200`) -> 1", description = "January is Q1" },
+    { code = "quarter(`1719792000`) -> 3", description = "July is Q3" },
+    { code = "quarter(`1730419200`) -> 4", description = "November is Q4" },
+]
 features = ["core"]
 
 [[functions]]
@@ -495,7 +651,12 @@ name = "relative_time"
 category = "datetime"
 description = "Human-readable relative time from timestamp"
 signature = "number -> string"
-example = '''relative_time(now() - 3600) -> \"1 hour ago\"'''
+examples = [
+    { code = '''relative_time(now() - 3600) -> \"1 hour ago\"''', description = "One hour ago" },
+    { code = '''relative_time(now() - 60) -> \"1 minute ago\"''', description = "One minute ago" },
+    { code = '''relative_time(now() - 86400) -> \"1 day ago\"''', description = "One day ago" },
+    { code = "relative_time(created_at) -> human readable", description = "From field" },
+]
 features = ["core"]
 
 [[functions]]
@@ -503,7 +664,12 @@ name = "start_of_day"
 category = "datetime"
 description = "Get ISO 8601 string for start of day (00:00:00)"
 signature = "number|string -> string"
-example = '''start_of_day('2023-12-13T15:30:00Z') -> \"2023-12-13T00:00:00Z\"'''
+examples = [
+    { code = '''start_of_day('2023-12-13T15:30:00Z') -> \"2023-12-13T00:00:00Z\"''', description = "From ISO string" },
+    { code = "start_of_day(`1702483200`) -> start of that day", description = "From timestamp" },
+    { code = "start_of_day(now()) -> today midnight", description = "Today start" },
+    { code = "start_of_day('2024-01-15') -> midnight", description = "From date only" },
+]
 features = ["core"]
 
 [[functions]]
@@ -511,7 +677,12 @@ name = "start_of_month"
 category = "datetime"
 description = "Get ISO 8601 string for start of month"
 signature = "number|string -> string"
-example = '''start_of_month('2023-12-13T15:30:00Z') -> \"2023-12-01T00:00:00Z\"'''
+examples = [
+    { code = '''start_of_month('2023-12-13T15:30:00Z') -> \"2023-12-01T00:00:00Z\"''', description = "From ISO string" },
+    { code = "start_of_month(now()) -> first of month", description = "Current month start" },
+    { code = "start_of_month(`1702483200`) -> month start", description = "From timestamp" },
+    { code = '''start_of_month('2024-03-15') -> \"2024-03-01T00:00:00Z\"''', description = "March start" },
+]
 features = ["core"]
 
 [[functions]]
@@ -519,7 +690,12 @@ name = "start_of_week"
 category = "datetime"
 description = "Get ISO 8601 string for start of week (Monday 00:00:00)"
 signature = "number|string -> string"
-example = '''start_of_week('2023-12-13T15:30:00Z') -> \"2023-12-11T00:00:00Z\"'''
+examples = [
+    { code = '''start_of_week('2023-12-13T15:30:00Z') -> \"2023-12-11T00:00:00Z\"''', description = "Wednesday to Monday" },
+    { code = "start_of_week(now()) -> this Monday", description = "Current week start" },
+    { code = "start_of_week(`1702483200`) -> week start", description = "From timestamp" },
+    { code = '''start_of_week('2024-01-15') -> \"2024-01-15T00:00:00Z\"''', description = "Monday stays Monday" },
+]
 features = ["core"]
 
 [[functions]]
@@ -527,7 +703,12 @@ name = "start_of_year"
 category = "datetime"
 description = "Get ISO 8601 string for start of year"
 signature = "number|string -> string"
-example = '''start_of_year('2023-12-13T15:30:00Z') -> \"2023-01-01T00:00:00Z\"'''
+examples = [
+    { code = '''start_of_year('2023-12-13T15:30:00Z') -> \"2023-01-01T00:00:00Z\"''', description = "From ISO string" },
+    { code = "start_of_year(now()) -> Jan 1st", description = "Current year start" },
+    { code = "start_of_year(`1702483200`) -> year start", description = "From timestamp" },
+    { code = '''start_of_year('2024-06-15') -> \"2024-01-01T00:00:00Z\"''', description = "Mid-year to Jan 1" },
+]
 features = ["core"]
 
 [[functions]]
@@ -535,7 +716,12 @@ name = "time_ago"
 category = "datetime"
 description = "Human-readable time since date (accepts timestamps or date strings)"
 signature = "number|string -> string"
-example = '''time_ago('2020-01-01') -> \"4 years ago\"'''
+examples = [
+    { code = '''time_ago('2020-01-01') -> \"4 years ago\"''', description = "From date string" },
+    { code = '''time_ago(now() - 3600) -> \"1 hour ago\"''', description = "One hour ago" },
+    { code = "time_ago(created_at) -> human readable", description = "From field" },
+    { code = '''time_ago('2023-12-01') -> \"X months ago\"''', description = "Months ago" },
+]
 features = ["core"]
 
 [[functions]]
@@ -543,7 +729,12 @@ name = "timezone_convert"
 category = "datetime"
 description = "Convert timestamp between timezones (IANA timezone names)"
 signature = "string, string, string -> string"
-example = '''timezone_convert('2024-01-15T10:00:00', 'America/New_York', 'Europe/London') -> \"2024-01-15T15:00:00\"'''
+examples = [
+    { code = '''timezone_convert('2024-01-15T10:00:00', 'America/New_York', 'Europe/London') -> \"2024-01-15T15:00:00\"''', description = "NY to London" },
+    { code = "timezone_convert(time, 'UTC', 'America/Los_Angeles') -> PST time", description = "UTC to Pacific" },
+    { code = "timezone_convert(time, 'Asia/Tokyo', 'UTC') -> UTC time", description = "Tokyo to UTC" },
+    { code = "timezone_convert(time, 'Europe/Paris', 'America/Chicago') -> CST time", description = "Paris to Chicago" },
+]
 features = ["core"]
 
 [[functions]]
@@ -551,7 +742,12 @@ name = "to_epoch"
 category = "datetime"
 description = "Convert date string or timestamp to Unix timestamp (seconds)"
 signature = "number|string -> number"
-example = "to_epoch('2023-12-13T16:00:00Z') -> 1702483200"
+examples = [
+    { code = "to_epoch('2023-12-13T16:00:00Z') -> 1702483200", description = "From ISO string" },
+    { code = "to_epoch('2024-01-01') -> timestamp", description = "From date only" },
+    { code = "to_epoch(date_field) -> seconds", description = "Convert field" },
+    { code = "to_epoch('1970-01-01T00:00:00Z') -> 0", description = "Unix epoch" },
+]
 features = ["core"]
 
 [[functions]]
@@ -559,7 +755,12 @@ name = "to_epoch_ms"
 category = "datetime"
 description = "Convert date string or timestamp to Unix timestamp (milliseconds)"
 signature = "number|string -> number"
-example = "to_epoch_ms('2023-12-13T16:00:00Z') -> 1702483200000"
+examples = [
+    { code = "to_epoch_ms('2023-12-13T16:00:00Z') -> 1702483200000", description = "From ISO string" },
+    { code = "to_epoch_ms('2024-01-01') -> timestamp_ms", description = "From date only" },
+    { code = "to_epoch_ms(date_field) -> milliseconds", description = "Convert field" },
+    { code = "to_epoch_ms('1970-01-01T00:00:00Z') -> 0", description = "Unix epoch" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -667,7 +868,12 @@ name = "all_expr"
 category = "expression"
 description = "Return true if every element satisfies the expression (short-circuits on false)"
 signature = "array, expression -> boolean"
-example = "all_expr([1, 2, 3], &@ > `0`) -> true"
+examples = [
+    { code = "all_expr([1, 2, 3], &@ > `0`) -> true", description = "All positive" },
+    { code = "all_expr([1, 2, 3], &@ > `2`) -> false", description = "Not all > 2" },
+    { code = "all_expr([], &@ > `0`) -> true", description = "Empty array is true" },
+    { code = "all_expr(users, &age >= `18`) -> true/false", description = "Check all adults" },
+]
 aliases = ["every"]
 features = ["core", "fp"]
 
@@ -676,7 +882,12 @@ name = "any_expr"
 category = "expression"
 description = "Return true if any element satisfies the expression (short-circuits)"
 signature = "array, expression -> boolean"
-example = "any_expr([1, 2, 3], &@ > `2`) -> true"
+examples = [
+    { code = "any_expr([1, 2, 3], &@ > `2`) -> true", description = "At least one > 2" },
+    { code = "any_expr([1, 2, 3], &@ > `5`) -> false", description = "None > 5" },
+    { code = "any_expr([], &@ > `0`) -> false", description = "Empty array is false" },
+    { code = "any_expr(users, &status == 'active') -> true/false", description = "Any active user" },
+]
 aliases = ["some"]
 features = ["core", "fp"]
 
@@ -685,7 +896,12 @@ name = "apply"
 category = "expression"
 description = "Apply a partial function or invoke a function by name with arguments"
 signature = "object|string, ...any -> any"
-example = '''apply(partial('join', `\"-\"`), `[\"a\", \"b\"]`) -> 'a-b''''
+examples = [
+    { code = '''apply(partial('join', `\"-\"`), `[\"a\", \"b\"]`) -> 'a-b' ''', description = "Apply partial function" },
+    { code = "apply('length', 'hello') -> 5", description = "Call function by name" },
+    { code = "apply('add', `1`, `2`) -> 3", description = "Call with multiple args" },
+    { code = "apply(partial('contains', 'hello'), 'ell') -> true", description = "Partial with contains" },
+]
 features = ["core"]
 
 [[functions]]
@@ -693,7 +909,12 @@ name = "count_by"
 category = "expression"
 description = "Count occurrences grouped by expression result"
 signature = "string, array -> object"
-example = "count_by('type', [{type: 'a'}, {type: 'b'}, {type: 'a'}]) -> {a: 2, b: 1}"
+examples = [
+    { code = "count_by('type', [{type: 'a'}, {type: 'b'}, {type: 'a'}]) -> {a: 2, b: 1}", description = "Count by field" },
+    { code = "count_by('status', orders) -> {pending: 5, shipped: 3}", description = "Count orders by status" },
+    { code = "count_by('@ > `50`', [30, 60, 70, 40]) -> {true: 2, false: 2}", description = "Count by condition" },
+    { code = "count_by('category', []) -> {}", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -701,7 +922,12 @@ name = "count_expr"
 category = "expression"
 description = "Count how many elements satisfy the expression"
 signature = "array, expression -> number"
-example = "count_expr([1, 2, 3], &@ > `1`) -> 2"
+examples = [
+    { code = "count_expr([1, 2, 3], &@ > `1`) -> 2", description = "Count > 1" },
+    { code = "count_expr([1, 2, 3], &@ > `5`) -> 0", description = "None match" },
+    { code = "count_expr(users, &active == `true`) -> 5", description = "Count active users" },
+    { code = "count_expr([], &@ > `0`) -> 0", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -709,7 +935,12 @@ name = "drop_while"
 category = "expression"
 description = "Drop elements from array while expression is truthy"
 signature = "string, array -> array"
-example = "drop_while('@ < `4`', [1, 2, 3, 5, 1]) -> [5, 1]"
+examples = [
+    { code = "drop_while('@ < `4`', [1, 2, 3, 5, 1]) -> [5, 1]", description = "Drop while < 4" },
+    { code = "drop_while('@ < `0`', [1, 2, 3]) -> [1, 2, 3]", description = "None dropped" },
+    { code = "drop_while('@ < `10`', [1, 2, 3]) -> []", description = "All dropped" },
+    { code = "drop_while('length(@) < `3`', ['a', 'ab', 'abc', 'x']) -> ['abc', 'x']", description = "Drop short strings" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -717,7 +948,12 @@ name = "every"
 category = "expression"
 description = "Check if all elements match (alias for all_expr)"
 signature = "string, array -> boolean"
-example = "every('@ > `0`', [1, 2, 3]) -> true"
+examples = [
+    { code = "every('@ > `0`', [1, 2, 3]) -> true", description = "All positive" },
+    { code = "every('@ > `2`', [1, 2, 3]) -> false", description = "Not all > 2" },
+    { code = "every('length(@) > `0`', ['a', 'b']) -> true", description = "All non-empty" },
+    { code = "every('@ > `0`', []) -> true", description = "Empty is vacuously true" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -739,7 +975,12 @@ name = "find_expr"
 category = "expression"
 description = "Return first element where expression is truthy, or null if none match"
 signature = "array, expression -> any"
-example = "find_expr([1, 2, 3], &@ > `1`) -> 2"
+examples = [
+    { code = "find_expr([1, 2, 3], &@ > `1`) -> 2", description = "First > 1" },
+    { code = "find_expr([1, 2, 3], &@ > `5`) -> null", description = "None found" },
+    { code = "find_expr(users, &name == 'alice') -> {name: 'alice', ...}", description = "Find user" },
+    { code = "find_expr([], &@ > `0`) -> null", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -747,7 +988,12 @@ name = "find_index_expr"
 category = "expression"
 description = "Return zero-based index of first matching element, or -1 if none match"
 signature = "array, expression -> number | null"
-example = "find_index_expr([1, 2, 3], &@ > `1`) -> 1"
+examples = [
+    { code = "find_index_expr([1, 2, 3], &@ > `1`) -> 1", description = "Index of first > 1" },
+    { code = "find_index_expr([1, 2, 3], &@ > `5`) -> -1", description = "Not found" },
+    { code = "find_index_expr([5, 10, 15], &@ == `10`) -> 1", description = "Exact match" },
+    { code = "find_index_expr([], &@ > `0`) -> -1", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -755,7 +1001,12 @@ name = "flat_map_expr"
 category = "expression"
 description = "Apply expression to each element and flatten all results into one array"
 signature = "array, expression -> array"
-example = "flat_map_expr([[1], [2]], &@) -> [1, 2]"
+examples = [
+    { code = "flat_map_expr([[1], [2]], &@) -> [1, 2]", description = "Flatten nested arrays" },
+    { code = "flat_map_expr([1, 2], &[@, @ * `2`]) -> [1, 2, 2, 4]", description = "Duplicate and transform" },
+    { code = "flat_map_expr(users, &tags) -> all tags flattened", description = "Flatten object arrays" },
+    { code = "flat_map_expr([], &@) -> []", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -763,7 +1014,12 @@ name = "group_by_expr"
 category = "expression"
 description = "Group elements into object keyed by expression result"
 signature = "array, expression -> object"
-example = "group_by_expr([{t: 'a'}, {t: 'b'}], &t) -> {a: [...], b: [...]}"
+examples = [
+    { code = "group_by_expr([{t: 'a'}, {t: 'b'}], &t) -> {a: [...], b: [...]}", description = "Group by field" },
+    { code = "group_by_expr([1, 2, 3, 4], &@ > `2`) -> {true: [3, 4], false: [1, 2]}", description = "Group by condition" },
+    { code = "group_by_expr(users, &department) -> {eng: [...], sales: [...]}", description = "Group users" },
+    { code = "group_by_expr([], &@) -> {}", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -784,7 +1040,12 @@ name = "map_keys"
 category = "expression"
 description = "Transform object keys using expression"
 signature = "string, object -> object"
-example = "map_keys('upper(@)', {a: 1}) -> {A: 1}"
+examples = [
+    { code = "map_keys('upper(@)', {a: 1}) -> {A: 1}", description = "Uppercase keys" },
+    { code = "map_keys('lower(@)', {A: 1, B: 2}) -> {a: 1, b: 2}", description = "Lowercase keys" },
+    { code = "map_keys('concat(@, `\"_suffix\"`)', {x: 1}) -> {x_suffix: 1}", description = "Add suffix" },
+    { code = "map_keys('upper(@)', {}) -> {}", description = "Empty object" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -792,7 +1053,12 @@ name = "map_values"
 category = "expression"
 description = "Transform object values using expression"
 signature = "string, object -> object"
-example = "map_values('@ * `2`', {a: 1, b: 2}) -> {a: 2, b: 4}"
+examples = [
+    { code = "map_values('@ * `2`', {a: 1, b: 2}) -> {a: 2, b: 4}", description = "Double values" },
+    { code = "map_values('upper(@)', {a: 'x', b: 'y'}) -> {a: 'X', b: 'Y'}", description = "Uppercase strings" },
+    { code = "map_values('@ + `10`', {x: 5}) -> {x: 15}", description = "Add to values" },
+    { code = "map_values('@ * `2`', {}) -> {}", description = "Empty object" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -800,7 +1066,12 @@ name = "max_by_expr"
 category = "expression"
 description = "Return element with largest expression result, or null for empty array"
 signature = "array, expression -> any"
-example = "max_by_expr([{a: 2}, {a: 1}], &a) -> {a: 2}"
+examples = [
+    { code = "max_by_expr([{a: 2}, {a: 1}], &a) -> {a: 2}", description = "Max by field" },
+    { code = "max_by_expr(['a', 'abc', 'ab'], &length(@)) -> 'abc'", description = "Longest string" },
+    { code = "max_by_expr(products, &price) -> most expensive", description = "Max price product" },
+    { code = "max_by_expr([], &a) -> null", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -808,7 +1079,12 @@ name = "min_by_expr"
 category = "expression"
 description = "Return element with smallest expression result, or null for empty array"
 signature = "array, expression -> any"
-example = "min_by_expr([{a: 2}, {a: 1}], &a) -> {a: 1}"
+examples = [
+    { code = "min_by_expr([{a: 2}, {a: 1}], &a) -> {a: 1}", description = "Min by field" },
+    { code = "min_by_expr(['a', 'abc', 'ab'], &length(@)) -> 'a'", description = "Shortest string" },
+    { code = "min_by_expr(products, &price) -> cheapest", description = "Min price product" },
+    { code = "min_by_expr([], &a) -> null", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -816,7 +1092,12 @@ name = "order_by"
 category = "expression"
 description = "Sort array by multiple fields with ascending/descending control"
 signature = "array, array[[string, string]] -> array"
-example = "order_by(items, [['name', 'asc'], ['price', 'desc']]) -> sorted array"
+examples = [
+    { code = "order_by(items, [['name', 'asc'], ['price', 'desc']]) -> sorted", description = "Multi-field sort" },
+    { code = "order_by(users, [['age', 'asc']]) -> youngest first", description = "Single field ascending" },
+    { code = "order_by(products, [['price', 'desc']]) -> most expensive first", description = "Descending sort" },
+    { code = "order_by([], [['a', 'asc']]) -> []", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -824,7 +1105,12 @@ name = "partial"
 category = "expression"
 description = "Create a partial function with some arguments pre-filled"
 signature = "string, ...any -> object"
-example = '''partial('contains', `\"hello\"`) -> {__partial__: true, fn: 'contains', args: ['hello']}'''
+examples = [
+    { code = '''partial('contains', `\"hello\"`) -> {__partial__: true, ...}''', description = "Partial contains" },
+    { code = "partial('add', `10`) -> partial add 10", description = "Partial addition" },
+    { code = "partial('join', '-') -> partial join with dash", description = "Partial join" },
+    { code = "partial('multiply', `2`) -> partial multiply by 2", description = "Partial multiply" },
+]
 features = ["core"]
 
 [[functions]]
@@ -832,7 +1118,12 @@ name = "partition_expr"
 category = "expression"
 description = "Split array into [matches, non-matches] based on expression"
 signature = "array, expression -> array"
-example = "partition_expr([1, 2, 3], &@ > `1`) -> [[2, 3], [1]]"
+examples = [
+    { code = "partition_expr([1, 2, 3], &@ > `1`) -> [[2, 3], [1]]", description = "Split by condition" },
+    { code = "partition_expr([1, 2, 3, 4], &@ % `2` == `0`) -> [[2, 4], [1, 3]]", description = "Even vs odd" },
+    { code = "partition_expr(users, &active) -> [active, inactive]", description = "Partition users" },
+    { code = "partition_expr([], &@ > `0`) -> [[], []]", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -840,7 +1131,12 @@ name = "reduce_expr"
 category = "expression"
 description = "Reduce array to single value using accumulator expression"
 signature = "string, array, any -> any"
-example = "reduce_expr('add(accumulator, current)', [1, 2, 3], `0`) -> 6"
+examples = [
+    { code = "reduce_expr('add(accumulator, current)', [1, 2, 3], `0`) -> 6", description = "Sum numbers" },
+    { code = "reduce_expr('multiply(accumulator, current)', [2, 3, 4], `1`) -> 24", description = "Product" },
+    { code = "reduce_expr('max(accumulator, current)', [3, 1, 4], `0`) -> 4", description = "Find max" },
+    { code = "reduce_expr('concat(accumulator, current)', ['a', 'b'], '') -> 'ab'", description = "Concat strings" },
+]
 aliases = ["fold"]
 features = ["core", "fp"]
 
@@ -849,7 +1145,12 @@ name = "reject"
 category = "expression"
 description = "Keep elements where expression is falsy (inverse of filter_expr)"
 signature = "string, array -> array"
-example = "reject('@ > `2`', [1, 2, 3, 4]) -> [1, 2]"
+examples = [
+    { code = "reject('@ > `2`', [1, 2, 3, 4]) -> [1, 2]", description = "Reject > 2" },
+    { code = "reject('@ < `0`', [1, -1, 2, -2]) -> [1, 2]", description = "Reject negatives" },
+    { code = "reject('active', users) -> inactive users", description = "Reject active users" },
+    { code = "reject('@ > `0`', []) -> []", description = "Empty array" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -857,7 +1158,12 @@ name = "scan_expr"
 category = "expression"
 description = "Like reduce but returns array of intermediate accumulator values"
 signature = "string, array, any -> array"
-example = "scan_expr('add(accumulator, current)', [1, 2, 3], `0`) -> [1, 3, 6]"
+examples = [
+    { code = "scan_expr('add(accumulator, current)', [1, 2, 3], `0`) -> [1, 3, 6]", description = "Running sum" },
+    { code = "scan_expr('multiply(accumulator, current)', [2, 3, 4], `1`) -> [2, 6, 24]", description = "Running product" },
+    { code = "scan_expr('max(accumulator, current)', [3, 1, 4], `0`) -> [3, 3, 4]", description = "Running max" },
+    { code = "scan_expr('add(accumulator, current)', [], `0`) -> []", description = "Empty array" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -865,7 +1171,12 @@ name = "some"
 category = "expression"
 description = "Check if any element matches (alias for any_expr)"
 signature = "string, array -> boolean"
-example = "some('@ > `2`', [1, 2, 3]) -> true"
+examples = [
+    { code = "some('@ > `2`', [1, 2, 3]) -> true", description = "Some > 2" },
+    { code = "some('@ > `5`', [1, 2, 3]) -> false", description = "None > 5" },
+    { code = "some('active', users) -> true/false", description = "Any active user" },
+    { code = "some('@ > `0`', []) -> false", description = "Empty is false" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -873,7 +1184,12 @@ name = "sort_by_expr"
 category = "expression"
 description = "Sort array by expression result in ascending order"
 signature = "array, expression -> array"
-example = "sort_by_expr([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]"
+examples = [
+    { code = "sort_by_expr([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]", description = "Sort by field" },
+    { code = "sort_by_expr(['bb', 'a', 'ccc'], &length(@)) -> ['a', 'bb', 'ccc']", description = "Sort by length" },
+    { code = "sort_by_expr(users, &name) -> alphabetical", description = "Sort users by name" },
+    { code = "sort_by_expr([], &a) -> []", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -881,7 +1197,12 @@ name = "take_while"
 category = "expression"
 description = "Take elements from array while expression is truthy"
 signature = "string, array -> array"
-example = "take_while('@ < `4`', [1, 2, 3, 5, 1]) -> [1, 2, 3]"
+examples = [
+    { code = "take_while('@ < `4`', [1, 2, 3, 5, 1]) -> [1, 2, 3]", description = "Take while < 4" },
+    { code = "take_while('@ > `0`', [3, 2, 1, 0, 5]) -> [3, 2, 1]", description = "Take while positive" },
+    { code = "take_while('length(@) < `3`', ['a', 'ab', 'abc']) -> ['a', 'ab']", description = "Take short strings" },
+    { code = "take_while('@ < `0`', [1, 2, 3]) -> []", description = "None taken" },
+]
 features = ["core", "fp"]
 
 [[functions]]
@@ -889,7 +1210,12 @@ name = "unique_by_expr"
 category = "expression"
 description = "Remove duplicates by expression result, keeping first occurrence"
 signature = "array, expression -> array"
-example = "unique_by_expr([{a: 1}, {a: 1}], &a) -> [{a: 1}]"
+examples = [
+    { code = "unique_by_expr([{a: 1}, {a: 1}], &a) -> [{a: 1}]", description = "Unique by field" },
+    { code = "unique_by_expr([{id: 1, v: 'a'}, {id: 1, v: 'b'}], &id) -> [{id: 1, v: 'a'}]", description = "First wins" },
+    { code = "unique_by_expr(['aa', 'b', 'cc'], &length(@)) -> ['aa', 'b']", description = "Unique by length" },
+    { code = "unique_by_expr([], &a) -> []", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -897,7 +1223,12 @@ name = "zip_with"
 category = "expression"
 description = "Zip two arrays with a custom combiner expression"
 signature = "string, array, array -> array"
-example = "zip_with('add([0], [1])', [1, 2], [10, 20]) -> [11, 22]"
+examples = [
+    { code = "zip_with('add([0], [1])', [1, 2], [10, 20]) -> [11, 22]", description = "Add pairs" },
+    { code = "zip_with('multiply([0], [1])', [2, 3], [4, 5]) -> [8, 15]", description = "Multiply pairs" },
+    { code = "zip_with('concat([0], [1])', ['a', 'b'], ['1', '2']) -> ['a1', 'b2']", description = "Concat pairs" },
+    { code = "zip_with('add([0], [1])', [], []) -> []", description = "Empty arrays" },
+]
 features = ["core", "fp"]
 
 # =============================================================================
@@ -1129,7 +1460,12 @@ name = "abs_fn"
 category = "math"
 description = "Absolute value"
 signature = "number -> number"
-example = "abs_fn(`-5`) -> 5"
+examples = [
+    { code = "abs_fn(`-5`) -> 5", description = "Negative to positive" },
+    { code = "abs_fn(`5`) -> 5", description = "Already positive" },
+    { code = "abs_fn(`0`) -> 0", description = "Zero stays zero" },
+    { code = "abs_fn(`-3.14`) -> 3.14", description = "Negative float" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1137,7 +1473,12 @@ name = "add"
 category = "math"
 description = "Add two numbers"
 signature = "number, number -> number"
-example = "add(`2`, `3`) -> 5"
+examples = [
+    { code = "add(`2`, `3`) -> 5", description = "Add integers" },
+    { code = "add(`1.5`, `2.5`) -> 4.0", description = "Add floats" },
+    { code = "add(`-5`, `3`) -> -2", description = "With negative" },
+    { code = "add(`0`, `10`) -> 10", description = "Add zero" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1145,7 +1486,12 @@ name = "ceil_fn"
 category = "math"
 description = "Round up to nearest integer"
 signature = "number -> number"
-example = "ceil_fn(`3.2`) -> 4"
+examples = [
+    { code = "ceil_fn(`3.2`) -> 4", description = "Round up fraction" },
+    { code = "ceil_fn(`3.9`) -> 4", description = "Round up high fraction" },
+    { code = "ceil_fn(`3.0`) -> 3", description = "Already integer" },
+    { code = "ceil_fn(`-3.2`) -> -3", description = "Negative rounds toward zero" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1153,7 +1499,12 @@ name = "clamp"
 category = "math"
 description = "Clamp value to range"
 signature = "number, number, number -> number"
-example = "clamp(`15`, `0`, `10`) -> 10"
+examples = [
+    { code = "clamp(`15`, `0`, `10`) -> 10", description = "Above max" },
+    { code = "clamp(`-5`, `0`, `10`) -> 0", description = "Below min" },
+    { code = "clamp(`5`, `0`, `10`) -> 5", description = "Within range" },
+    { code = "clamp(`100`, `50`, `75`) -> 75", description = "Custom range" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1161,7 +1512,12 @@ name = "cos"
 category = "math"
 description = "Cosine function"
 signature = "number -> number"
-example = "cos(`0`) -> 1"
+examples = [
+    { code = "cos(`0`) -> 1", description = "Cos of 0" },
+    { code = "cos(`3.14159`) -> -1", description = "Cos of pi" },
+    { code = "cos(`1.5708`) -> ~0", description = "Cos of pi/2" },
+    { code = "cos(`6.28318`) -> 1", description = "Cos of 2*pi" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1169,7 +1525,12 @@ name = "covariance"
 category = "math"
 description = "Covariance between two arrays"
 signature = "array, array -> number"
-example = "covariance([1, 2, 3], [1, 2, 3]) -> 0.666..."
+examples = [
+    { code = "covariance([1, 2, 3], [1, 2, 3]) -> 0.666...", description = "Perfect positive" },
+    { code = "covariance([1, 2, 3], [3, 2, 1]) -> -0.666...", description = "Perfect negative" },
+    { code = "covariance([1, 2, 3], [1, 1, 1]) -> 0", description = "No correlation" },
+    { code = "covariance(x_values, y_values) -> number", description = "From arrays" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1177,7 +1538,12 @@ name = "divide"
 category = "math"
 description = "Divide first number by second"
 signature = "number, number -> number"
-example = "divide(`10`, `2`) -> 5"
+examples = [
+    { code = "divide(`10`, `2`) -> 5", description = "Integer division" },
+    { code = "divide(`7`, `2`) -> 3.5", description = "Fractional result" },
+    { code = "divide(`1`, `3`) -> 0.333...", description = "Repeating decimal" },
+    { code = "divide(`-10`, `2`) -> -5", description = "Negative dividend" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1185,7 +1551,12 @@ name = "ewma"
 category = "math"
 description = "Exponential weighted moving average"
 signature = "array, number -> array"
-example = "ewma([1, 2, 3, 4, 5], `0.5`) -> [1, 1.5, 2.25, ...]"
+examples = [
+    { code = "ewma([1, 2, 3, 4, 5], `0.5`) -> [1, 1.5, 2.25, ...]", description = "Alpha 0.5" },
+    { code = "ewma(prices, `0.3`) -> smoothed prices", description = "Smooth stock prices" },
+    { code = "ewma([10, 20, 30], `0.9`) -> fast response", description = "High alpha" },
+    { code = "ewma([10, 20, 30], `0.1`) -> slow response", description = "Low alpha" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1193,7 +1564,12 @@ name = "floor_fn"
 category = "math"
 description = "Round down to nearest integer"
 signature = "number -> number"
-example = "floor_fn(`3.7`) -> 3"
+examples = [
+    { code = "floor_fn(`3.7`) -> 3", description = "Round down high fraction" },
+    { code = "floor_fn(`3.2`) -> 3", description = "Round down low fraction" },
+    { code = "floor_fn(`3.0`) -> 3", description = "Already integer" },
+    { code = "floor_fn(`-3.2`) -> -4", description = "Negative rounds away from zero" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1201,7 +1577,12 @@ name = "format_number"
 category = "math"
 description = "Format number with separators and optional suffix"
 signature = "number, number?, string? -> string"
-example = '''format_number(`1234567`, `0`) -> \"1,234,567\"'''
+examples = [
+    { code = '''format_number(`1234567`, `0`) -> \"1,234,567\"''', description = "With commas" },
+    { code = '''format_number(`1234.56`, `2`) -> \"1,234.56\"''', description = "With decimals" },
+    { code = '''format_number(`1000000`, `0`) -> \"1,000,000\"''', description = "Million" },
+    { code = '''format_number(`99.9`, `1`) -> \"99.9\"''', description = "Small number" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1209,7 +1590,12 @@ name = "log"
 category = "math"
 description = "Natural logarithm"
 signature = "number -> number"
-example = "log(`2.718`) -> ~1"
+examples = [
+    { code = "log(`2.718`) -> ~1", description = "Log of e" },
+    { code = "log(`1`) -> 0", description = "Log of 1" },
+    { code = "log(`10`) -> 2.302...", description = "Log of 10" },
+    { code = "log(`100`) -> 4.605...", description = "Log of 100" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1217,7 +1603,12 @@ name = "median"
 category = "math"
 description = "Calculate median of array"
 signature = "array -> number"
-example = "median([1, 2, 3, 4, 5]) -> 3"
+examples = [
+    { code = "median([1, 2, 3, 4, 5]) -> 3", description = "Odd count" },
+    { code = "median([1, 2, 3, 4]) -> 2.5", description = "Even count" },
+    { code = "median([10, 20, 30]) -> 20", description = "Middle value" },
+    { code = "median([5]) -> 5", description = "Single element" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1225,7 +1616,12 @@ name = "mod_fn"
 category = "math"
 description = "Modulo operation"
 signature = "number, number -> number"
-example = "mod_fn(`10`, `3`) -> 1"
+examples = [
+    { code = "mod_fn(`10`, `3`) -> 1", description = "Remainder of 10/3" },
+    { code = "mod_fn(`15`, `5`) -> 0", description = "Evenly divisible" },
+    { code = "mod_fn(`7`, `2`) -> 1", description = "Odd check" },
+    { code = "mod_fn(`100`, `7`) -> 2", description = "Larger numbers" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1233,7 +1629,12 @@ name = "mode"
 category = "math"
 description = "Find the most common value in an array"
 signature = "array -> any"
-example = "mode([1, 2, 2, 3]) -> 2"
+examples = [
+    { code = "mode([1, 2, 2, 3]) -> 2", description = "Most frequent" },
+    { code = "mode(['a', 'b', 'a', 'a']) -> 'a'", description = "String mode" },
+    { code = "mode([1, 1, 2, 2, 3]) -> 1 or 2", description = "Tie returns first" },
+    { code = "mode([5]) -> 5", description = "Single element" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1241,7 +1642,12 @@ name = "moving_avg"
 category = "math"
 description = "Simple moving average with window size"
 signature = "array, number -> array"
-example = "moving_avg([1, 2, 3, 4, 5], `3`) -> [null, null, 2, 3, 4]"
+examples = [
+    { code = "moving_avg([1, 2, 3, 4, 5], `3`) -> [null, null, 2, 3, 4]", description = "Window of 3" },
+    { code = "moving_avg([10, 20, 30, 40], `2`) -> [null, 15, 25, 35]", description = "Window of 2" },
+    { code = "moving_avg(prices, `7`) -> weekly average", description = "7-day moving avg" },
+    { code = "moving_avg([1, 2, 3], `1`) -> [1, 2, 3]", description = "Window of 1" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1249,7 +1655,12 @@ name = "multiply"
 category = "math"
 description = "Multiply two numbers"
 signature = "number, number -> number"
-example = "multiply(`4`, `3`) -> 12"
+examples = [
+    { code = "multiply(`4`, `3`) -> 12", description = "Basic multiplication" },
+    { code = "multiply(`2.5`, `4`) -> 10", description = "With decimals" },
+    { code = "multiply(`-3`, `4`) -> -12", description = "With negative" },
+    { code = "multiply(`0`, `100`) -> 0", description = "Multiply by zero" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1257,7 +1668,12 @@ name = "percentile"
 category = "math"
 description = "Calculate percentile of array"
 signature = "array, number -> number"
-example = "percentile([1, 2, 3, 4, 5], `50`) -> 3"
+examples = [
+    { code = "percentile([1, 2, 3, 4, 5], `50`) -> 3", description = "50th percentile (median)" },
+    { code = "percentile([1, 2, 3, 4, 5], `25`) -> 2", description = "25th percentile" },
+    { code = "percentile([1, 2, 3, 4, 5], `75`) -> 4", description = "75th percentile" },
+    { code = "percentile(scores, `90`) -> top 10% threshold", description = "90th percentile" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1265,7 +1681,12 @@ name = "pow"
 category = "math"
 description = "Raise to power"
 signature = "number, number -> number"
-example = "pow(`2`, `3`) -> 8"
+examples = [
+    { code = "pow(`2`, `3`) -> 8", description = "2 cubed" },
+    { code = "pow(`10`, `2`) -> 100", description = "10 squared" },
+    { code = "pow(`2`, `10`) -> 1024", description = "2^10" },
+    { code = "pow(`4`, `0.5`) -> 2", description = "Square root via power" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1273,7 +1694,12 @@ name = "quantile"
 category = "math"
 description = "Nth quantile (generalized percentile, q in [0,1])"
 signature = "array, number -> number"
-example = "quantile([1, 2, 3, 4, 5], `0.5`) -> 3"
+examples = [
+    { code = "quantile([1, 2, 3, 4, 5], `0.5`) -> 3", description = "Median (0.5)" },
+    { code = "quantile([1, 2, 3, 4, 5], `0.25`) -> 2", description = "First quartile" },
+    { code = "quantile([1, 2, 3, 4, 5], `0.75`) -> 4", description = "Third quartile" },
+    { code = "quantile(values, `0.9`) -> 90th quantile", description = "90th quantile" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1281,7 +1707,12 @@ name = "round"
 category = "math"
 description = "Round to specified decimal places"
 signature = "number, number -> number"
-example = "round(`3.14159`, `2`) -> 3.14"
+examples = [
+    { code = "round(`3.14159`, `2`) -> 3.14", description = "Two decimals" },
+    { code = "round(`3.5`, `0`) -> 4", description = "Round to integer" },
+    { code = "round(`2.555`, `2`) -> 2.56", description = "Round up" },
+    { code = "round(`123.456`, `1`) -> 123.5", description = "One decimal" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1289,7 +1720,12 @@ name = "sin"
 category = "math"
 description = "Sine function"
 signature = "number -> number"
-example = "sin(`0`) -> 0"
+examples = [
+    { code = "sin(`0`) -> 0", description = "Sin of 0" },
+    { code = "sin(`1.5708`) -> 1", description = "Sin of pi/2" },
+    { code = "sin(`3.14159`) -> ~0", description = "Sin of pi" },
+    { code = "sin(`6.28318`) -> ~0", description = "Sin of 2*pi" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1297,7 +1733,12 @@ name = "sqrt"
 category = "math"
 description = "Square root"
 signature = "number -> number"
-example = "sqrt(`16`) -> 4"
+examples = [
+    { code = "sqrt(`16`) -> 4", description = "Perfect square" },
+    { code = "sqrt(`2`) -> 1.414...", description = "Irrational result" },
+    { code = "sqrt(`100`) -> 10", description = "Larger number" },
+    { code = "sqrt(`0`) -> 0", description = "Zero" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1305,7 +1746,12 @@ name = "standardize"
 category = "math"
 description = "Standardize array to mean=0, std=1 (z-score normalization)"
 signature = "array -> array"
-example = "standardize([10, 20, 30]) -> [-1.22, 0, 1.22]"
+examples = [
+    { code = "standardize([10, 20, 30]) -> [-1.22, 0, 1.22]", description = "Basic z-scores" },
+    { code = "standardize([1, 2, 3, 4, 5]) -> normalized", description = "Normalize values" },
+    { code = "standardize(scores) -> z-scores", description = "Standardize scores" },
+    { code = "standardize([5, 5, 5]) -> [0, 0, 0]", description = "Identical values" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1313,7 +1759,12 @@ name = "stddev"
 category = "math"
 description = "Calculate standard deviation of array"
 signature = "array -> number"
-example = "stddev([1, 2, 3, 4, 5]) -> 1.414..."
+examples = [
+    { code = "stddev([1, 2, 3, 4, 5]) -> 1.414...", description = "Basic stddev" },
+    { code = "stddev([10, 10, 10]) -> 0", description = "No variation" },
+    { code = "stddev([1, 100]) -> ~49.5", description = "High variation" },
+    { code = "stddev(values) -> spread measure", description = "Measure spread" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1321,7 +1772,12 @@ name = "subtract"
 category = "math"
 description = "Subtract second number from first"
 signature = "number, number -> number"
-example = "subtract(`5`, `3`) -> 2"
+examples = [
+    { code = "subtract(`5`, `3`) -> 2", description = "Basic subtraction" },
+    { code = "subtract(`10`, `15`) -> -5", description = "Negative result" },
+    { code = "subtract(`3.5`, `1.5`) -> 2", description = "With decimals" },
+    { code = "subtract(`0`, `5`) -> -5", description = "From zero" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1329,7 +1785,12 @@ name = "tan"
 category = "math"
 description = "Tangent function"
 signature = "number -> number"
-example = "tan(`0`) -> 0"
+examples = [
+    { code = "tan(`0`) -> 0", description = "Tan of 0" },
+    { code = "tan(`0.7854`) -> ~1", description = "Tan of pi/4" },
+    { code = "tan(`3.14159`) -> ~0", description = "Tan of pi" },
+    { code = "tan(angle) -> ratio", description = "Calculate tangent" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1337,7 +1798,12 @@ name = "to_fixed"
 category = "math"
 description = "Format number with exact decimal places"
 signature = "number, number -> string"
-example = '''to_fixed(`3.14159`, `2`) -> \"3.14\"'''
+examples = [
+    { code = '''to_fixed(`3.14159`, `2`) -> \"3.14\"''', description = "Two decimals" },
+    { code = '''to_fixed(`5`, `2`) -> \"5.00\"''', description = "Pad with zeros" },
+    { code = '''to_fixed(`99.9`, `0`) -> \"100\"''', description = "Round to integer" },
+    { code = '''to_fixed(`1.5`, `3`) -> \"1.500\"''', description = "Extra precision" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1345,7 +1811,12 @@ name = "variance"
 category = "math"
 description = "Calculate variance of array"
 signature = "array -> number"
-example = "variance([1, 2, 3, 4, 5]) -> 2"
+examples = [
+    { code = "variance([1, 2, 3, 4, 5]) -> 2", description = "Basic variance" },
+    { code = "variance([10, 10, 10]) -> 0", description = "No variation" },
+    { code = "variance([1, 100]) -> 2450.25", description = "High variation" },
+    { code = "variance(values) -> spread^2", description = "Squared spread" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1501,7 +1972,12 @@ name = "deep_diff"
 category = "object"
 description = "Structural diff between two objects"
 signature = "object, object -> object"
-example = "deep_diff({a: 1}, {a: 2}) -> {added: {}, removed: {}, changed: {a: {from: 1, to: 2}}}"
+examples = [
+    { code = "deep_diff({a: 1}, {a: 2}) -> {added: {}, removed: {}, changed: {a: {from: 1, to: 2}}}", description = "Changed value" },
+    { code = "deep_diff({a: 1}, {b: 2}) -> {added: {b: 2}, removed: {a: 1}, changed: {}}", description = "Added and removed" },
+    { code = "deep_diff({a: 1}, {a: 1}) -> {added: {}, removed: {}, changed: {}}", description = "No differences" },
+    { code = "deep_diff({}, {a: 1}) -> {added: {a: 1}, removed: {}, changed: {}}", description = "New key added" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1509,7 +1985,12 @@ name = "deep_equals"
 category = "object"
 description = "Deep equality check for any two values"
 signature = "any, any -> boolean"
-example = "deep_equals({a: {b: 1}}, {a: {b: 1}}) -> true"
+examples = [
+    { code = "deep_equals({a: {b: 1}}, {a: {b: 1}}) -> true", description = "Equal nested objects" },
+    { code = "deep_equals({a: 1}, {a: 2}) -> false", description = "Different values" },
+    { code = "deep_equals([1, 2], [1, 2]) -> true", description = "Equal arrays" },
+    { code = "deep_equals([1, 2], [2, 1]) -> false", description = "Order matters" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1530,7 +2011,12 @@ name = "defaults"
 category = "object"
 description = "Assign default values for missing keys (shallow)"
 signature = "object, object -> object"
-example = "defaults({a: 1}, {a: 2, b: 3}) -> {a: 1, b: 3}"
+examples = [
+    { code = "defaults({a: 1}, {a: 2, b: 3}) -> {a: 1, b: 3}", description = "Keep existing, add missing" },
+    { code = "defaults({}, {a: 1, b: 2}) -> {a: 1, b: 2}", description = "All defaults applied" },
+    { code = "defaults({a: 1, b: 2}, {}) -> {a: 1, b: 2}", description = "No defaults needed" },
+    { code = "defaults({x: 1}, {y: 2}) -> {x: 1, y: 2}", description = "Different keys" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1538,7 +2024,12 @@ name = "defaults_deep"
 category = "object"
 description = "Recursively assign default values for missing keys"
 signature = "object, object -> object"
-example = "defaults_deep({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}"
+examples = [
+    { code = "defaults_deep({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}", description = "Merge nested defaults" },
+    { code = "defaults_deep({a: {b: 1}}, {a: {b: 2}}) -> {a: {b: 1}}", description = "Keep existing nested" },
+    { code = "defaults_deep({}, {a: {b: 1}}) -> {a: {b: 1}}", description = "Apply all nested defaults" },
+    { code = "defaults_deep({x: 1}, {y: {z: 2}}) -> {x: 1, y: {z: 2}}", description = "Different structure" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1546,7 +2037,12 @@ name = "delete_path"
 category = "object"
 description = "Delete value at JSON pointer path (immutable)"
 signature = "any, string -> any"
-example = "delete_path({a: 1, b: 2}, '/b') -> {a: 1}"
+examples = [
+    { code = "delete_path({a: 1, b: 2}, '/b') -> {a: 1}", description = "Delete top-level key" },
+    { code = "delete_path({a: {b: 1, c: 2}}, '/a/b') -> {a: {c: 2}}", description = "Delete nested key" },
+    { code = "delete_path([1, 2, 3], '/1') -> [1, 3]", description = "Delete array element" },
+    { code = "delete_path({a: 1}, '/x') -> {a: 1}", description = "Path not found" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1554,7 +2050,12 @@ name = "flatten_keys"
 category = "object"
 description = "Flatten nested object with dot notation keys"
 signature = "object -> object"
-example = '''flatten_keys({a: {b: 1}}) -> {\"a.b\": 1}'''
+examples = [
+    { code = '''flatten_keys({a: {b: 1}}) -> {\"a.b\": 1}''', description = "Simple nested" },
+    { code = '''flatten_keys({a: {b: {c: 1}}}) -> {\"a.b.c\": 1}''', description = "Deep nested" },
+    { code = '''flatten_keys({a: 1, b: 2}) -> {\"a\": 1, \"b\": 2}''', description = "Flat object" },
+    { code = '''flatten_keys({x: {y: 1}, z: 2}) -> {\"x.y\": 1, \"z\": 2}''', description = "Mixed nesting" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1562,7 +2063,12 @@ name = "from_items"
 category = "object"
 description = "Convert array of [key, value] pairs to object"
 signature = "array -> object"
-example = "from_items([['a', 1]]) -> {a: 1}"
+examples = [
+    { code = "from_items([['a', 1]]) -> {a: 1}", description = "Single pair" },
+    { code = "from_items([['a', 1], ['b', 2]]) -> {a: 1, b: 2}", description = "Multiple pairs" },
+    { code = "from_items([]) -> {}", description = "Empty array" },
+    { code = "from_items([['x', 'hello']]) -> {x: 'hello'}", description = "String value" },
+]
 jep = "JEP-013"
 features = ["core", "jep"]
 
@@ -1571,7 +2077,12 @@ name = "get"
 category = "object"
 description = "Get value at dot-separated path with optional default"
 signature = "any, string, any? -> any"
-example = "get({a: {b: 1}}, 'a.b') -> 1"
+examples = [
+    { code = "get({a: {b: 1}}, 'a.b') -> 1", description = "Nested path" },
+    { code = "get({a: 1}, 'a') -> 1", description = "Top-level key" },
+    { code = "get({a: 1}, 'x', 'default') -> 'default'", description = "Missing with default" },
+    { code = "get({a: {b: {c: 3}}}, 'a.b.c') -> 3", description = "Deep path" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1579,7 +2090,12 @@ name = "has"
 category = "object"
 description = "Check if dot-separated path exists"
 signature = "any, string -> boolean"
-example = "has({a: {b: 1}}, 'a.b') -> true"
+examples = [
+    { code = "has({a: {b: 1}}, 'a.b') -> true", description = "Nested path exists" },
+    { code = "has({a: 1}, 'a') -> true", description = "Top-level exists" },
+    { code = "has({a: 1}, 'b') -> false", description = "Key missing" },
+    { code = "has({a: {b: 1}}, 'a.c') -> false", description = "Nested missing" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1587,7 +2103,12 @@ name = "invert"
 category = "object"
 description = "Swap keys and values"
 signature = "object -> object"
-example = "invert({a: 'x'}) -> {x: 'a'}"
+examples = [
+    { code = "invert({a: 'x'}) -> {x: 'a'}", description = "Swap key and value" },
+    { code = "invert({a: 'b', c: 'd'}) -> {b: 'a', d: 'c'}", description = "Multiple pairs" },
+    { code = "invert({}) -> {}", description = "Empty object" },
+    { code = "invert({name: 'id', value: 'data'}) -> {id: 'name', data: 'value'}", description = "Real-world example" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1595,7 +2116,12 @@ name = "items"
 category = "object"
 description = "Convert object to array of [key, value] pairs"
 signature = "object -> array"
-example = '''items({a: 1}) -> [[\"a\", 1]]'''
+examples = [
+    { code = '''items({a: 1}) -> [[\"a\", 1]]''', description = "Single key" },
+    { code = '''items({a: 1, b: 2}) -> [[\"a\", 1], [\"b\", 2]]''', description = "Multiple keys" },
+    { code = '''items({}) -> []''', description = "Empty object" },
+    { code = '''items({x: 'hello'}) -> [[\"x\", \"hello\"]]''', description = "String value" },
+]
 jep = "JEP-013"
 features = ["core", "jep"]
 
@@ -1604,7 +2130,12 @@ name = "leaves"
 category = "object"
 description = "Get all leaf values (non-object, non-array)"
 signature = "any -> array"
-example = "leaves({a: 1, b: [2, 3]}) -> [1, 2, 3]"
+examples = [
+    { code = "leaves({a: 1, b: [2, 3]}) -> [1, 2, 3]", description = "Mixed structure" },
+    { code = "leaves({a: {b: 1}}) -> [1]", description = "Nested object" },
+    { code = "leaves([1, 2, 3]) -> [1, 2, 3]", description = "Flat array" },
+    { code = "leaves({a: 1, b: 2}) -> [1, 2]", description = "Flat object" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1612,7 +2143,12 @@ name = "leaves_with_paths"
 category = "object"
 description = "Get all leaf values with their JSON pointer paths"
 signature = "any -> array"
-example = '''leaves_with_paths({a: 1}) -> [{path: \"/a\", value: 1}]'''
+examples = [
+    { code = '''leaves_with_paths({a: 1}) -> [{path: \"/a\", value: 1}]''', description = "Single leaf" },
+    { code = '''leaves_with_paths({a: {b: 1}}) -> [{path: \"/a/b\", value: 1}]''', description = "Nested path" },
+    { code = '''leaves_with_paths([1, 2]) -> [{path: \"/0\", value: 1}, {path: \"/1\", value: 2}]''', description = "Array indices" },
+    { code = '''leaves_with_paths({}) -> []''', description = "Empty object" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1620,7 +2156,12 @@ name = "omit"
 category = "object"
 description = "Remove specific keys from object"
 signature = "object, array -> object"
-example = "omit({a: 1, b: 2}, ['a']) -> {b: 2}"
+examples = [
+    { code = "omit({a: 1, b: 2}, ['a']) -> {b: 2}", description = "Remove one key" },
+    { code = "omit({a: 1, b: 2, c: 3}, ['a', 'c']) -> {b: 2}", description = "Remove multiple keys" },
+    { code = "omit({a: 1}, ['x']) -> {a: 1}", description = "Key not present" },
+    { code = "omit({a: 1, b: 2}, []) -> {a: 1, b: 2}", description = "Empty removal list" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1628,7 +2169,12 @@ name = "paths"
 category = "object"
 description = "List all JSON pointer paths in value"
 signature = "any -> array"
-example = '''paths({a: {b: 1}}) -> [\"/a\", \"/a/b\"]'''
+examples = [
+    { code = '''paths({a: {b: 1}}) -> [\"/a\", \"/a/b\"]''', description = "Nested object" },
+    { code = '''paths({a: 1, b: 2}) -> [\"/a\", \"/b\"]''', description = "Flat object" },
+    { code = '''paths([1, 2]) -> [\"/0\", \"/1\"]''', description = "Array paths" },
+    { code = '''paths({}) -> []''', description = "Empty object" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1636,7 +2182,12 @@ name = "pick"
 category = "object"
 description = "Select specific keys from object"
 signature = "object, array -> object"
-example = "pick({a: 1, b: 2}, ['a']) -> {a: 1}"
+examples = [
+    { code = "pick({a: 1, b: 2}, ['a']) -> {a: 1}", description = "Pick one key" },
+    { code = "pick({a: 1, b: 2, c: 3}, ['a', 'c']) -> {a: 1, c: 3}", description = "Pick multiple keys" },
+    { code = "pick({a: 1}, ['x']) -> {}", description = "Key not present" },
+    { code = "pick({a: 1, b: 2}, []) -> {}", description = "Empty pick list" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1644,7 +2195,12 @@ name = "rename_keys"
 category = "object"
 description = "Rename object keys"
 signature = "object, object -> object"
-example = "rename_keys({a: 1}, {a: 'b'}) -> {b: 1}"
+examples = [
+    { code = "rename_keys({a: 1}, {a: 'b'}) -> {b: 1}", description = "Rename one key" },
+    { code = "rename_keys({a: 1, b: 2}, {a: 'x', b: 'y'}) -> {x: 1, y: 2}", description = "Rename multiple" },
+    { code = "rename_keys({a: 1}, {x: 'y'}) -> {a: 1}", description = "No matching key" },
+    { code = "rename_keys({old: 'value'}, {old: 'new'}) -> {new: 'value'}", description = "Real-world rename" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1652,7 +2208,12 @@ name = "set_path"
 category = "object"
 description = "Set value at JSON pointer path (immutable)"
 signature = "any, string, any -> any"
-example = "set_path({a: 1}, '/b', `2`) -> {a: 1, b: 2}"
+examples = [
+    { code = "set_path({a: 1}, '/b', `2`) -> {a: 1, b: 2}", description = "Add new key" },
+    { code = "set_path({a: 1}, '/a', `2`) -> {a: 2}", description = "Update existing" },
+    { code = "set_path({a: {}}, '/a/b', `1`) -> {a: {b: 1}}", description = "Set nested path" },
+    { code = "set_path([1, 2], '/1', `5`) -> [1, 5]", description = "Update array element" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2130,7 +2691,11 @@ name = "abbreviate"
 category = "string"
 description = "Truncate string with ellipsis suffix"
 signature = "string, number, string? -> string"
-example = '''abbreviate('hello world', `8`) -> \"hello...\"'''
+examples = [
+    { code = '''abbreviate('hello world', `8`) -> \"hello...\"''', description = "Default ellipsis" },
+    { code = '''abbreviate('hello', `10`) -> \"hello\"''', description = "No truncation needed" },
+    { code = '''abbreviate('hello world', `8`, '>>') -> \"hello >>\"''', description = "Custom suffix" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2138,7 +2703,11 @@ name = "camel_case"
 category = "string"
 description = "Convert to camelCase"
 signature = "string -> string"
-example = '''camel_case('hello_world') -> \"helloWorld\"'''
+examples = [
+    { code = '''camel_case('hello_world') -> \"helloWorld\"''', description = "From snake_case" },
+    { code = '''camel_case('hello-world') -> \"helloWorld\"''', description = "From kebab-case" },
+    { code = '''camel_case('Hello World') -> \"helloWorld\"''', description = "From title case" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2146,7 +2715,11 @@ name = "capitalize"
 category = "string"
 description = "Capitalize the first character"
 signature = "string -> string"
-example = '''capitalize('hello') -> \"Hello\"'''
+examples = [
+    { code = '''capitalize('hello') -> \"Hello\"''', description = "Basic capitalize" },
+    { code = '''capitalize('HELLO') -> \"HELLO\"''', description = "Already uppercase" },
+    { code = '''capitalize('') -> \"\"''', description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2154,7 +2727,11 @@ name = "center"
 category = "string"
 description = "Center-pad string to given width"
 signature = "string, number, string? -> string"
-example = '''center('hi', `6`) -> \"  hi  \"'''
+examples = [
+    { code = '''center('hi', `6`) -> \"  hi  \"''', description = "Center with spaces" },
+    { code = '''center('hi', `6`, '-') -> \"--hi--\"''', description = "Center with dashes" },
+    { code = '''center('hello', `3`) -> \"hello\"''', description = "Already wider" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2162,7 +2739,11 @@ name = "concat"
 category = "string"
 description = "Concatenate strings"
 signature = "string... -> string"
-example = '''concat('hello', ' ', 'world') -> \"hello world\"'''
+examples = [
+    { code = '''concat('hello', ' ', 'world') -> \"hello world\"''', description = "Multiple strings" },
+    { code = '''concat('a', 'b') -> \"ab\"''', description = "Two strings" },
+    { code = '''concat('only') -> \"only\"''', description = "Single string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2170,7 +2751,11 @@ name = "find_first"
 category = "string"
 description = "Find first occurrence of substring"
 signature = "string, string -> number | null"
-example = "find_first('hello', 'l') -> 2"
+examples = [
+    { code = "find_first('hello', 'l') -> 2", description = "Find character" },
+    { code = "find_first('hello world', 'world') -> 6", description = "Find substring" },
+    { code = "find_first('hello', 'x') -> null", description = "Not found" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2179,7 +2764,11 @@ name = "find_last"
 category = "string"
 description = "Find last occurrence of substring"
 signature = "string, string -> number | null"
-example = "find_last('hello', 'l') -> 3"
+examples = [
+    { code = "find_last('hello', 'l') -> 3", description = "Find last character" },
+    { code = "find_last('foo bar foo', 'foo') -> 8", description = "Find last substring" },
+    { code = "find_last('hello', 'x') -> null", description = "Not found" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2188,7 +2777,11 @@ name = "indices"
 category = "string"
 description = "Find all indices of substring occurrences"
 signature = "string, string -> array"
-example = "indices('hello', 'l') -> [2, 3]"
+examples = [
+    { code = "indices('hello', 'l') -> [2, 3]", description = "Multiple occurrences" },
+    { code = "indices('ababa', 'aba') -> [0, 2]", description = "Overlapping matches" },
+    { code = "indices('hello', 'x') -> []", description = "No matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2196,7 +2789,11 @@ name = "inside"
 category = "string"
 description = "Check if search string is contained in string"
 signature = "string, string -> boolean"
-example = "inside('world', 'hello world') -> true"
+examples = [
+    { code = "inside('world', 'hello world') -> true", description = "Found" },
+    { code = "inside('foo', 'hello world') -> false", description = "Not found" },
+    { code = "inside('', 'hello') -> true", description = "Empty string always matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2204,7 +2801,11 @@ name = "is_blank"
 category = "string"
 description = "Check if string is empty or whitespace-only"
 signature = "string -> boolean"
-example = "is_blank('   ') -> true"
+examples = [
+    { code = "is_blank('   ') -> true", description = "Whitespace only" },
+    { code = "is_blank('') -> true", description = "Empty string" },
+    { code = "is_blank('hello') -> false", description = "Has content" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2212,7 +2813,11 @@ name = "kebab_case"
 category = "string"
 description = "Convert to kebab-case"
 signature = "string -> string"
-example = '''kebab_case('helloWorld') -> \"hello-world\"'''
+examples = [
+    { code = '''kebab_case('helloWorld') -> \"hello-world\"''', description = "From camelCase" },
+    { code = '''kebab_case('hello_world') -> \"hello-world\"''', description = "From snake_case" },
+    { code = '''kebab_case('Hello World') -> \"hello-world\"''', description = "From title case" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2220,7 +2825,11 @@ name = "lower"
 category = "string"
 description = "Convert string to lowercase"
 signature = "string -> string"
-example = '''lower('HELLO') -> \"hello\"'''
+examples = [
+    { code = '''lower('HELLO') -> \"hello\"''', description = "All uppercase" },
+    { code = '''lower('Hello World') -> \"hello world\"''', description = "Mixed case" },
+    { code = '''lower('hello') -> \"hello\"''', description = "Already lowercase" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2229,7 +2838,11 @@ name = "ltrimstr"
 category = "string"
 description = "Remove prefix from string if present"
 signature = "string, string -> string"
-example = '''ltrimstr('foobar', 'foo') -> \"bar\"'''
+examples = [
+    { code = '''ltrimstr('foobar', 'foo') -> \"bar\"''', description = "Remove prefix" },
+    { code = '''ltrimstr('foobar', 'bar') -> \"foobar\"''', description = "Prefix not found" },
+    { code = '''ltrimstr('hello', '') -> \"hello\"''', description = "Empty prefix" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2237,7 +2850,11 @@ name = "mask"
 category = "string"
 description = "Mask string, keeping last N characters visible"
 signature = "string, number?, string? -> string"
-example = '''mask('4111111111111111', `4`) -> \"************1111\"'''
+examples = [
+    { code = '''mask('4111111111111111', `4`) -> \"************1111\"''', description = "Credit card" },
+    { code = '''mask('secret', `0`) -> \"******\"''', description = "Mask all" },
+    { code = '''mask('password', `4`, '#') -> \"####word\"''', description = "Custom mask char" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2245,7 +2862,11 @@ name = "normalize_whitespace"
 category = "string"
 description = "Collapse multiple whitespace to single space"
 signature = "string -> string"
-example = '''normalize_whitespace('a  b\\n\\nc') -> \"a b c\"'''
+examples = [
+    { code = '''normalize_whitespace('a  b  c') -> \"a b c\"''', description = "Multiple spaces" },
+    { code = '''normalize_whitespace('a\\n\\nb') -> \"a b\"''', description = "Newlines to space" },
+    { code = '''normalize_whitespace('hello') -> \"hello\"''', description = "Already normalized" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2253,7 +2874,11 @@ name = "pad_left"
 category = "string"
 description = "Pad string on the left to reach target length"
 signature = "string, number, string -> string"
-example = '''pad_left('5', `3`, '0') -> \"005\"'''
+examples = [
+    { code = '''pad_left('5', `3`, '0') -> \"005\"''', description = "Zero-pad number" },
+    { code = '''pad_left('hi', `5`, ' ') -> \"   hi\"''', description = "Right-align text" },
+    { code = '''pad_left('hello', `3`, '0') -> \"hello\"''', description = "Already long enough" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2262,7 +2887,11 @@ name = "pad_right"
 category = "string"
 description = "Pad string on the right to reach target length"
 signature = "string, number, string -> string"
-example = '''pad_right('5', `3`, '0') -> \"500\"'''
+examples = [
+    { code = '''pad_right('5', `3`, '0') -> \"500\"''', description = "Pad with zeros" },
+    { code = '''pad_right('hi', `5`, ' ') -> \"hi   \"''', description = "Left-align text" },
+    { code = '''pad_right('hello', `3`, '0') -> \"hello\"''', description = "Already long enough" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2271,7 +2900,11 @@ name = "redact"
 category = "string"
 description = "Redact regex pattern matches with replacement"
 signature = "string, string, string? -> string"
-example = '''redact(text, email_pattern, '[EMAIL]') -> \"...[EMAIL]...\"'''
+examples = [
+    { code = '''redact('email: test@example.com', '\\S+@\\S+', '[EMAIL]') -> \"email: [EMAIL]\"''', description = "Redact email" },
+    { code = '''redact('call 555-1234', '\\d{3}-\\d{4}', '[PHONE]') -> \"call [PHONE]\"''', description = "Redact phone" },
+    { code = '''redact('no match', 'xyz', '[X]') -> \"no match\"''', description = "No matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2279,7 +2912,11 @@ name = "repeat"
 category = "string"
 description = "Repeat a string n times"
 signature = "string, number -> string"
-example = '''repeat('ab', `3`) -> \"ababab\"'''
+examples = [
+    { code = '''repeat('ab', `3`) -> \"ababab\"''', description = "Repeat 3 times" },
+    { code = '''repeat('-', `5`) -> \"-----\"''', description = "Create separator" },
+    { code = '''repeat('x', `0`) -> \"\"''', description = "Zero times" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2287,7 +2924,11 @@ name = "replace"
 category = "string"
 description = "Replace occurrences of a substring"
 signature = "string, string, string -> string"
-example = '''replace('hello', 'l', 'L') -> \"heLLo\"'''
+examples = [
+    { code = '''replace('hello', 'l', 'L') -> \"heLLo\"''', description = "Replace all occurrences" },
+    { code = '''replace('hello', 'x', 'y') -> \"hello\"''', description = "No match" },
+    { code = '''replace('aaa', 'a', 'b') -> \"bbb\"''', description = "Replace all" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2296,7 +2937,11 @@ name = "reverse_string"
 category = "string"
 description = "Reverse a string"
 signature = "string -> string"
-example = '''reverse_string('hello') -> \"olleh\"'''
+examples = [
+    { code = '''reverse_string('hello') -> \"olleh\"''', description = "Reverse word" },
+    { code = '''reverse_string('ab') -> \"ba\"''', description = "Two chars" },
+    { code = '''reverse_string('') -> \"\"''', description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2304,7 +2949,12 @@ name = "rtrimstr"
 category = "string"
 description = "Remove suffix from string if present"
 signature = "string, string -> string"
-example = '''rtrimstr('foobar', 'bar') -> \"foo\"'''
+examples = [
+    { code = '''rtrimstr('foobar', 'bar') -> \"foo\"''', description = "Remove suffix" },
+    { code = '''rtrimstr('hello.txt', '.txt') -> \"hello\"''', description = "Remove file extension" },
+    { code = '''rtrimstr('hello', 'xyz') -> \"hello\"''', description = "Suffix not present" },
+    { code = '''rtrimstr('barbar', 'bar') -> \"bar\"''', description = "Only removes once" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2312,7 +2962,12 @@ name = "slice"
 category = "string"
 description = "Extract substring by start and end index"
 signature = "string, number, number -> string"
-example = '''slice('hello', `1`, `4`) -> \"ell\"'''
+examples = [
+    { code = '''slice('hello', `1`, `4`) -> \"ell\"''', description = "Middle slice" },
+    { code = '''slice('hello', `0`, `2`) -> \"he\"''', description = "From start" },
+    { code = '''slice('hello', `3`, `5`) -> \"lo\"''', description = "To end" },
+    { code = '''slice('abcdef', `2`, `4`) -> \"cd\"''', description = "Two characters" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2320,7 +2975,12 @@ name = "snake_case"
 category = "string"
 description = "Convert to snake_case"
 signature = "string -> string"
-example = '''snake_case('helloWorld') -> \"hello_world\"'''
+examples = [
+    { code = '''snake_case('helloWorld') -> \"hello_world\"''', description = "From camelCase" },
+    { code = '''snake_case('HelloWorld') -> \"hello_world\"''', description = "From PascalCase" },
+    { code = '''snake_case('hello-world') -> \"hello_world\"''', description = "From kebab-case" },
+    { code = '''snake_case('HELLO_WORLD') -> \"hello_world\"''', description = "From UPPER_CASE" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2342,7 +3002,12 @@ name = "sprintf"
 category = "string"
 description = "Printf-style string formatting"
 signature = "string, any... -> string"
-example = '''sprintf('Pi is %.2f', `3.14159`) -> \"Pi is 3.14\"'''
+examples = [
+    { code = '''sprintf('Pi is %.2f', `3.14159`) -> \"Pi is 3.14\"''', description = "Float formatting" },
+    { code = '''sprintf('Hello %s', 'world') -> \"Hello world\"''', description = "String interpolation" },
+    { code = '''sprintf('%d items', `42`) -> \"42 items\"''', description = "Integer formatting" },
+    { code = '''sprintf('%s: %d', 'count', `5`) -> \"count: 5\"''', description = "Multiple args" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2350,7 +3015,12 @@ name = "substr"
 category = "string"
 description = "Extract substring by start index and length"
 signature = "string, number, number -> string"
-example = '''substr('hello', `1`, `3`) -> \"ell\"'''
+examples = [
+    { code = '''substr('hello', `1`, `3`) -> \"ell\"''', description = "From index 1, length 3" },
+    { code = '''substr('hello', `0`, `2`) -> \"he\"''', description = "From start" },
+    { code = '''substr('abcdef', `2`, `2`) -> \"cd\"''', description = "Middle portion" },
+    { code = '''substr('hello', `4`, `1`) -> \"o\"''', description = "Single character" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2358,7 +3028,12 @@ name = "title"
 category = "string"
 description = "Convert to title case"
 signature = "string -> string"
-example = '''title('hello world') -> \"Hello World\"'''
+examples = [
+    { code = '''title('hello world') -> \"Hello World\"''', description = "Basic title case" },
+    { code = '''title('HELLO WORLD') -> \"Hello World\"''', description = "From uppercase" },
+    { code = '''title('hello') -> \"Hello\"''', description = "Single word" },
+    { code = '''title('a b c') -> \"A B C\"''', description = "Single letters" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2366,7 +3041,12 @@ name = "trim"
 category = "string"
 description = "Remove leading and trailing whitespace"
 signature = "string -> string"
-example = '''trim('  hello  ') -> \"hello\"'''
+examples = [
+    { code = '''trim('  hello  ') -> \"hello\"''', description = "Remove both sides" },
+    { code = '''trim('hello') -> \"hello\"''', description = "No whitespace" },
+    { code = '''trim('   ') -> \"\"''', description = "Only whitespace" },
+    { code = '''trim('\t\nhello\t\n') -> \"hello\"''', description = "Tabs and newlines" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2375,7 +3055,12 @@ name = "trim_left"
 category = "string"
 description = "Remove leading whitespace"
 signature = "string -> string"
-example = '''trim_left('  hello') -> \"hello\"'''
+examples = [
+    { code = '''trim_left('  hello') -> \"hello\"''', description = "Remove leading spaces" },
+    { code = '''trim_left('hello  ') -> \"hello  \"''', description = "Trailing preserved" },
+    { code = '''trim_left('\t\thello') -> \"hello\"''', description = "Remove tabs" },
+    { code = '''trim_left('hello') -> \"hello\"''', description = "No change needed" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2384,7 +3069,12 @@ name = "trim_right"
 category = "string"
 description = "Remove trailing whitespace"
 signature = "string -> string"
-example = '''trim_right('hello  ') -> \"hello\"'''
+examples = [
+    { code = '''trim_right('hello  ') -> \"hello\"''', description = "Remove trailing spaces" },
+    { code = '''trim_right('  hello') -> \"  hello\"''', description = "Leading preserved" },
+    { code = '''trim_right('hello\t\t') -> \"hello\"''', description = "Remove tabs" },
+    { code = '''trim_right('hello') -> \"hello\"''', description = "No change needed" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2393,7 +3083,12 @@ name = "upper"
 category = "string"
 description = "Convert string to uppercase"
 signature = "string -> string"
-example = '''upper('hello') -> \"HELLO\"'''
+examples = [
+    { code = '''upper('hello') -> \"HELLO\"''', description = "Basic uppercase" },
+    { code = '''upper('Hello World') -> \"HELLO WORLD\"''', description = "Mixed case" },
+    { code = '''upper('HELLO') -> \"HELLO\"''', description = "Already uppercase" },
+    { code = '''upper('abc123') -> \"ABC123\"''', description = "With numbers" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 
@@ -2402,7 +3097,12 @@ name = "wrap"
 category = "string"
 description = "Wrap text to specified width"
 signature = "string, number -> string"
-example = '''wrap('hello world', `5`) -> \"hello\\nworld\"'''
+examples = [
+    { code = '''wrap('hello world', `5`) -> \"hello\\nworld\"''', description = "Wrap at word boundary" },
+    { code = '''wrap('a b c d e', `3`) -> \"a b\\nc d\\ne\"''', description = "Multiple wraps" },
+    { code = '''wrap('short', `10`) -> \"short\"''', description = "No wrap needed" },
+    { code = '''wrap('one two three', `7`) -> \"one two\\nthree\"''', description = "Longer text" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2506,7 +3206,12 @@ name = "is_array"
 category = "type"
 description = "Check if value is an array"
 signature = "any -> boolean"
-example = "is_array([1, 2]) -> true"
+examples = [
+    { code = "is_array([1, 2]) -> true", description = "Array returns true" },
+    { code = "is_array('hello') -> false", description = "String returns false" },
+    { code = "is_array({}) -> false", description = "Object returns false" },
+    { code = "is_array([]) -> true", description = "Empty array is array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2514,7 +3219,12 @@ name = "is_boolean"
 category = "type"
 description = "Check if value is a boolean"
 signature = "any -> boolean"
-example = "is_boolean(`true`) -> true"
+examples = [
+    { code = "is_boolean(`true`) -> true", description = "True is boolean" },
+    { code = "is_boolean(`false`) -> true", description = "False is boolean" },
+    { code = "is_boolean('true') -> false", description = "String is not boolean" },
+    { code = "is_boolean(`1`) -> false", description = "Number is not boolean" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2522,7 +3232,12 @@ name = "is_empty"
 category = "type"
 description = "Check if value is empty"
 signature = "any -> boolean"
-example = "is_empty([]) -> true"
+examples = [
+    { code = "is_empty([]) -> true", description = "Empty array" },
+    { code = "is_empty('') -> true", description = "Empty string" },
+    { code = "is_empty({}) -> true", description = "Empty object" },
+    { code = "is_empty([1, 2]) -> false", description = "Non-empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2530,7 +3245,12 @@ name = "is_null"
 category = "type"
 description = "Check if value is null"
 signature = "any -> boolean"
-example = "is_null(`null`) -> true"
+examples = [
+    { code = "is_null(`null`) -> true", description = "Null returns true" },
+    { code = "is_null('') -> false", description = "Empty string is not null" },
+    { code = "is_null(`0`) -> false", description = "Zero is not null" },
+    { code = "is_null(missing_field) -> true", description = "Missing field is null" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2538,7 +3258,12 @@ name = "is_number"
 category = "type"
 description = "Check if value is a number"
 signature = "any -> boolean"
-example = "is_number(`42`) -> true"
+examples = [
+    { code = "is_number(`42`) -> true", description = "Integer is number" },
+    { code = "is_number(`3.14`) -> true", description = "Float is number" },
+    { code = "is_number('42') -> false", description = "String is not number" },
+    { code = "is_number(`null`) -> false", description = "Null is not number" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2546,7 +3271,12 @@ name = "is_object"
 category = "type"
 description = "Check if value is an object"
 signature = "any -> boolean"
-example = "is_object({a: 1}) -> true"
+examples = [
+    { code = "is_object({a: 1}) -> true", description = "Object returns true" },
+    { code = "is_object({}) -> true", description = "Empty object is object" },
+    { code = "is_object([]) -> false", description = "Array is not object" },
+    { code = "is_object('hello') -> false", description = "String is not object" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2554,7 +3284,12 @@ name = "is_string"
 category = "type"
 description = "Check if value is a string"
 signature = "any -> boolean"
-example = "is_string('hello') -> true"
+examples = [
+    { code = "is_string('hello') -> true", description = "String returns true" },
+    { code = "is_string('') -> true", description = "Empty string is string" },
+    { code = "is_string(`42`) -> false", description = "Number is not string" },
+    { code = "is_string([]) -> false", description = "Array is not string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2562,7 +3297,12 @@ name = "to_boolean"
 category = "type"
 description = "Convert value to boolean"
 signature = "any -> boolean"
-example = "to_boolean('true') -> true"
+examples = [
+    { code = "to_boolean('true') -> true", description = "String 'true'" },
+    { code = "to_boolean('false') -> false", description = "String 'false'" },
+    { code = "to_boolean(`1`) -> true", description = "Non-zero is true" },
+    { code = "to_boolean(`0`) -> false", description = "Zero is false" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2570,7 +3310,12 @@ name = "type_of"
 category = "type"
 description = "Get the type of a value"
 signature = "any -> string"
-example = '''type_of(`42`) -> \"number\"'''
+examples = [
+    { code = '''type_of(`42`) -> \"number\"''', description = "Number type" },
+    { code = '''type_of('hello') -> \"string\"''', description = "String type" },
+    { code = '''type_of([1, 2]) -> \"array\"''', description = "Array type" },
+    { code = '''type_of({a: 1}) -> \"object\"''', description = "Object type" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2582,7 +3327,12 @@ name = "url_decode"
 category = "url"
 description = "URL decode a string"
 signature = "string -> string"
-example = '''url_decode('hello%20world') -> \"hello world\"'''
+examples = [
+    { code = '''url_decode('hello%20world') -> \"hello world\"''', description = "Decode space" },
+    { code = '''url_decode('a%2Bb') -> \"a+b\"''', description = "Decode plus sign" },
+    { code = '''url_decode('100%25') -> \"100%\"''', description = "Decode percent" },
+    { code = '''url_decode('hello') -> \"hello\"''', description = "No encoding" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2590,7 +3340,12 @@ name = "url_encode"
 category = "url"
 description = "URL encode a string"
 signature = "string -> string"
-example = '''url_encode('hello world') -> \"hello%20world\"'''
+examples = [
+    { code = '''url_encode('hello world') -> \"hello%20world\"''', description = "Encode space" },
+    { code = '''url_encode('a+b') -> \"a%2Bb\"''', description = "Encode plus" },
+    { code = '''url_encode('100%') -> \"100%25\"''', description = "Encode percent" },
+    { code = '''url_encode('hello') -> \"hello\"''', description = "No special chars" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2598,7 +3353,12 @@ name = "url_parse"
 category = "url"
 description = "Parse URL into components"
 signature = "string -> object"
-example = "url_parse('https://example.com/path') -> {scheme: 'https', ...}"
+examples = [
+    { code = "url_parse('https://example.com/path') -> {scheme: 'https', ...}", description = "Parse full URL" },
+    { code = "url_parse('http://user:pass@host:8080') -> components", description = "With auth and port" },
+    { code = "url_parse('https://api.example.com/v1?key=val') -> with query", description = "With query string" },
+    { code = "url_parse('/path/to/file') -> relative path", description = "Relative URL" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2610,7 +3370,12 @@ name = "coalesce"
 category = "utility"
 description = "Return first non-null value"
 signature = "any... -> any"
-example = '''coalesce(`null`, `null`, 'value') -> \"value\"'''
+examples = [
+    { code = '''coalesce(`null`, `null`, 'value') -> \"value\"''', description = "Skip nulls" },
+    { code = "coalesce(field1, field2, 'default') -> first non-null", description = "Field fallback" },
+    { code = "coalesce('first', 'second') -> 'first'", description = "First wins" },
+    { code = "coalesce(`null`, `null`) -> null", description = "All null" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2618,7 +3383,12 @@ name = "default"
 category = "utility"
 description = "Return default value if null"
 signature = "any, any -> any"
-example = '''default(`null`, 'fallback') -> \"fallback\"'''
+examples = [
+    { code = '''default(`null`, 'fallback') -> \"fallback\"''', description = "Null uses default" },
+    { code = "default('value', 'fallback') -> 'value'", description = "Non-null keeps value" },
+    { code = "default(missing_field, `0`) -> 0", description = "Missing field default" },
+    { code = "default('', 'fallback') -> ''", description = "Empty string not null" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2626,7 +3396,12 @@ name = "if"
 category = "utility"
 description = "Conditional expression"
 signature = "boolean, any, any -> any"
-example = '''if(`true`, 'yes', 'no') -> \"yes\"'''
+examples = [
+    { code = '''if(`true`, 'yes', 'no') -> \"yes\"''', description = "True branch" },
+    { code = '''if(`false`, 'yes', 'no') -> \"no\"''', description = "False branch" },
+    { code = "if(age >= `18`, 'adult', 'minor') -> depends", description = "Conditional logic" },
+    { code = "if(is_empty(arr), 'none', first(arr)) -> value or none", description = "Safe access" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2634,7 +3409,12 @@ name = "json_decode"
 category = "utility"
 description = "Parse JSON string"
 signature = "string -> any"
-example = '''json_decode('{\"a\": 1}') -> {a: 1}'''
+examples = [
+    { code = '''json_decode('{\"a\": 1}') -> {a: 1}''', description = "Parse object" },
+    { code = '''json_decode('[1, 2, 3]') -> [1, 2, 3]''', description = "Parse array" },
+    { code = '''json_decode('\"hello\"') -> \"hello\"''', description = "Parse string" },
+    { code = "json_decode(json_field) -> parsed", description = "Parse field" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2642,7 +3422,12 @@ name = "json_encode"
 category = "utility"
 description = "Serialize value to JSON string"
 signature = "any -> string"
-example = '''json_encode({a: 1}) -> \"{\\\"a\\\":1}\"'''
+examples = [
+    { code = '''json_encode({a: 1}) -> \"{\\\"a\\\":1}\"''', description = "Encode object" },
+    { code = '''json_encode([1, 2, 3]) -> \"[1,2,3]\"''', description = "Encode array" },
+    { code = '''json_encode('hello') -> \"\\\"hello\\\"\"''', description = "Encode string" },
+    { code = "json_encode(data) -> JSON string", description = "Encode any value" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2650,7 +3435,12 @@ name = "json_pointer"
 category = "utility"
 description = "Access value using JSON Pointer (RFC 6901)"
 signature = "any, string -> any"
-example = "json_pointer({foo: {bar: 1}}, '/foo/bar') -> 1"
+examples = [
+    { code = "json_pointer({foo: {bar: 1}}, '/foo/bar') -> 1", description = "Nested access" },
+    { code = "json_pointer(data, '/0/name') -> first item name", description = "Array access" },
+    { code = "json_pointer({a: 1}, '/a') -> 1", description = "Top-level access" },
+    { code = "json_pointer(data, '/missing') -> null", description = "Missing path" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2658,7 +3448,12 @@ name = "now"
 category = "utility"
 description = "Current Unix timestamp in seconds"
 signature = "-> number"
-example = "now() -> 1699900000"
+examples = [
+    { code = "now() -> 1699900000", description = "Current timestamp" },
+    { code = "now() - 3600 -> one hour ago", description = "Subtract seconds" },
+    { code = "now() + 86400 -> tomorrow", description = "Add one day" },
+    { code = "from_epoch(now()) -> current ISO", description = "Convert to string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2666,7 +3461,12 @@ name = "now_ms"
 category = "utility"
 description = "Current Unix timestamp in milliseconds"
 signature = "-> number"
-example = "now_ms() -> 1699900000000"
+examples = [
+    { code = "now_ms() -> 1699900000000", description = "Current time in ms" },
+    { code = "now_ms() - start_ms -> elapsed ms", description = "Calculate duration" },
+    { code = "now_ms() / `1000` -> seconds", description = "Convert to seconds" },
+    { code = "from_epoch_ms(now_ms()) -> current ISO", description = "Convert to string" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2678,7 +3478,11 @@ name = "uuid"
 category = "uuid"
 description = "Generate a UUID v4"
 signature = "-> string"
-example = '''uuid() -> \"550e8400-e29b-41d4-a716-446655440000\"'''
+examples = [
+    { code = '''uuid() -> \"550e8400-e29b-41d4-a716-446655440000\"''', description = "Generate UUID" },
+    { code = "uuid() -> random unique ID", description = "Each call is unique" },
+    { code = "{id: uuid(), name: 'item'} -> with UUID", description = "Add ID to object" },
+]
 features = ["core"]
 
 # =============================================================================
