@@ -17,7 +17,11 @@ name = "chunk"
 category = "array"
 description = "Split array into chunks of size n"
 signature = "array, number -> array"
-example = "chunk([1, 2, 3, 4], `2`) -> [[1, 2], [3, 4]]"
+examples = [
+    { code = "chunk([1, 2, 3, 4], `2`) -> [[1, 2], [3, 4]]", description = "Basic chunking" },
+    { code = "chunk([1, 2, 3, 4, 5], `2`) -> [[1, 2], [3, 4], [5]]", description = "Uneven chunks" },
+    { code = "chunk([], `2`) -> []", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -89,7 +93,11 @@ name = "group_by"
 category = "array"
 description = "Group array elements by key"
 signature = "array, string -> object"
-example = "group_by([{t: 'a'}, {t: 'b'}], 't') -> {a: [...], b: [...]}"
+examples = [
+    { code = "group_by([{t: 'a'}, {t: 'b'}, {t: 'a'}], 't') -> {a: [{t:'a'}, {t:'a'}], b: [{t:'b'}]}", description = "Group by field" },
+    { code = "group_by(users, 'role') -> {admin: [...], user: [...]}", description = "Group users by role" },
+    { code = "group_by([], 'key') -> {}", description = "Empty array returns empty object" },
+]
 features = ["core"]
 
 [[functions]]
@@ -178,7 +186,11 @@ name = "unique"
 category = "array"
 description = "Remove duplicate values"
 signature = "array -> array"
-example = "unique([1, 2, 1, 3]) -> [1, 2, 3]"
+examples = [
+    { code = "unique([1, 2, 1, 3]) -> [1, 2, 3]", description = "Basic deduplication" },
+    { code = "unique(['a', 'b', 'a']) -> ['a', 'b']", description = "String values" },
+    { code = "unique([]) -> []", description = "Empty array" },
+]
 features = ["core"]
 
 [[functions]]
@@ -186,7 +198,11 @@ name = "zip"
 category = "array"
 description = "Zip two arrays together"
 signature = "array, array -> array"
-example = "zip([1, 2], ['a', 'b']) -> [[1, 'a'], [2, 'b']]"
+examples = [
+    { code = "zip([1, 2], ['a', 'b']) -> [[1, 'a'], [2, 'b']]", description = "Basic zip" },
+    { code = "zip([1, 2, 3], ['a', 'b']) -> [[1, 'a'], [2, 'b']]", description = "Unequal lengths (truncates)" },
+    { code = "zip([], []) -> []", description = "Empty arrays" },
+]
 jep = "JEP-013"
 features = ["core", "jep"]
 
@@ -709,7 +725,12 @@ name = "filter_expr"
 category = "expression"
 description = "Keep elements where JMESPath expression evaluates to truthy value"
 signature = "array, expression -> array"
-example = "filter_expr([1, 2, 3], &@ > `1`) -> [2, 3]"
+examples = [
+    { code = "filter_expr([1, 2, 3], &@ > `1`) -> [2, 3]", description = "Filter numbers" },
+    { code = "filter_expr(users, &age >= `18`) -> [adult users]", description = "Filter objects by field" },
+    { code = "filter_expr(['a', '', 'b'], &length(@) > `0`) -> ['a', 'b']", description = "Filter empty strings" },
+    { code = "filter_expr([], &@ > `0`) -> []", description = "Empty array returns empty" },
+]
 aliases = ["filter"]
 features = ["core", "fp"]
 
@@ -750,7 +771,12 @@ name = "map_expr"
 category = "expression"
 description = "Apply a JMESPath expression to each element, returning transformed array"
 signature = "array, expression -> array"
-example = "map_expr([1, 2], &@ * `2`) -> [2, 4]"
+examples = [
+    { code = "map_expr([1, 2], &@ * `2`) -> [2, 4]", description = "Double each number" },
+    { code = "map_expr(users, &name) -> ['alice', 'bob']", description = "Extract field from objects" },
+    { code = "map_expr(['hello', 'world'], &upper(@)) -> ['HELLO', 'WORLD']", description = "Transform strings" },
+    { code = "map_expr([], &@ * `2`) -> []", description = "Empty array returns empty" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1491,7 +1517,12 @@ name = "deep_merge"
 category = "object"
 description = "Recursively merge objects"
 signature = "object, object -> object"
-example = "deep_merge({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}"
+examples = [
+    { code = "deep_merge({a: {b: 1}}, {a: {c: 2}}) -> {a: {b: 1, c: 2}}", description = "Merge nested objects" },
+    { code = "deep_merge({a: 1}, {b: 2}) -> {a: 1, b: 2}", description = "Merge flat objects" },
+    { code = "deep_merge({a: 1}, {a: 2}) -> {a: 2}", description = "Later values override" },
+    { code = "deep_merge({}, {a: 1}) -> {a: 1}", description = "Merge with empty object" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2297,7 +2328,12 @@ name = "split"
 category = "string"
 description = "Split string by delimiter"
 signature = "string, string -> array"
-example = '''split('a,b,c', ',') -> [\"a\", \"b\", \"c\"]'''
+examples = [
+    { code = '''split('a,b,c', ',') -> [\"a\", \"b\", \"c\"]''', description = "Basic split" },
+    { code = '''split('hello world', ' ') -> [\"hello\", \"world\"]''', description = "Split by space" },
+    { code = '''split('no-delim', ',') -> [\"no-delim\"]''', description = "No delimiter found" },
+    { code = '''split('', ',') -> [\"\"]''', description = "Empty string" },
+]
 jep = "JEP-014"
 features = ["core", "jep"]
 

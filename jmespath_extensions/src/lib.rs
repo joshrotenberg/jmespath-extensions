@@ -209,6 +209,8 @@
 //! - [`computing`] - Computing utilities (`parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, `bit_xor`)
 //! - [`jsonpatch`] - JSON Patch (RFC 6902) and Merge Patch (RFC 7386) (`json_patch`, `json_merge_patch`, `json_diff`)
 //!
+#![doc = include_str!(concat!(env!("OUT_DIR"), "/quick_reference.md"))]
+//!
 //! ## Error Handling
 //!
 //! Extension functions follow JMESPath conventions:

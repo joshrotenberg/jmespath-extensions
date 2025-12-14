@@ -41,6 +41,9 @@ fn main() {
 
     // Generate per-category documentation
     generate_category_docs(&out_dir, &by_category);
+
+    // Generate quick reference table for crate root
+    generate_quick_reference(&out_dir, &by_category);
 }
 
 fn generate_module_docs(out_dir: &str, by_category: &BTreeMap<String, Vec<&Function>>) {
@@ -100,10 +103,20 @@ fn generate_module_docs(out_dir: &str, by_category: &BTreeMap<String, Vec<&Funct
                 }
             }
 
-            if !func.example.is_empty() {
-                doc.push_str("**Example:**\n");
+            let examples = func.all_examples();
+            if !examples.is_empty() {
+                if examples.len() == 1 {
+                    doc.push_str("**Example:**\n");
+                } else {
+                    doc.push_str("**Examples:**\n");
+                }
                 doc.push_str("```text\n");
-                doc.push_str(&format!("{}\n", func.example));
+                for ex in &examples {
+                    if let Some(ref desc) = ex.description {
+                        doc.push_str(&format!("// {}\n", desc));
+                    }
+                    doc.push_str(&format!("{}\n", ex.code));
+                }
                 doc.push_str("```\n\n");
             }
         }
@@ -135,8 +148,12 @@ fn generate_registry_data(out_dir: &str, functions: &[Function]) {
             "        signature: r##\"{}\"##,\n",
             func.signature
         ));
-        // Remove backslash escapes from example since we use raw strings
-        let example = func.example.replace("\\\"", "\"");
+        // Get the first example for the registry (backward compatibility)
+        let examples = func.all_examples();
+        let example = examples
+            .first()
+            .map(|e| e.code.replace("\\\"", "\""))
+            .unwrap_or_default();
         code.push_str(&format!("        example: r##\"{}\"##,\n", example));
         code.push_str(&format!(
             "        is_standard: {},\n",
@@ -211,6 +228,65 @@ fn generate_category_docs(out_dir: &str, by_category: &BTreeMap<String, Vec<&Fun
     }
 }
 
+fn generate_quick_reference(out_dir: &str, by_category: &BTreeMap<String, Vec<&Function>>) {
+    let mut doc = String::new();
+
+    // Count total functions
+    let total: usize = by_category.values().map(|v| v.len()).sum();
+
+    doc.push_str(&format!("## Quick Reference ({} functions)\n\n", total));
+    doc.push_str("Click any function name to jump to its detailed documentation in the [`functions`] module.\n\n");
+
+    // Generate a table for each category
+    for (category, funcs) in by_category {
+        let cat_title = category_title(category);
+        let module_link = category_to_module(category);
+
+        doc.push_str(&format!("### {} ([`{}`])\n\n", cat_title, module_link));
+        doc.push_str("| Function | Signature | Description |\n");
+        doc.push_str("|----------|-----------|-------------|\n");
+
+        for func in funcs {
+            let sig = func.signature.replace('|', "\\|");
+            let desc = func
+                .description
+                .replace('|', "\\|")
+                .replace('[', r"\[")
+                .replace(']', r"\]");
+            // Link to the function in the functions module
+            doc.push_str(&format!(
+                "| [`{}`](functions#{}---{}) | `{}` | {} |\n",
+                func.name,
+                category.to_lowercase().replace('-', "_"),
+                func.name,
+                sig,
+                desc
+            ));
+        }
+        doc.push('\n');
+    }
+
+    let doc_path = Path::new(out_dir).join("quick_reference.md");
+    fs::write(doc_path, doc).expect("Failed to write quick_reference.md");
+}
+
+fn category_to_module(category: &str) -> String {
+    match category {
+        "standard" => "functions".to_string(),
+        "multi-match" | "multimatch" => "mod@multi_match".to_string(),
+        "jsonpatch" => "mod@jsonpatch".to_string(),
+        "datetime" => "mod@datetime".to_string(),
+        "regex" => "mod@regex_fns".to_string(),
+        "url" => "mod@url_fns".to_string(),
+        "semver" => "mod@semver_fns".to_string(),
+        "type" => "mod@type_conv".to_string(),
+        // Use mod@ prefix to disambiguate from primitive types
+        "array" => "mod@array".to_string(),
+        "string" => "mod@string".to_string(),
+        _ => format!("mod@{}", category.replace('-', "_")),
+    }
+}
+
 fn category_title(category: &str) -> String {
     match category {
         "standard" => "Standard JMESPath".to_string(),
@@ -269,10 +345,39 @@ struct Function {
     category: String,
     description: String,
     signature: String,
-    example: String,
+    /// Single example (backward compatibility)
+    #[serde(default)]
+    example: Option<String>,
+    /// Multiple examples with descriptions
+    #[serde(default)]
+    examples: Option<Vec<Example>>,
     #[serde(default)]
     is_standard: Option<bool>,
     jep: Option<String>,
     aliases: Option<Vec<String>>,
     features: Option<Vec<String>>,
+}
+
+impl Function {
+    /// Get all examples, combining single example and examples array
+    fn all_examples(&self) -> Vec<Example> {
+        let mut result = Vec::new();
+        if let Some(ref ex) = self.example {
+            result.push(Example {
+                code: ex.clone(),
+                description: None,
+            });
+        }
+        if let Some(ref exs) = self.examples {
+            result.extend(exs.iter().cloned());
+        }
+        result
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct Example {
+    code: String,
+    #[serde(default)]
+    description: Option<String>,
 }
