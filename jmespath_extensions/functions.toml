@@ -287,7 +287,11 @@ name = "color_complement"
 category = "color"
 description = "Get complementary color"
 signature = "string -> string"
-example = '''color_complement('#ff0000') -> \"#00ffff\"'''
+examples = [
+    { code = '''color_complement('#ff0000') -> \"#00ffff\"''', description = "Red to cyan" },
+    { code = '''color_complement('#00ff00') -> \"#ff00ff\"''', description = "Green to magenta" },
+    { code = '''color_complement('#0000ff') -> \"#ffff00\"''', description = "Blue to yellow" },
+]
 features = ["core"]
 
 [[functions]]
@@ -295,7 +299,11 @@ name = "color_grayscale"
 category = "color"
 description = "Convert to grayscale"
 signature = "string -> string"
-example = '''color_grayscale('#ff0000') -> \"#4c4c4c\"'''
+examples = [
+    { code = '''color_grayscale('#ff0000') -> \"#4c4c4c\"''', description = "Red to gray" },
+    { code = '''color_grayscale('#00ff00') -> \"#969696\"''', description = "Green to gray" },
+    { code = '''color_grayscale('#ffffff') -> \"#ffffff\"''', description = "White unchanged" },
+]
 features = ["core"]
 
 [[functions]]
@@ -303,7 +311,11 @@ name = "color_invert"
 category = "color"
 description = "Invert a color"
 signature = "string -> string"
-example = '''color_invert('#ff0000') -> \"#00ffff\"'''
+examples = [
+    { code = '''color_invert('#ff0000') -> \"#00ffff\"''', description = "Invert red" },
+    { code = '''color_invert('#000000') -> \"#ffffff\"''', description = "Black to white" },
+    { code = '''color_invert('#ffffff') -> \"#000000\"''', description = "White to black" },
+]
 features = ["core"]
 
 [[functions]]
@@ -311,7 +323,11 @@ name = "color_mix"
 category = "color"
 description = "Mix two colors"
 signature = "string, string, number -> string"
-example = '''color_mix('#ff0000', '#0000ff', `50`) -> \"#800080\"'''
+examples = [
+    { code = '''color_mix('#ff0000', '#0000ff', `50`) -> \"#800080\"''', description = "Red and blue to purple" },
+    { code = '''color_mix('#ff0000', '#00ff00', `50`) -> \"#808000\"''', description = "Red and green" },
+    { code = '''color_mix('#000000', '#ffffff', `50`) -> \"#808080\"''', description = "Black and white to gray" },
+]
 features = ["core"]
 
 [[functions]]
@@ -319,7 +335,11 @@ name = "darken"
 category = "color"
 description = "Darken a color by percentage"
 signature = "string, number -> string"
-example = '''darken('#3366cc', `20`) -> \"#2952a3\"'''
+examples = [
+    { code = '''darken('#3366cc', `20`) -> \"#2952a3\"''', description = "Darken blue by 20%" },
+    { code = '''darken('#ff0000', `50`) -> \"#800000\"''', description = "Darken red by 50%" },
+    { code = '''darken('#ffffff', `100`) -> \"#000000\"''', description = "White to black" },
+]
 features = ["core"]
 
 [[functions]]
@@ -327,7 +347,11 @@ name = "hex_to_rgb"
 category = "color"
 description = "Convert hex color to RGB"
 signature = "string -> object"
-example = "hex_to_rgb('#ff5500') -> {r: 255, g: 85, b: 0}"
+examples = [
+    { code = "hex_to_rgb('#ff5500') -> {b: 0, g: 85, r: 255}", description = "Orange" },
+    { code = "hex_to_rgb('#000000') -> {b: 0, g: 0, r: 0}", description = "Black" },
+    { code = "hex_to_rgb('#ffffff') -> {b: 255, g: 255, r: 255}", description = "White" },
+]
 features = ["core"]
 
 [[functions]]
@@ -335,7 +359,11 @@ name = "lighten"
 category = "color"
 description = "Lighten a color by percentage"
 signature = "string, number -> string"
-example = '''lighten('#3366cc', `20`) -> \"#5c85d6\"'''
+examples = [
+    { code = '''lighten('#3366cc', `20`) -> \"#5c85d6\"''', description = "Lighten blue by 20%" },
+    { code = '''lighten('#800000', `50`) -> \"#ff0000\"''', description = "Lighten dark red" },
+    { code = '''lighten('#000000', `100`) -> \"#ffffff\"''', description = "Black to white" },
+]
 features = ["core"]
 
 [[functions]]
@@ -343,7 +371,11 @@ name = "rgb_to_hex"
 category = "color"
 description = "Convert RGB to hex color"
 signature = "number, number, number -> string"
-example = '''rgb_to_hex(`255`, `85`, `0`) -> \"#ff5500\"'''
+examples = [
+    { code = '''rgb_to_hex(`255`, `85`, `0`) -> \"#ff5500\"''', description = "Orange" },
+    { code = '''rgb_to_hex(`0`, `0`, `0`) -> \"#000000\"''', description = "Black" },
+    { code = '''rgb_to_hex(`255`, `255`, `255`) -> \"#ffffff\"''', description = "White" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -355,7 +387,11 @@ name = "bit_and"
 category = "computing"
 description = "Bitwise AND"
 signature = "number, number -> number"
-example = "bit_and(`12`, `10`) -> 8"
+examples = [
+    { code = "bit_and(`12`, `10`) -> 8", description = "1100 AND 1010 = 1000" },
+    { code = "bit_and(`255`, `15`) -> 15", description = "Mask lower 4 bits" },
+    { code = "bit_and(`7`, `3`) -> 3", description = "0111 AND 0011 = 0011" },
+]
 features = ["core"]
 
 [[functions]]
@@ -363,7 +399,11 @@ name = "bit_not"
 category = "computing"
 description = "Bitwise NOT"
 signature = "number -> number"
-example = "bit_not(`0`) -> -1"
+examples = [
+    { code = "bit_not(`0`) -> -1", description = "Invert zero" },
+    { code = "bit_not(`-1`) -> 0", description = "Invert all ones" },
+    { code = "bit_not(`1`) -> -2", description = "Invert one" },
+]
 features = ["core"]
 
 [[functions]]
@@ -371,7 +411,11 @@ name = "bit_or"
 category = "computing"
 description = "Bitwise OR"
 signature = "number, number -> number"
-example = "bit_or(`12`, `10`) -> 14"
+examples = [
+    { code = "bit_or(`12`, `10`) -> 14", description = "1100 OR 1010 = 1110" },
+    { code = "bit_or(`1`, `2`) -> 3", description = "0001 OR 0010 = 0011" },
+    { code = "bit_or(`0`, `255`) -> 255", description = "Zero OR any = any" },
+]
 features = ["core"]
 
 [[functions]]
@@ -379,7 +423,11 @@ name = "bit_shift_left"
 category = "computing"
 description = "Bitwise left shift"
 signature = "number, number -> number"
-example = "bit_shift_left(`1`, `4`) -> 16"
+examples = [
+    { code = "bit_shift_left(`1`, `4`) -> 16", description = "Shift 1 left by 4" },
+    { code = "bit_shift_left(`1`, `0`) -> 1", description = "Shift by 0 unchanged" },
+    { code = "bit_shift_left(`5`, `2`) -> 20", description = "Multiply by 4" },
+]
 features = ["core"]
 
 [[functions]]
@@ -387,7 +435,11 @@ name = "bit_shift_right"
 category = "computing"
 description = "Bitwise right shift"
 signature = "number, number -> number"
-example = "bit_shift_right(`16`, `2`) -> 4"
+examples = [
+    { code = "bit_shift_right(`16`, `2`) -> 4", description = "Divide by 4" },
+    { code = "bit_shift_right(`255`, `4`) -> 15", description = "Shift right by 4" },
+    { code = "bit_shift_right(`8`, `0`) -> 8", description = "Shift by 0 unchanged" },
+]
 features = ["core"]
 
 [[functions]]
@@ -395,7 +447,11 @@ name = "bit_xor"
 category = "computing"
 description = "Bitwise XOR"
 signature = "number, number -> number"
-example = "bit_xor(`12`, `10`) -> 6"
+examples = [
+    { code = "bit_xor(`12`, `10`) -> 6", description = "1100 XOR 1010 = 0110" },
+    { code = "bit_xor(`255`, `255`) -> 0", description = "Same values = 0" },
+    { code = "bit_xor(`5`, `3`) -> 6", description = "0101 XOR 0011 = 0110" },
+]
 features = ["core"]
 
 [[functions]]
@@ -403,7 +459,11 @@ name = "format_bytes"
 category = "computing"
 description = "Format bytes (decimal)"
 signature = "number -> string"
-example = '''format_bytes(`1500000000`) -> \"1.50 GB\"'''
+examples = [
+    { code = '''format_bytes(`1500000000`) -> \"1.50 GB\"''', description = "Gigabytes" },
+    { code = '''format_bytes(`1000`) -> \"1.00 KB\"''', description = "Kilobytes" },
+    { code = '''format_bytes(`500`) -> \"500 B\"''', description = "Bytes" },
+]
 features = ["core"]
 
 [[functions]]
@@ -411,7 +471,11 @@ name = "format_bytes_binary"
 category = "computing"
 description = "Format bytes (binary)"
 signature = "number -> string"
-example = '''format_bytes_binary(`1073741824`) -> \"1.00 GiB\"'''
+examples = [
+    { code = '''format_bytes_binary(`1073741824`) -> \"1.00 GiB\"''', description = "Gibibytes" },
+    { code = '''format_bytes_binary(`1024`) -> \"1.00 KiB\"''', description = "Kibibytes" },
+    { code = '''format_bytes_binary(`1048576`) -> \"1.00 MiB\"''', description = "Mebibytes" },
+]
 features = ["core"]
 
 [[functions]]
@@ -419,7 +483,11 @@ name = "parse_bytes"
 category = "computing"
 description = "Parse byte size string"
 signature = "string -> number"
-example = "parse_bytes('1.5 GB') -> 1500000000"
+examples = [
+    { code = "parse_bytes('1.5 GB') -> 1500000000", description = "Gigabytes" },
+    { code = "parse_bytes('1 KB') -> 1000", description = "Kilobytes" },
+    { code = "parse_bytes('1 GiB') -> 1073741824", description = "Gibibytes" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -772,7 +840,11 @@ name = "duration_hours"
 category = "duration"
 description = "Convert seconds to hours"
 signature = "number -> number"
-example = "duration_hours(`7200`) -> 2"
+examples = [
+    { code = "duration_hours(`7200`) -> 2", description = "2 hours" },
+    { code = "duration_hours(`3600`) -> 1", description = "1 hour" },
+    { code = "duration_hours(`5400`) -> 1.5", description = "1.5 hours" },
+]
 features = ["core"]
 
 [[functions]]
@@ -780,7 +852,11 @@ name = "duration_minutes"
 category = "duration"
 description = "Convert seconds to minutes"
 signature = "number -> number"
-example = "duration_minutes(`120`) -> 2"
+examples = [
+    { code = "duration_minutes(`120`) -> 2", description = "2 minutes" },
+    { code = "duration_minutes(`60`) -> 1", description = "1 minute" },
+    { code = "duration_minutes(`90`) -> 1.5", description = "1.5 minutes" },
+]
 features = ["core"]
 
 [[functions]]
@@ -788,7 +864,11 @@ name = "duration_seconds"
 category = "duration"
 description = "Get seconds component"
 signature = "number -> number"
-example = "duration_seconds(`65`) -> 5"
+examples = [
+    { code = "duration_seconds(`65`) -> 5", description = "65 seconds mod 60" },
+    { code = "duration_seconds(`120`) -> 0", description = "Exact minutes" },
+    { code = "duration_seconds(`3661`) -> 1", description = "1 hour 1 min 1 sec" },
+]
 features = ["core"]
 
 [[functions]]
@@ -796,7 +876,11 @@ name = "format_duration"
 category = "duration"
 description = "Format seconds as duration string"
 signature = "number -> string"
-example = '''format_duration(`5400`) -> \"1h30m\"'''
+examples = [
+    { code = '''format_duration(`5400`) -> \"1h30m\"''', description = "1.5 hours" },
+    { code = '''format_duration(`3661`) -> \"1h1m1s\"''', description = "1 hour 1 min 1 sec" },
+    { code = '''format_duration(`60`) -> \"1m\"''', description = "1 minute" },
+]
 features = ["core"]
 
 [[functions]]
@@ -804,7 +888,11 @@ name = "parse_duration"
 category = "duration"
 description = "Parse duration string to seconds"
 signature = "string -> number"
-example = "parse_duration('1h30m') -> 5400"
+examples = [
+    { code = "parse_duration('1h30m') -> 5400", description = "1.5 hours" },
+    { code = "parse_duration('2h') -> 7200", description = "2 hours" },
+    { code = "parse_duration('30s') -> 30", description = "30 seconds" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -816,7 +904,11 @@ name = "base64_decode"
 category = "encoding"
 description = "Decode base64 string"
 signature = "string -> string"
-example = '''base64_decode('aGVsbG8=') -> \"hello\"'''
+examples = [
+    { code = '''base64_decode('aGVsbG8=') -> \"hello\"''', description = "Decode hello" },
+    { code = '''base64_decode('dGVzdA==') -> \"test\"''', description = "Decode test" },
+    { code = '''base64_decode('') -> \"\"''', description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -824,7 +916,11 @@ name = "base64_encode"
 category = "encoding"
 description = "Encode string to base64"
 signature = "string -> string"
-example = '''base64_encode('hello') -> \"aGVsbG8=\"'''
+examples = [
+    { code = '''base64_encode('hello') -> \"aGVsbG8=\"''', description = "Encode hello" },
+    { code = '''base64_encode('test') -> \"dGVzdA==\"''', description = "Encode test" },
+    { code = '''base64_encode('') -> \"\"''', description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -832,7 +928,11 @@ name = "hex_decode"
 category = "encoding"
 description = "Decode hex string"
 signature = "string -> string"
-example = '''hex_decode('68656c6c6f') -> \"hello\"'''
+examples = [
+    { code = '''hex_decode('68656c6c6f') -> \"hello\"''', description = "Decode hello" },
+    { code = '''hex_decode('74657374') -> \"test\"''', description = "Decode test" },
+    { code = '''hex_decode('') -> \"\"''', description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -840,7 +940,11 @@ name = "hex_encode"
 category = "encoding"
 description = "Encode string to hex"
 signature = "string -> string"
-example = '''hex_encode('hello') -> \"68656c6c6f\"'''
+examples = [
+    { code = '''hex_encode('hello') -> \"68656c6c6f\"''', description = "Encode hello" },
+    { code = '''hex_encode('test') -> \"74657374\"''', description = "Encode test" },
+    { code = '''hex_encode('') -> \"\"''', description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -848,7 +952,10 @@ name = "jwt_decode"
 category = "encoding"
 description = "Decode JWT payload (claims) without verification"
 signature = "string -> object"
-example = '''jwt_decode(token).sub -> \"user_123\"'''
+examples = [
+    { code = '''jwt_decode('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyXzEyMyJ9.sig').sub -> \"user_123\"''', description = "Extract subject claim" },
+    { code = "jwt_decode('eyJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoiSm9obiJ9.sig').name -> 'John'", description = "Extract name claim" },
+]
 features = ["core"]
 
 [[functions]]
@@ -856,7 +963,10 @@ name = "jwt_header"
 category = "encoding"
 description = "Decode JWT header without verification"
 signature = "string -> object"
-example = '''jwt_header(token).alg -> \"HS256\"'''
+examples = [
+    { code = '''jwt_header('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig').alg -> \"HS256\"''', description = "Extract algorithm" },
+    { code = '''jwt_header('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig').typ -> \"JWT\"''', description = "Extract type" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1240,7 +1350,11 @@ name = "damerau_levenshtein"
 category = "fuzzy"
 description = "Damerau-Levenshtein distance"
 signature = "string, string -> number"
-example = "damerau_levenshtein('ab', 'ba') -> 1"
+examples = [
+    { code = "damerau_levenshtein('ab', 'ba') -> 1", description = "Single transposition" },
+    { code = "damerau_levenshtein('hello', 'hello') -> 0", description = "Identical strings" },
+    { code = "damerau_levenshtein('ca', 'abc') -> 2", description = "Multiple edits" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1248,7 +1362,11 @@ name = "jaro"
 category = "fuzzy"
 description = "Jaro similarity (0-1)"
 signature = "string, string -> number"
-example = "jaro('hello', 'hallo') -> 0.866..."
+examples = [
+    { code = "jaro('hello', 'hallo') -> 0.866...", description = "Similar words" },
+    { code = "jaro('hello', 'hello') -> 1.0", description = "Identical strings" },
+    { code = "jaro('abc', 'xyz') -> 0.0", description = "Completely different" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1256,7 +1374,11 @@ name = "jaro_winkler"
 category = "fuzzy"
 description = "Jaro-Winkler similarity (0-1)"
 signature = "string, string -> number"
-example = "jaro_winkler('hello', 'hallo') -> 0.88"
+examples = [
+    { code = "jaro_winkler('hello', 'hallo') -> 0.88", description = "Similar words" },
+    { code = "jaro_winkler('hello', 'hello') -> 1.0", description = "Identical strings" },
+    { code = "jaro_winkler('abc', 'xyz') -> 0.0", description = "Completely different" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1264,7 +1386,11 @@ name = "levenshtein"
 category = "fuzzy"
 description = "Levenshtein edit distance"
 signature = "string, string -> number"
-example = "levenshtein('kitten', 'sitting') -> 3"
+examples = [
+    { code = "levenshtein('kitten', 'sitting') -> 3", description = "Classic example" },
+    { code = "levenshtein('hello', 'hello') -> 0", description = "Identical strings" },
+    { code = "levenshtein('abc', 'def') -> 3", description = "All different" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1272,7 +1398,11 @@ name = "normalized_levenshtein"
 category = "fuzzy"
 description = "Normalized Levenshtein (0-1)"
 signature = "string, string -> number"
-example = "normalized_levenshtein('ab', 'abc') -> 0.666..."
+examples = [
+    { code = "normalized_levenshtein('ab', 'abc') -> 0.666...", description = "One edit" },
+    { code = "normalized_levenshtein('hello', 'hello') -> 0.0", description = "Identical" },
+    { code = "normalized_levenshtein('abc', 'xyz') -> 1.0", description = "All different" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1280,7 +1410,11 @@ name = "sorensen_dice"
 category = "fuzzy"
 description = "Sorensen-Dice coefficient (0-1)"
 signature = "string, string -> number"
-example = "sorensen_dice('night', 'nacht') -> 0.25"
+examples = [
+    { code = "sorensen_dice('night', 'nacht') -> 0.25", description = "Similar words" },
+    { code = "sorensen_dice('hello', 'hello') -> 1.0", description = "Identical strings" },
+    { code = "sorensen_dice('abc', 'xyz') -> 0.0", description = "No common bigrams" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1292,7 +1426,11 @@ name = "geo_bearing"
 category = "geo"
 description = "Bearing between coordinates"
 signature = "number, number, number, number -> number"
-example = "geo_bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 51.2"
+examples = [
+    { code = "geo_bearing(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 51.2", description = "NYC to London" },
+    { code = "geo_bearing(`0`, `0`, `0`, `90`) -> 90.0", description = "Due east" },
+    { code = "geo_bearing(`0`, `0`, `90`, `0`) -> 0.0", description = "Due north" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1300,7 +1438,11 @@ name = "geo_distance"
 category = "geo"
 description = "Haversine distance in meters"
 signature = "number, number, number, number -> number"
-example = "geo_distance(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570222"
+examples = [
+    { code = "geo_distance(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570222", description = "NYC to London" },
+    { code = "geo_distance(`34.0522`, `-118.2437`, `37.7749`, `-122.4194`) -> 559044", description = "LA to SF" },
+    { code = "geo_distance(`0`, `0`, `0`, `0`) -> 0", description = "Same point" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1308,7 +1450,11 @@ name = "geo_distance_km"
 category = "geo"
 description = "Haversine distance in kilometers"
 signature = "number, number, number, number -> number"
-example = "geo_distance_km(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570.2"
+examples = [
+    { code = "geo_distance_km(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 5570.2", description = "NYC to London" },
+    { code = "geo_distance_km(`34.0522`, `-118.2437`, `37.7749`, `-122.4194`) -> 559.0", description = "LA to SF" },
+    { code = "geo_distance_km(`48.8566`, `2.3522`, `51.5074`, `-0.1278`) -> 343.5", description = "Paris to London" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1316,7 +1462,11 @@ name = "geo_distance_miles"
 category = "geo"
 description = "Haversine distance in miles"
 signature = "number, number, number, number -> number"
-example = "geo_distance_miles(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 3461.0"
+examples = [
+    { code = "geo_distance_miles(`40.7128`, `-74.0060`, `51.5074`, `-0.1278`) -> 3461.0", description = "NYC to London" },
+    { code = "geo_distance_miles(`34.0522`, `-118.2437`, `37.7749`, `-122.4194`) -> 347.4", description = "LA to SF" },
+    { code = "geo_distance_miles(`48.8566`, `2.3522`, `51.5074`, `-0.1278`) -> 213.4", description = "Paris to London" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1328,7 +1478,11 @@ name = "crc32"
 category = "hash"
 description = "Calculate CRC32 checksum"
 signature = "string -> number"
-example = "crc32('hello') -> 907060870"
+examples = [
+    { code = "crc32('hello') -> 907060870", description = "Simple string" },
+    { code = "crc32('') -> 0", description = "Empty string" },
+    { code = "crc32('test data') -> 2706273274", description = "Data with space" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1336,7 +1490,10 @@ name = "hmac_md5"
 category = "hash"
 description = "Calculate HMAC-MD5 signature"
 signature = "string, string -> string"
-example = '''hmac_md5('hello', 'secret') -> \"e17e4e4a...\"'''
+examples = [
+    { code = '''hmac_md5('hello', 'secret') -> \"e17e4e4a205c55782dce5b6ff41e6e19\"''', description = "With secret key" },
+    { code = '''hmac_md5('message', 'key') -> \"a24c903c3a7e7b741ea77bd467b98bca\"''', description = "Different message" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1344,7 +1501,10 @@ name = "hmac_sha1"
 category = "hash"
 description = "Calculate HMAC-SHA1 signature"
 signature = "string, string -> string"
-example = '''hmac_sha1('hello', 'secret') -> \"5112055c...\"'''
+examples = [
+    { code = '''hmac_sha1('hello', 'secret') -> \"5112055c36b16a6693045d75a054332e4555b52f\"''', description = "With secret key" },
+    { code = '''hmac_sha1('data', 'key') -> \"104152c5bfdca07bc633eebd46199f0255c9f49d\"''', description = "Different data" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1352,7 +1512,10 @@ name = "hmac_sha256"
 category = "hash"
 description = "Calculate HMAC-SHA256 signature"
 signature = "string, string -> string"
-example = '''hmac_sha256('hello', 'secret') -> \"88aab3ed...\"'''
+examples = [
+    { code = '''hmac_sha256('hello', 'secret') -> \"88aab3ede8d3adf94d26ab90d3bafd4a2083070c3bcce9c014ee04a443847c0b\"''', description = "With secret key" },
+    { code = '''hmac_sha256('data', 'key') -> \"5031fe3d989c6d1537a013fa6e739da23463fdaec3b70137d828e36ace221bd0\"''', description = "Different data" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1360,7 +1523,10 @@ name = "hmac_sha512"
 category = "hash"
 description = "Calculate HMAC-SHA512 signature"
 signature = "string, string -> string"
-example = '''hmac_sha512('hello', 'secret') -> \"d05888a2...\"'''
+examples = [
+    { code = '''hmac_sha512('hello', 'secret') -> \"d05888a20ae...\"''', description = "With secret key" },
+    { code = '''hmac_sha512('data', 'key') -> \"3c5953a18...\"''', description = "Different data" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1368,7 +1534,11 @@ name = "md5"
 category = "hash"
 description = "Calculate MD5 hash"
 signature = "string -> string"
-example = '''md5('hello') -> \"5d41402abc4b2a76b9719d911017c592\"'''
+examples = [
+    { code = '''md5('hello') -> \"5d41402abc4b2a76b9719d911017c592\"''', description = "Simple string" },
+    { code = '''md5('') -> \"d41d8cd98f00b204e9800998ecf8427e\"''', description = "Empty string" },
+    { code = '''md5('test') -> \"098f6bcd4621d373cade4e832627b4f6\"''', description = "Another string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1376,7 +1546,11 @@ name = "sha1"
 category = "hash"
 description = "Calculate SHA-1 hash"
 signature = "string -> string"
-example = '''sha1('hello') -> \"aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d\"'''
+examples = [
+    { code = '''sha1('hello') -> \"aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d\"''', description = "Simple string" },
+    { code = '''sha1('') -> \"da39a3ee5e6b4b0d3255bfef95601890afd80709\"''', description = "Empty string" },
+    { code = '''sha1('test') -> \"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3\"''', description = "Another string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1384,7 +1558,11 @@ name = "sha256"
 category = "hash"
 description = "Calculate SHA-256 hash"
 signature = "string -> string"
-example = '''sha256('hello') -> \"2cf24dba...\"'''
+examples = [
+    { code = '''sha256('hello') -> \"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824\"''', description = "Simple string" },
+    { code = '''sha256('') -> \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"''', description = "Empty string" },
+    { code = '''sha256('test') -> \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\"''', description = "Another string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1392,7 +1570,10 @@ name = "sha512"
 category = "hash"
 description = "Calculate SHA-512 hash"
 signature = "string -> string"
-example = '''sha512('hello') -> \"9b71d224...\"'''
+examples = [
+    { code = '''sha512('hello') -> \"9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043\"''', description = "Simple string" },
+    { code = '''sha512('test') -> \"ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff\"''', description = "Another string" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1404,7 +1585,10 @@ name = "nanoid"
 category = "ids"
 description = "Generate nanoid"
 signature = "number? -> string"
-example = '''nanoid() -> \"V1StGXR8_Z5jdHi6B-myT\"'''
+examples = [
+    { code = '''nanoid() -> \"V1StGXR8_Z5jdHi6B-myT\"''', description = "Default 21 chars" },
+    { code = '''nanoid(`10`) -> \"IRFa-VaY2b\"''', description = "Custom length" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1412,7 +1596,10 @@ name = "ulid"
 category = "ids"
 description = "Generate ULID"
 signature = "-> string"
-example = '''ulid() -> \"01ARZ3NDEKTSV4RRFFQ69G5FAV\"'''
+examples = [
+    { code = '''ulid() -> \"01ARZ3NDEKTSV4RRFFQ69G5FAV\"''', description = "Generate ULID" },
+    { code = '''length(ulid()) -> 26''', description = "Always 26 chars" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1420,7 +1607,10 @@ name = "ulid_timestamp"
 category = "ids"
 description = "Extract timestamp from ULID"
 signature = "string -> number"
-example = "ulid_timestamp('01ARZ3NDEKTSV4RRFFQ69G5FAV') -> 1469918176385"
+examples = [
+    { code = "ulid_timestamp('01ARZ3NDEKTSV4RRFFQ69G5FAV') -> 1469918176385", description = "Extract timestamp" },
+    { code = "ulid_timestamp('01BX5ZZKBKACTAV9WEVGEMMVRY') -> 1484581420610", description = "Another ULID" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1432,7 +1622,11 @@ name = "json_diff"
 category = "jsonpatch"
 description = "Generate JSON Patch (RFC 6902) that transforms first object into second"
 signature = "object, object -> array"
-example = "json_diff({a: 1}, {a: 2}) -> [{op: 'replace', path: '/a', value: 2}]"
+examples = [
+    { code = "json_diff({a: 1}, {a: 2}) -> [{op: 'replace', path: '/a', value: 2}]", description = "Replace value" },
+    { code = "json_diff({a: 1}, {a: 1, b: 2}) -> [{op: 'add', path: '/b', value: 2}]", description = "Add field" },
+    { code = "json_diff({a: 1, b: 2}, {a: 1}) -> [{op: 'remove', path: '/b'}]", description = "Remove field" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1440,7 +1634,11 @@ name = "json_merge_patch"
 category = "jsonpatch"
 description = "Apply JSON Merge Patch (RFC 7386) to an object"
 signature = "object, object -> object"
-example = "json_merge_patch({a: 1, b: 2}, {b: 3, c: 4}) -> {a: 1, b: 3, c: 4}"
+examples = [
+    { code = "json_merge_patch({a: 1, b: 2}, {b: 3, c: 4}) -> {a: 1, b: 3, c: 4}", description = "Merge objects" },
+    { code = "json_merge_patch({a: 1}, {a: `null`}) -> {}", description = "Null removes field" },
+    { code = "json_merge_patch({}, {a: 1}) -> {a: 1}", description = "Add to empty" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1448,7 +1646,11 @@ name = "json_patch"
 category = "jsonpatch"
 description = "Apply JSON Patch (RFC 6902) operations to an object"
 signature = "object, array -> object"
-example = "json_patch({a: 1}, [{op: 'add', path: '/b', value: 2}]) -> {a: 1, b: 2}"
+examples = [
+    { code = "json_patch({a: 1}, [{op: 'add', path: '/b', value: 2}]) -> {a: 1, b: 2}", description = "Add operation" },
+    { code = "json_patch({a: 1}, [{op: 'replace', path: '/a', value: 2}]) -> {a: 2}", description = "Replace operation" },
+    { code = "json_patch({a: 1, b: 2}, [{op: 'remove', path: '/b'}]) -> {a: 1}", description = "Remove operation" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1828,7 +2030,10 @@ name = "extract_all"
 category = "multimatch"
 description = "Extract all pattern matches with positions (Aho-Corasick)"
 signature = "string, array[string] -> array[object]"
-example = "extract_all('error warning', ['error', 'warning']) -> [{pattern: 'error', match: 'error', start: 0, end: 5}, ...]"
+examples = [
+    { code = "extract_all('error warning', ['error', 'warning']) -> [{pattern: 'error', match: 'error', start: 0, end: 5}, ...]", description = "Multiple patterns" },
+    { code = "extract_all('abab', ['a', 'b']) -> [{pattern: 'a', match: 'a', start: 0, end: 1}, ...]", description = "Overlapping matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1836,7 +2041,11 @@ name = "extract_between"
 category = "multimatch"
 description = "Extract text between two delimiters"
 signature = "string, string, string -> string|null"
-example = '''extract_between('<title>Page</title>', '<title>', '</title>') -> \"Page\"'''
+examples = [
+    { code = '''extract_between('<title>Page</title>', '<title>', '</title>') -> \"Page\"''', description = "HTML tag content" },
+    { code = '''extract_between('Hello [world]!', '[', ']') -> \"world\"''', description = "Bracketed content" },
+    { code = "extract_between('no match', '[', ']') -> null", description = "No delimiters found" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1844,7 +2053,11 @@ name = "match_all"
 category = "multimatch"
 description = "Check if string contains all of the patterns (Aho-Corasick)"
 signature = "string, array[string] -> boolean"
-example = "match_all('hello world', ['hello', 'world']) -> true"
+examples = [
+    { code = "match_all('hello world', ['hello', 'world']) -> true", description = "All patterns found" },
+    { code = "match_all('hello world', ['hello', 'foo']) -> false", description = "Missing pattern" },
+    { code = "match_all('abc', []) -> true", description = "Empty patterns" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1852,7 +2065,11 @@ name = "match_any"
 category = "multimatch"
 description = "Check if string contains any of the patterns (Aho-Corasick)"
 signature = "string, array[string] -> boolean"
-example = "match_any('hello world', ['world', 'foo']) -> true"
+examples = [
+    { code = "match_any('hello world', ['world', 'foo']) -> true", description = "One pattern found" },
+    { code = "match_any('hello world', ['foo', 'bar']) -> false", description = "No patterns found" },
+    { code = "match_any('abc', []) -> false", description = "Empty patterns" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1860,7 +2077,11 @@ name = "match_count"
 category = "multimatch"
 description = "Count total pattern matches in string (Aho-Corasick)"
 signature = "string, array[string] -> number"
-example = "match_count('abcabc', ['a', 'b']) -> 4"
+examples = [
+    { code = "match_count('abcabc', ['a', 'b']) -> 4", description = "Count all matches" },
+    { code = "match_count('hello', ['l']) -> 2", description = "Repeated pattern" },
+    { code = "match_count('abc', ['x']) -> 0", description = "No matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1868,7 +2089,10 @@ name = "match_positions"
 category = "multimatch"
 description = "Get start/end positions of all pattern matches (Aho-Corasick)"
 signature = "string, array[string] -> array[object]"
-example = "match_positions('The quick fox', ['quick', 'fox']) -> [{pattern: 'quick', start: 4, end: 9}, ...]"
+examples = [
+    { code = "match_positions('The quick fox', ['quick', 'fox']) -> [{pattern: 'quick', start: 4, end: 9}, ...]", description = "Find positions" },
+    { code = "match_positions('abab', ['ab']) -> [{pattern: 'ab', start: 0, end: 2}, {pattern: 'ab', start: 2, end: 4}]", description = "Multiple occurrences" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1876,7 +2100,11 @@ name = "match_which"
 category = "multimatch"
 description = "Return array of patterns that match the string (Aho-Corasick)"
 signature = "string, array[string] -> array[string]"
-example = '''match_which('hello world', ['hello', 'foo', 'world']) -> [\"hello\", \"world\"]'''
+examples = [
+    { code = '''match_which('hello world', ['hello', 'foo', 'world']) -> [\"hello\", \"world\"]''', description = "Find matching patterns" },
+    { code = '''match_which('abc', ['a', 'b', 'x']) -> [\"a\", \"b\"]''', description = "Partial matches" },
+    { code = "match_which('abc', ['x', 'y']) -> []", description = "No matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1884,7 +2112,11 @@ name = "replace_many"
 category = "multimatch"
 description = "Replace multiple patterns simultaneously (Aho-Corasick)"
 signature = "string, object -> string"
-example = '''replace_many('hello world', {hello: 'hi', world: 'earth'}) -> \"hi earth\"'''
+examples = [
+    { code = '''replace_many('hello world', {hello: 'hi', world: 'earth'}) -> \"hi earth\"''', description = "Multiple replacements" },
+    { code = '''replace_many('aaa', {a: 'b'}) -> \"bbb\"''', description = "Repeated pattern" },
+    { code = '''replace_many('abc', {x: 'y'}) -> \"abc\"''', description = "No matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1892,7 +2124,11 @@ name = "split_keep"
 category = "multimatch"
 description = "Split string keeping delimiters in result"
 signature = "string, string -> array[string]"
-example = '''split_keep('a-b-c', '-') -> [\"a\", \"-\", \"b\", \"-\", \"c\"]'''
+examples = [
+    { code = '''split_keep('a-b-c', '-') -> [\"a\", \"-\", \"b\", \"-\", \"c\"]''', description = "Keep dashes" },
+    { code = '''split_keep('hello world', ' ') -> [\"hello\", \" \", \"world\"]''', description = "Keep spaces" },
+    { code = '''split_keep('abc', '-') -> [\"abc\"]''', description = "No delimiter" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1900,7 +2136,11 @@ name = "tokenize"
 category = "multimatch"
 description = "Smart word tokenization with optional lowercase and min_length"
 signature = "string, object? -> array[string]"
-example = '''tokenize('Hello, World!') -> [\"Hello\", \"World\"]'''
+examples = [
+    { code = '''tokenize('Hello, World!') -> [\"Hello\", \"World\"]''', description = "Basic tokenization" },
+    { code = '''tokenize('Hello, World!', {lowercase: `true`}) -> [\"hello\", \"world\"]''', description = "Lowercase option" },
+    { code = '''tokenize('a bb ccc', {min_length: `2`}) -> [\"bb\", \"ccc\"]''', description = "Minimum length" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -1912,7 +2152,11 @@ name = "cidr_broadcast"
 category = "network"
 description = "Get broadcast address from CIDR"
 signature = "string -> string"
-example = '''cidr_broadcast('192.168.1.0/24') -> \"192.168.1.255\"'''
+examples = [
+    { code = '''cidr_broadcast('192.168.1.0/24') -> \"192.168.1.255\"''', description = "/24 network" },
+    { code = '''cidr_broadcast('10.0.0.0/8') -> \"10.255.255.255\"''', description = "/8 network" },
+    { code = '''cidr_broadcast('172.16.0.0/16') -> \"172.16.255.255\"''', description = "/16 network" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1920,7 +2164,11 @@ name = "cidr_contains"
 category = "network"
 description = "Check if IP is in CIDR range"
 signature = "string, string -> boolean"
-example = "cidr_contains('192.168.0.0/16', '192.168.1.1') -> true"
+examples = [
+    { code = "cidr_contains('192.168.0.0/16', '192.168.1.1') -> true", description = "IP in range" },
+    { code = "cidr_contains('10.0.0.0/8', '192.168.1.1') -> false", description = "IP not in range" },
+    { code = "cidr_contains('0.0.0.0/0', '8.8.8.8') -> true", description = "Catch-all range" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1928,7 +2176,11 @@ name = "cidr_network"
 category = "network"
 description = "Get network address from CIDR"
 signature = "string -> string"
-example = '''cidr_network('192.168.1.0/24') -> \"192.168.1.0\"'''
+examples = [
+    { code = '''cidr_network('192.168.1.0/24') -> \"192.168.1.0\"''', description = "/24 network" },
+    { code = '''cidr_network('10.0.0.0/8') -> \"10.0.0.0\"''', description = "/8 network" },
+    { code = '''cidr_network('192.168.1.100/24') -> \"192.168.1.0\"''', description = "Host in network" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1936,7 +2188,11 @@ name = "cidr_prefix"
 category = "network"
 description = "Get prefix length from CIDR"
 signature = "string -> number"
-example = "cidr_prefix('192.168.1.0/24') -> 24"
+examples = [
+    { code = "cidr_prefix('192.168.1.0/24') -> 24", description = "/24 prefix" },
+    { code = "cidr_prefix('10.0.0.0/8') -> 8", description = "/8 prefix" },
+    { code = "cidr_prefix('0.0.0.0/0') -> 0", description = "Default route" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1944,7 +2200,11 @@ name = "int_to_ip"
 category = "network"
 description = "Convert integer to IP address"
 signature = "number -> string"
-example = '''int_to_ip(`3232235777`) -> \"192.168.1.1\"'''
+examples = [
+    { code = '''int_to_ip(`3232235777`) -> \"192.168.1.1\"''', description = "Private IP" },
+    { code = '''int_to_ip(`0`) -> \"0.0.0.0\"''', description = "Zero" },
+    { code = '''int_to_ip(`4294967295`) -> \"255.255.255.255\"''', description = "Max value" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1952,7 +2212,11 @@ name = "ip_to_int"
 category = "network"
 description = "Convert IP address to integer"
 signature = "string -> number"
-example = "ip_to_int('192.168.1.1') -> 3232235777"
+examples = [
+    { code = "ip_to_int('192.168.1.1') -> 3232235777", description = "Private IP" },
+    { code = "ip_to_int('0.0.0.0') -> 0", description = "Zero" },
+    { code = "ip_to_int('255.255.255.255') -> 4294967295", description = "Max value" },
+]
 features = ["core"]
 
 [[functions]]
@@ -1960,7 +2224,11 @@ name = "is_private_ip"
 category = "network"
 description = "Check if IP is in private range"
 signature = "string -> boolean"
-example = "is_private_ip('192.168.1.1') -> true"
+examples = [
+    { code = "is_private_ip('192.168.1.1') -> true", description = "Class C private" },
+    { code = "is_private_ip('10.0.0.1') -> true", description = "Class A private" },
+    { code = "is_private_ip('8.8.8.8') -> false", description = "Public IP" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2225,7 +2493,11 @@ name = "path_basename"
 category = "path"
 description = "Get filename from path"
 signature = "string -> string"
-example = '''path_basename('/foo/bar.txt') -> \"bar.txt\"'''
+examples = [
+    { code = '''path_basename('/foo/bar.txt') -> \"bar.txt\"''', description = "Unix path" },
+    { code = '''path_basename('/foo/bar/') -> \"bar\"''', description = "Directory path" },
+    { code = '''path_basename('file.txt') -> \"file.txt\"''', description = "Just filename" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2233,7 +2505,11 @@ name = "path_dirname"
 category = "path"
 description = "Get directory from path"
 signature = "string -> string"
-example = '''path_dirname('/foo/bar.txt') -> \"/foo\"'''
+examples = [
+    { code = '''path_dirname('/foo/bar.txt') -> \"/foo\"''', description = "Unix path" },
+    { code = '''path_dirname('/foo/bar/baz') -> \"/foo/bar\"''', description = "Nested path" },
+    { code = '''path_dirname('file.txt') -> \"\"''', description = "No directory" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2241,7 +2517,11 @@ name = "path_ext"
 category = "path"
 description = "Get file extension"
 signature = "string -> string"
-example = '''path_ext('/foo/bar.txt') -> \"txt\"'''
+examples = [
+    { code = '''path_ext('/foo/bar.txt') -> \"txt\"''', description = "Text file" },
+    { code = '''path_ext('image.png') -> \"png\"''', description = "Image file" },
+    { code = '''path_ext('noext') -> \"\"''', description = "No extension" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2249,7 +2529,11 @@ name = "path_join"
 category = "path"
 description = "Join path segments"
 signature = "string... -> string"
-example = '''path_join('/foo', 'bar', 'baz') -> \"/foo/bar/baz\"'''
+examples = [
+    { code = '''path_join('/foo', 'bar', 'baz') -> \"/foo/bar/baz\"''', description = "Multiple segments" },
+    { code = '''path_join('/home', 'user', 'file.txt') -> \"/home/user/file.txt\"''', description = "Full path" },
+    { code = '''path_join('a', 'b') -> \"a/b\"''', description = "Relative path" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2261,7 +2545,10 @@ name = "caverphone"
 category = "phonetic"
 description = "Caverphone code"
 signature = "string -> string"
-example = '''caverphone('Smith') -> \"SMT1111111\"'''
+examples = [
+    { code = '''caverphone('Smith') -> \"SMT1111111\"''', description = "Common name" },
+    { code = '''caverphone('Thompson') -> \"TMPSN11111\"''', description = "Another name" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2269,7 +2556,10 @@ name = "caverphone2"
 category = "phonetic"
 description = "Caverphone 2 code"
 signature = "string -> string"
-example = '''caverphone2('Smith') -> \"SMT1111111\"'''
+examples = [
+    { code = '''caverphone2('Smith') -> \"SMT1111111\"''', description = "Common name" },
+    { code = '''caverphone2('Thompson') -> \"TMPSN11111\"''', description = "Another name" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2277,7 +2567,10 @@ name = "double_metaphone"
 category = "phonetic"
 description = "Double Metaphone codes"
 signature = "string -> object"
-example = "double_metaphone('Smith') -> {primary: 'SM0', secondary: 'XMT'}"
+examples = [
+    { code = "double_metaphone('Smith') -> {primary: 'SM0', secondary: 'XMT'}", description = "Common name" },
+    { code = "double_metaphone('Schmidt') -> {primary: 'XMT', secondary: 'SMT'}", description = "German variant" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2285,7 +2578,10 @@ name = "match_rating_codex"
 category = "phonetic"
 description = "Match Rating codex"
 signature = "string -> string"
-example = '''match_rating_codex('Smith') -> \"SMTH\"'''
+examples = [
+    { code = '''match_rating_codex('Smith') -> \"SMTH\"''', description = "Common name" },
+    { code = '''match_rating_codex('Johnson') -> \"JHNSN\"''', description = "Another name" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2293,7 +2589,10 @@ name = "metaphone"
 category = "phonetic"
 description = "Metaphone phonetic code"
 signature = "string -> string"
-example = '''metaphone('Smith') -> \"SM0\"'''
+examples = [
+    { code = '''metaphone('Smith') -> \"SM0\"''', description = "Common name" },
+    { code = '''metaphone('phone') -> \"FN\"''', description = "Ph sound" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2301,7 +2600,10 @@ name = "nysiis"
 category = "phonetic"
 description = "NYSIIS phonetic code"
 signature = "string -> string"
-example = '''nysiis('Smith') -> \"SNAT\"'''
+examples = [
+    { code = '''nysiis('Smith') -> \"SNAT\"''', description = "Common name" },
+    { code = '''nysiis('Johnson') -> \"JANSAN\"''', description = "Another name" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2309,7 +2611,11 @@ name = "phonetic_match"
 category = "phonetic"
 description = "Check phonetic match with algorithm"
 signature = "string, string, string -> boolean"
-example = "phonetic_match('Smith', 'Smyth', 'soundex') -> true"
+examples = [
+    { code = "phonetic_match('Smith', 'Smyth', 'soundex') -> true", description = "Soundex match" },
+    { code = "phonetic_match('Robert', 'Rupert', 'metaphone') -> true", description = "Metaphone match" },
+    { code = "phonetic_match('John', 'Jane', 'soundex') -> false", description = "No match" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2317,7 +2623,11 @@ name = "soundex"
 category = "phonetic"
 description = "Soundex phonetic code"
 signature = "string -> string"
-example = '''soundex('Robert') -> \"R163\"'''
+examples = [
+    { code = '''soundex('Robert') -> \"R163\"''', description = "Common name" },
+    { code = '''soundex('Rupert') -> \"R163\"''', description = "Same code as Robert" },
+    { code = '''soundex('Smith') -> \"S530\"''', description = "Another name" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2325,7 +2635,11 @@ name = "sounds_like"
 category = "phonetic"
 description = "Check if strings sound similar"
 signature = "string, string -> boolean"
-example = "sounds_like('Robert', 'Rupert') -> true"
+examples = [
+    { code = "sounds_like('Robert', 'Rupert') -> true", description = "Similar sounding" },
+    { code = "sounds_like('Smith', 'Smyth') -> true", description = "Spelling variants" },
+    { code = "sounds_like('John', 'Mary') -> false", description = "Different names" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2337,7 +2651,10 @@ name = "random"
 category = "rand"
 description = "Generate random number between 0 and 1"
 signature = "-> number"
-example = "random() -> 0.123456..."
+examples = [
+    { code = "random() -> 0.123456...", description = "Random float" },
+    { code = "floor(multiply(random(), `100`)) -> 42", description = "Random 0-99" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2345,7 +2662,11 @@ name = "sample"
 category = "rand"
 description = "Random sample from array"
 signature = "array, number -> array"
-example = "sample([1, 2, 3, 4], `2`) -> [3, 1]"
+examples = [
+    { code = "sample([1, 2, 3, 4], `2`) -> [3, 1]", description = "Sample 2 items" },
+    { code = "sample(['a', 'b', 'c'], `1`) -> ['b']", description = "Sample 1 item" },
+    { code = "length(sample([1, 2, 3], `2`)) -> 2", description = "Always returns n items" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2353,7 +2674,10 @@ name = "shuffle"
 category = "rand"
 description = "Randomly shuffle array"
 signature = "array -> array"
-example = "shuffle([1, 2, 3]) -> [2, 3, 1]"
+examples = [
+    { code = "shuffle([1, 2, 3]) -> [2, 3, 1]", description = "Shuffle numbers" },
+    { code = "length(shuffle([1, 2, 3])) -> 3", description = "Preserves length" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2365,7 +2689,11 @@ name = "regex_extract"
 category = "regex"
 description = "Extract regex matches"
 signature = "string, string -> array"
-example = '''regex_extract('a1b2', '\\\\d+') -> [\"1\", \"2\"]'''
+examples = [
+    { code = '''regex_extract('a1b2', '\\\\d+') -> [\"1\", \"2\"]''', description = "Extract numbers" },
+    { code = '''regex_extract('hello world', '\\\\w+') -> [\"hello\", \"world\"]''', description = "Extract words" },
+    { code = "regex_extract('abc', '\\\\d+') -> []", description = "No matches" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2373,7 +2701,11 @@ name = "regex_match"
 category = "regex"
 description = "Test if string matches regex"
 signature = "string, string -> boolean"
-example = "regex_match('hello', '^h.*o$') -> true"
+examples = [
+    { code = "regex_match('hello', '^h.*o$') -> true", description = "Full match" },
+    { code = "regex_match('test123', '\\\\d+') -> true", description = "Contains digits" },
+    { code = "regex_match('abc', '^\\\\d+$') -> false", description = "No match" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2381,7 +2713,11 @@ name = "regex_replace"
 category = "regex"
 description = "Replace regex matches"
 signature = "string, string, string -> string"
-example = '''regex_replace('a1b2', '\\\\d+', 'X') -> \"aXbX\"'''
+examples = [
+    { code = '''regex_replace('a1b2', '\\\\d+', 'X') -> \"aXbX\"''', description = "Replace digits" },
+    { code = '''regex_replace('hello world', '\\\\s+', '-') -> \"hello-world\"''', description = "Replace spaces" },
+    { code = '''regex_replace('abc', 'x', 'y') -> \"abc\"''', description = "No match unchanged" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2393,7 +2729,11 @@ name = "semver_compare"
 category = "semver"
 description = "Compare versions (-1, 0, 1)"
 signature = "string, string -> number"
-example = "semver_compare('1.0.0', '2.0.0') -> -1"
+examples = [
+    { code = "semver_compare('1.0.0', '2.0.0') -> -1", description = "Less than" },
+    { code = "semver_compare('2.0.0', '1.0.0') -> 1", description = "Greater than" },
+    { code = "semver_compare('1.0.0', '1.0.0') -> 0", description = "Equal" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2401,7 +2741,11 @@ name = "semver_is_valid"
 category = "semver"
 description = "Check if string is valid semver"
 signature = "string -> boolean"
-example = "semver_is_valid('1.2.3') -> true"
+examples = [
+    { code = "semver_is_valid('1.2.3') -> true", description = "Valid semver" },
+    { code = "semver_is_valid('1.2.3-alpha') -> true", description = "With prerelease" },
+    { code = "semver_is_valid('invalid') -> false", description = "Invalid format" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2409,7 +2753,11 @@ name = "semver_major"
 category = "semver"
 description = "Get major version"
 signature = "string -> number"
-example = "semver_major('1.2.3') -> 1"
+examples = [
+    { code = "semver_major('1.2.3') -> 1", description = "Major version" },
+    { code = "semver_major('10.0.0') -> 10", description = "Double digit" },
+    { code = "semver_major('0.1.0') -> 0", description = "Zero major" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2417,7 +2765,11 @@ name = "semver_minor"
 category = "semver"
 description = "Get minor version"
 signature = "string -> number"
-example = "semver_minor('1.2.3') -> 2"
+examples = [
+    { code = "semver_minor('1.2.3') -> 2", description = "Minor version" },
+    { code = "semver_minor('1.10.0') -> 10", description = "Double digit" },
+    { code = "semver_minor('1.0.0') -> 0", description = "Zero minor" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2425,7 +2777,10 @@ name = "semver_parse"
 category = "semver"
 description = "Parse semantic version"
 signature = "string -> object"
-example = "semver_parse('1.2.3') -> {major: 1, minor: 2, patch: 3}"
+examples = [
+    { code = "semver_parse('1.2.3') -> {major: 1, minor: 2, patch: 3}", description = "Basic version" },
+    { code = "semver_parse('1.2.3-alpha').pre -> 'alpha'", description = "With prerelease" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2433,7 +2788,11 @@ name = "semver_patch"
 category = "semver"
 description = "Get patch version"
 signature = "string -> number"
-example = "semver_patch('1.2.3') -> 3"
+examples = [
+    { code = "semver_patch('1.2.3') -> 3", description = "Patch version" },
+    { code = "semver_patch('1.2.10') -> 10", description = "Double digit" },
+    { code = "semver_patch('1.2.0') -> 0", description = "Zero patch" },
+]
 features = ["core"]
 
 [[functions]]
@@ -2441,7 +2800,11 @@ name = "semver_satisfies"
 category = "semver"
 description = "Check if version matches constraint"
 signature = "string, string -> boolean"
-example = "semver_satisfies('1.2.3', '^1.0.0') -> true"
+examples = [
+    { code = "semver_satisfies('1.2.3', '^1.0.0') -> true", description = "Caret range" },
+    { code = "semver_satisfies('2.0.0', '^1.0.0') -> false", description = "Outside range" },
+    { code = "semver_satisfies('1.5.0', '>=1.0.0') -> true", description = "Comparison" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -2453,7 +2816,11 @@ name = "abs"
 category = "standard"
 description = "Returns the absolute value of a number"
 signature = "number -> number"
-example = "abs(`-5`) -> 5"
+examples = [
+    { code = "abs(`-5`) -> 5", description = "Negative number" },
+    { code = "abs(`5`) -> 5", description = "Positive number" },
+    { code = "abs(`0`) -> 0", description = "Zero" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2462,7 +2829,11 @@ name = "avg"
 category = "standard"
 description = "Returns the average of an array of numbers"
 signature = "array[number] -> number"
-example = "avg([1, 2, 3]) -> 2"
+examples = [
+    { code = "avg([1, 2, 3]) -> 2", description = "Simple average" },
+    { code = "avg([10, 20, 30, 40]) -> 25", description = "Four numbers" },
+    { code = "avg([5]) -> 5", description = "Single element" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2471,7 +2842,11 @@ name = "ceil"
 category = "standard"
 description = "Returns the smallest integer greater than or equal to the number"
 signature = "number -> number"
-example = "ceil(`1.5`) -> 2"
+examples = [
+    { code = "ceil(`1.5`) -> 2", description = "Round up decimal" },
+    { code = "ceil(`-1.5`) -> -1", description = "Negative rounds toward zero" },
+    { code = "ceil(`5`) -> 5", description = "Integer unchanged" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2480,7 +2855,11 @@ name = "contains"
 category = "standard"
 description = "Returns true if the subject contains the search value"
 signature = "array|string, any -> boolean"
-example = "contains([1, 2, 3], `2`) -> true"
+examples = [
+    { code = "contains([1, 2, 3], `2`) -> true", description = "Array contains number" },
+    { code = "contains('hello', 'ell') -> true", description = "String contains substring" },
+    { code = "contains([1, 2, 3], `5`) -> false", description = "Not found" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2489,7 +2868,11 @@ name = "ends_with"
 category = "standard"
 description = "Returns true if the subject ends with the suffix"
 signature = "string, string -> boolean"
-example = "ends_with('hello', 'lo') -> true"
+examples = [
+    { code = "ends_with('hello', 'lo') -> true", description = "Ends with suffix" },
+    { code = "ends_with('hello', 'he') -> false", description = "Does not end with" },
+    { code = "ends_with('test.txt', '.txt') -> true", description = "File extension" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2498,7 +2881,11 @@ name = "floor"
 category = "standard"
 description = "Returns the largest integer less than or equal to the number"
 signature = "number -> number"
-example = "floor(`1.9`) -> 1"
+examples = [
+    { code = "floor(`1.9`) -> 1", description = "Round down decimal" },
+    { code = "floor(`-1.5`) -> -2", description = "Negative rounds away from zero" },
+    { code = "floor(`5`) -> 5", description = "Integer unchanged" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2507,7 +2894,11 @@ name = "join"
 category = "standard"
 description = "Returns array elements joined into a string with a separator"
 signature = "string, array[string] -> string"
-example = '''join(', ', ['a', 'b', 'c']) -> \"a, b, c\"'''
+examples = [
+    { code = '''join(', ', ['a', 'b', 'c']) -> \"a, b, c\"''', description = "Join with comma" },
+    { code = '''join('-', ['2024', '01', '15']) -> \"2024-01-15\"''', description = "Join date parts" },
+    { code = '''join('', ['a', 'b', 'c']) -> \"abc\"''', description = "Join without separator" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2516,7 +2907,11 @@ name = "keys"
 category = "standard"
 description = "Returns an array of keys from an object"
 signature = "object -> array[string]"
-example = '''keys({a: 1, b: 2}) -> [\"a\", \"b\"]'''
+examples = [
+    { code = '''keys({a: 1, b: 2}) -> [\"a\", \"b\"]''', description = "Get object keys" },
+    { code = '''keys({name: \"John\", age: 30}) -> [\"age\", \"name\"]''', description = "Keys sorted alphabetically" },
+    { code = "keys({}) -> []", description = "Empty object" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2525,7 +2920,11 @@ name = "length"
 category = "standard"
 description = "Returns the length of an array, object, or string"
 signature = "array|object|string -> number"
-example = "length([1, 2, 3]) -> 3"
+examples = [
+    { code = "length([1, 2, 3]) -> 3", description = "Array length" },
+    { code = "length('hello') -> 5", description = "String length" },
+    { code = "length({a: 1, b: 2}) -> 2", description = "Object key count" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2534,7 +2933,11 @@ name = "map"
 category = "standard"
 description = "Applies an expression to each element of an array"
 signature = "expression, array -> array"
-example = "map(&a, [{a: 1}, {a: 2}]) -> [1, 2]"
+examples = [
+    { code = "map(&a, [{a: 1}, {a: 2}]) -> [1, 2]", description = "Extract field from objects" },
+    { code = "map(&length(@), ['a', 'bb', 'ccc']) -> [1, 2, 3]", description = "Apply function" },
+    { code = "map(&@, [1, 2, 3]) -> [1, 2, 3]", description = "Identity mapping" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2543,7 +2946,11 @@ name = "max"
 category = "standard"
 description = "Returns the maximum value in an array"
 signature = "array[number]|array[string] -> number|string"
-example = "max([1, 3, 2]) -> 3"
+examples = [
+    { code = "max([1, 3, 2]) -> 3", description = "Max of numbers" },
+    { code = "max(['a', 'c', 'b']) -> 'c'", description = "Max of strings" },
+    { code = "max([-5, -1, -10]) -> -1", description = "Negative numbers" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2552,7 +2959,11 @@ name = "max_by"
 category = "standard"
 description = "Returns the element with maximum value by expression"
 signature = "array, expression -> any"
-example = "max_by([{a: 1}, {a: 2}], &a) -> {a: 2}"
+examples = [
+    { code = "max_by([{a: 1}, {a: 2}], &a) -> {a: 2}", description = "Max by field" },
+    { code = "max_by([{name: 'a', age: 30}, {name: 'b', age: 25}], &age) -> {name: 'a', age: 30}", description = "Max by age" },
+    { code = "max_by(['aa', 'b', 'ccc'], &length(@)) -> 'ccc'", description = "Max by length" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2561,7 +2972,11 @@ name = "merge"
 category = "standard"
 description = "Merges objects into a single object"
 signature = "object... -> object"
-example = "merge({a: 1}, {b: 2}) -> {a: 1, b: 2}"
+examples = [
+    { code = "merge({a: 1}, {b: 2}) -> {a: 1, b: 2}", description = "Merge two objects" },
+    { code = "merge({a: 1}, {a: 2}) -> {a: 2}", description = "Later values override" },
+    { code = "merge({a: 1}, {b: 2}, {c: 3}) -> {a: 1, b: 2, c: 3}", description = "Multiple objects" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2570,7 +2985,11 @@ name = "min"
 category = "standard"
 description = "Returns the minimum value in an array"
 signature = "array[number]|array[string] -> number|string"
-example = "min([1, 3, 2]) -> 1"
+examples = [
+    { code = "min([1, 3, 2]) -> 1", description = "Min of numbers" },
+    { code = "min(['a', 'c', 'b']) -> 'a'", description = "Min of strings" },
+    { code = "min([-5, -1, -10]) -> -10", description = "Negative numbers" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2579,7 +2998,11 @@ name = "min_by"
 category = "standard"
 description = "Returns the element with minimum value by expression"
 signature = "array, expression -> any"
-example = "min_by([{a: 1}, {a: 2}], &a) -> {a: 1}"
+examples = [
+    { code = "min_by([{a: 1}, {a: 2}], &a) -> {a: 1}", description = "Min by field" },
+    { code = "min_by([{name: 'a', age: 30}, {name: 'b', age: 25}], &age) -> {name: 'b', age: 25}", description = "Min by age" },
+    { code = "min_by(['aa', 'b', 'ccc'], &length(@)) -> 'b'", description = "Min by length" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2588,7 +3011,11 @@ name = "not_null"
 category = "standard"
 description = "Returns the first non-null argument"
 signature = "any... -> any"
-example = '''not_null(`null`, 'a', 'b') -> \"a\"'''
+examples = [
+    { code = '''not_null(`null`, 'a', 'b') -> \"a\"''', description = "Skip nulls" },
+    { code = '''not_null('first', 'second') -> \"first\"''', description = "First non-null" },
+    { code = "not_null(`null`, `null`, `1`) -> 1", description = "Multiple nulls" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2597,7 +3024,11 @@ name = "reverse"
 category = "standard"
 description = "Reverses an array or string"
 signature = "array|string -> array|string"
-example = "reverse([1, 2, 3]) -> [3, 2, 1]"
+examples = [
+    { code = "reverse([1, 2, 3]) -> [3, 2, 1]", description = "Reverse array" },
+    { code = "reverse('hello') -> 'olleh'", description = "Reverse string" },
+    { code = "reverse([]) -> []", description = "Empty array" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2606,7 +3037,11 @@ name = "sort"
 category = "standard"
 description = "Sorts an array of numbers or strings"
 signature = "array[number]|array[string] -> array"
-example = "sort([3, 1, 2]) -> [1, 2, 3]"
+examples = [
+    { code = "sort([3, 1, 2]) -> [1, 2, 3]", description = "Sort numbers" },
+    { code = "sort(['c', 'a', 'b']) -> ['a', 'b', 'c']", description = "Sort strings" },
+    { code = "sort([]) -> []", description = "Empty array" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2615,7 +3050,11 @@ name = "sort_by"
 category = "standard"
 description = "Sorts an array by expression result"
 signature = "array, expression -> array"
-example = "sort_by([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]"
+examples = [
+    { code = "sort_by([{a: 2}, {a: 1}], &a) -> [{a: 1}, {a: 2}]", description = "Sort by field" },
+    { code = "sort_by(['bb', 'a', 'ccc'], &length(@)) -> ['a', 'bb', 'ccc']", description = "Sort by length" },
+    { code = "sort_by([{name: 'z'}, {name: 'a'}], &name) -> [{name: 'a'}, {name: 'z'}]", description = "Sort by name" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2624,7 +3063,11 @@ name = "starts_with"
 category = "standard"
 description = "Returns true if the subject starts with the prefix"
 signature = "string, string -> boolean"
-example = "starts_with('hello', 'he') -> true"
+examples = [
+    { code = "starts_with('hello', 'he') -> true", description = "Starts with prefix" },
+    { code = "starts_with('hello', 'lo') -> false", description = "Does not start with" },
+    { code = "starts_with('https://example.com', 'https') -> true", description = "URL protocol" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2633,7 +3076,11 @@ name = "sum"
 category = "standard"
 description = "Returns the sum of an array of numbers"
 signature = "array[number] -> number"
-example = "sum([1, 2, 3]) -> 6"
+examples = [
+    { code = "sum([1, 2, 3]) -> 6", description = "Sum of numbers" },
+    { code = "sum([10, -5, 3]) -> 8", description = "With negative" },
+    { code = "sum([]) -> 0", description = "Empty array" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2642,7 +3089,11 @@ name = "to_array"
 category = "standard"
 description = "Converts a value to an array"
 signature = "any -> array"
-example = '''to_array('hello') -> [\"hello\"]'''
+examples = [
+    { code = '''to_array('hello') -> [\"hello\"]''', description = "String to array" },
+    { code = "to_array([1, 2]) -> [1, 2]", description = "Array unchanged" },
+    { code = "to_array(`5`) -> [5]", description = "Number to array" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2651,7 +3102,11 @@ name = "to_number"
 category = "standard"
 description = "Converts a value to a number"
 signature = "any -> number"
-example = "to_number('42') -> 42"
+examples = [
+    { code = "to_number('42') -> 42", description = "String to number" },
+    { code = "to_number('3.14') -> 3.14", description = "String to float" },
+    { code = "to_number(`5`) -> 5", description = "Number unchanged" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2660,7 +3115,11 @@ name = "to_string"
 category = "standard"
 description = "Converts a value to a string"
 signature = "any -> string"
-example = '''to_string(`42`) -> \"42\"'''
+examples = [
+    { code = '''to_string(`42`) -> \"42\"''', description = "Number to string" },
+    { code = '''to_string(`true`) -> \"true\"''', description = "Boolean to string" },
+    { code = '''to_string('hello') -> \"hello\"''', description = "String unchanged" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2669,7 +3128,12 @@ name = "type"
 category = "standard"
 description = "Returns the type of a value as a string"
 signature = "any -> string"
-example = '''type('hello') -> \"string\"'''
+examples = [
+    { code = '''type('hello') -> \"string\"''', description = "String type" },
+    { code = '''type(`42`) -> \"number\"''', description = "Number type" },
+    { code = '''type([1, 2]) -> \"array\"''', description = "Array type" },
+    { code = '''type({a: 1}) -> \"object\"''', description = "Object type" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -2678,7 +3142,11 @@ name = "values"
 category = "standard"
 description = "Returns an array of values from an object"
 signature = "object -> array"
-example = "values({a: 1, b: 2}) -> [1, 2]"
+examples = [
+    { code = "values({a: 1, b: 2}) -> [1, 2]", description = "Get object values" },
+    { code = "values({x: 'hello', y: 'world'}) -> ['hello', 'world']", description = "String values" },
+    { code = "values({}) -> []", description = "Empty object" },
+]
 is_standard = true
 features = ["spec"]
 
@@ -3114,7 +3582,11 @@ name = "char_count"
 category = "text"
 description = "Count characters in text"
 signature = "string -> number"
-example = "char_count('hello') -> 5"
+examples = [
+    { code = "char_count('hello') -> 5", description = "Simple word" },
+    { code = "char_count('hello world') -> 11", description = "With space" },
+    { code = "char_count('') -> 0", description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3122,7 +3594,11 @@ name = "char_frequencies"
 category = "text"
 description = "Count character frequencies"
 signature = "string -> object"
-example = "char_frequencies('aab') -> {a: 2, b: 1}"
+examples = [
+    { code = "char_frequencies('aab') -> {a: 2, b: 1}", description = "Count repeated chars" },
+    { code = "char_frequencies('hello') -> {e: 1, h: 1, l: 2, o: 1}", description = "Word frequencies" },
+    { code = "char_frequencies('') -> {}", description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3130,7 +3606,11 @@ name = "paragraph_count"
 category = "text"
 description = "Count paragraphs in text"
 signature = "string -> number"
-example = '''paragraph_count('A\\n\\nB') -> 2'''
+examples = [
+    { code = '''paragraph_count('A\\n\\nB') -> 2''', description = "Two paragraphs" },
+    { code = '''paragraph_count('Single paragraph') -> 1''', description = "Single paragraph" },
+    { code = '''paragraph_count('A\\n\\nB\\n\\nC') -> 3''', description = "Three paragraphs" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3138,7 +3618,10 @@ name = "reading_time"
 category = "text"
 description = "Estimate reading time"
 signature = "string -> string"
-example = '''reading_time('...long text...') -> \"2 min read\"'''
+examples = [
+    { code = '''reading_time('The quick brown fox') -> \"1 min read\"''', description = "Short text" },
+    { code = '''reading_time('') -> \"1 min read\"''', description = "Empty text minimum" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3146,7 +3629,10 @@ name = "reading_time_seconds"
 category = "text"
 description = "Estimate reading time in seconds"
 signature = "string -> number"
-example = "reading_time_seconds('...text...') -> 120"
+examples = [
+    { code = "reading_time_seconds('The quick brown fox jumps over the lazy dog') -> 2", description = "Short sentence" },
+    { code = "reading_time_seconds('') -> 0", description = "Empty text" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3154,7 +3640,11 @@ name = "sentence_count"
 category = "text"
 description = "Count sentences in text"
 signature = "string -> number"
-example = "sentence_count('Hello. World!') -> 2"
+examples = [
+    { code = "sentence_count('Hello. World!') -> 2", description = "Two sentences" },
+    { code = "sentence_count('One sentence') -> 1", description = "Single sentence" },
+    { code = "sentence_count('What? Yes! No.') -> 3", description = "Different terminators" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3162,7 +3652,11 @@ name = "word_count"
 category = "text"
 description = "Count words in text"
 signature = "string -> number"
-example = "word_count('hello world') -> 2"
+examples = [
+    { code = "word_count('hello world') -> 2", description = "Two words" },
+    { code = "word_count('one') -> 1", description = "Single word" },
+    { code = "word_count('') -> 0", description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3170,7 +3664,11 @@ name = "word_frequencies"
 category = "text"
 description = "Count word frequencies"
 signature = "string -> object"
-example = "word_frequencies('a a b') -> {a: 2, b: 1}"
+examples = [
+    { code = "word_frequencies('a a b') -> {a: 2, b: 1}", description = "Count repeated words" },
+    { code = "word_frequencies('the quick brown fox') -> {brown: 1, fox: 1, quick: 1, the: 1}", description = "Unique words" },
+    { code = "word_frequencies('') -> {}", description = "Empty string" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3178,7 +3676,11 @@ name = "ngrams"
 category = "text"
 description = "Generate n-grams from text (word or character)"
 signature = "string, number, string? -> array"
-example = "ngrams('hello', `3`, 'char') -> \\['hel', 'ell', 'llo'\\]"
+examples = [
+    { code = "ngrams('hello', `3`, 'char') -> \\['hel', 'ell', 'llo'\\]", description = "Character trigrams" },
+    { code = "ngrams('a b c d', `2`, 'word') -> \\[\\['a', 'b'\\], \\['b', 'c'\\], \\['c', 'd'\\]\\]", description = "Word bigrams" },
+    { code = "ngrams('ab', `3`, 'char') -> \\[\\]", description = "Text shorter than n" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3186,7 +3688,11 @@ name = "bigrams"
 category = "text"
 description = "Generate word bigrams (2-grams)"
 signature = "string -> array"
-example = "bigrams('a b c') -> \\[\\['a', 'b'\\], \\['b', 'c'\\]\\]"
+examples = [
+    { code = "bigrams('a b c') -> \\[\\['a', 'b'\\], \\['b', 'c'\\]\\]", description = "Basic bigrams" },
+    { code = "bigrams('the quick brown fox') -> \\[\\['the', 'quick'\\], \\['quick', 'brown'\\], \\['brown', 'fox'\\]\\]", description = "Sentence bigrams" },
+    { code = "bigrams('single') -> \\[\\]", description = "Single word" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3194,7 +3700,11 @@ name = "trigrams"
 category = "text"
 description = "Generate word trigrams (3-grams)"
 signature = "string -> array"
-example = "trigrams('a b c d') -> \\[\\['a', 'b', 'c'\\], \\['b', 'c', 'd'\\]\\]"
+examples = [
+    { code = "trigrams('a b c d') -> \\[\\['a', 'b', 'c'\\], \\['b', 'c', 'd'\\]\\]", description = "Basic trigrams" },
+    { code = "trigrams('the quick brown fox jumps') -> \\[\\['the', 'quick', 'brown'\\], \\['quick', 'brown', 'fox'\\], \\['brown', 'fox', 'jumps'\\]\\]", description = "Sentence trigrams" },
+    { code = "trigrams('a b') -> \\[\\]", description = "Too few words" },
+]
 features = ["core"]
 
 # =============================================================================
@@ -3494,7 +4004,11 @@ name = "is_base64"
 category = "validation"
 description = "Check if valid Base64 encoding"
 signature = "string -> boolean"
-example = "is_base64('SGVsbG8=') -> true"
+examples = [
+    { code = "is_base64('SGVsbG8=') -> true", description = "Valid base64" },
+    { code = "is_base64('not valid!') -> false", description = "Invalid chars" },
+    { code = "is_base64('') -> true", description = "Empty is valid" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3502,7 +4016,11 @@ name = "is_credit_card"
 category = "validation"
 description = "Validate credit card number (Luhn check + length)"
 signature = "string -> boolean"
-example = "is_credit_card('4111111111111111') -> true"
+examples = [
+    { code = "is_credit_card('4111111111111111') -> true", description = "Valid Visa test number" },
+    { code = "is_credit_card('1234567890123456') -> false", description = "Invalid number" },
+    { code = "is_credit_card('5500000000000004') -> true", description = "Valid Mastercard test" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3510,7 +4028,11 @@ name = "is_email"
 category = "validation"
 description = "Validate email address format"
 signature = "string -> boolean"
-example = "is_email('user@example.com') -> true"
+examples = [
+    { code = "is_email('user@example.com') -> true", description = "Valid email" },
+    { code = "is_email('invalid-email') -> false", description = "Missing @" },
+    { code = "is_email('user@sub.domain.com') -> true", description = "Subdomain" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3518,7 +4040,11 @@ name = "is_hex"
 category = "validation"
 description = "Check if valid hexadecimal string"
 signature = "string -> boolean"
-example = "is_hex('deadbeef') -> true"
+examples = [
+    { code = "is_hex('deadbeef') -> true", description = "Valid hex" },
+    { code = "is_hex('ABCDEF') -> true", description = "Uppercase hex" },
+    { code = "is_hex('ghijkl') -> false", description = "Invalid chars" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3526,7 +4052,11 @@ name = "is_ipv4"
 category = "validation"
 description = "Validate IPv4 address format"
 signature = "string -> boolean"
-example = "is_ipv4('192.168.1.1') -> true"
+examples = [
+    { code = "is_ipv4('192.168.1.1') -> true", description = "Valid IPv4" },
+    { code = "is_ipv4('256.1.1.1') -> false", description = "Out of range" },
+    { code = "is_ipv4('10.0.0.1') -> true", description = "Private IP" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3534,7 +4064,11 @@ name = "is_ipv6"
 category = "validation"
 description = "Validate IPv6 address format"
 signature = "string -> boolean"
-example = "is_ipv6('::1') -> true"
+examples = [
+    { code = "is_ipv6('::1') -> true", description = "Loopback" },
+    { code = "is_ipv6('2001:db8::1') -> true", description = "Full IPv6" },
+    { code = "is_ipv6('192.168.1.1') -> false", description = "IPv4 is not IPv6" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3542,7 +4076,11 @@ name = "is_iso_date"
 category = "validation"
 description = "Validate ISO 8601 date format"
 signature = "string -> boolean"
-example = "is_iso_date('2023-12-13T15:30:00Z') -> true"
+examples = [
+    { code = "is_iso_date('2023-12-13T15:30:00Z') -> true", description = "Full ISO format" },
+    { code = "is_iso_date('2023-12-13') -> true", description = "Date only" },
+    { code = "is_iso_date('12/13/2023') -> false", description = "US format invalid" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3550,7 +4088,11 @@ name = "is_json"
 category = "validation"
 description = "Check if string is valid JSON"
 signature = "string -> boolean"
-example = '''is_json('{\"a\": 1}') -> true'''
+examples = [
+    { code = '''is_json('{\"a\": 1}') -> true''', description = "Valid JSON object" },
+    { code = "is_json('[1, 2, 3]') -> true", description = "Valid JSON array" },
+    { code = "is_json('not json') -> false", description = "Invalid JSON" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3558,7 +4100,12 @@ name = "is_jwt"
 category = "validation"
 description = "Check if valid JWT structure (3 base64url parts)"
 signature = "string -> boolean"
-example = "is_jwt('eyJhbGci...') -> true"
+examples = [
+    { code = "is_jwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U') -> true", description = "Valid JWT" },
+    { code = "is_jwt('eyJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoiSm9obiJ9.signature') -> true", description = "Three parts with dots" },
+    { code = "is_jwt('not.a.valid.jwt') -> false", description = "Four parts" },
+    { code = "is_jwt('invalid') -> false", description = "No dots" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3566,7 +4113,12 @@ name = "is_phone"
 category = "validation"
 description = "Validate phone number format"
 signature = "string -> boolean"
-example = "is_phone('+1-555-123-4567') -> true"
+examples = [
+    { code = "is_phone('+1-555-123-4567') -> true", description = "US format with country code" },
+    { code = "is_phone('555-123-4567') -> true", description = "US format without country code" },
+    { code = "is_phone('+44 20 7946 0958') -> true", description = "UK format" },
+    { code = "is_phone('invalid') -> false", description = "Invalid phone" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3574,7 +4126,12 @@ name = "is_url"
 category = "validation"
 description = "Validate URL format"
 signature = "string -> boolean"
-example = "is_url('https://example.com') -> true"
+examples = [
+    { code = "is_url('https://example.com') -> true", description = "Simple HTTPS URL" },
+    { code = "is_url('http://localhost:8080/path') -> true", description = "URL with port and path" },
+    { code = "is_url('ftp://files.example.com') -> true", description = "FTP URL" },
+    { code = "is_url('not a url') -> false", description = "Invalid URL" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3582,7 +4139,12 @@ name = "is_uuid"
 category = "validation"
 description = "Validate UUID format"
 signature = "string -> boolean"
-example = "is_uuid('550e8400-e29b-41d4-a716-446655440000') -> true"
+examples = [
+    { code = "is_uuid('550e8400-e29b-41d4-a716-446655440000') -> true", description = "Valid UUID v4" },
+    { code = "is_uuid('6ba7b810-9dad-11d1-80b4-00c04fd430c8') -> true", description = "Valid UUID v1" },
+    { code = "is_uuid('00000000-0000-0000-0000-000000000000') -> true", description = "Nil UUID" },
+    { code = "is_uuid('not-a-uuid') -> false", description = "Invalid format" },
+]
 features = ["core"]
 
 [[functions]]
@@ -3590,5 +4152,10 @@ name = "luhn_check"
 category = "validation"
 description = "Generic Luhn algorithm check"
 signature = "string -> boolean"
-example = "luhn_check('79927398713') -> true"
+examples = [
+    { code = "luhn_check('79927398713') -> true", description = "Valid Luhn number" },
+    { code = "luhn_check('4532015112830366') -> true", description = "Valid credit card number" },
+    { code = "luhn_check('1234567890') -> false", description = "Invalid Luhn" },
+    { code = "luhn_check('0') -> true", description = "Single zero" },
+]
 features = ["core"]
