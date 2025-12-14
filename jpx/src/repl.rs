@@ -658,7 +658,7 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
 
                 // Handle commands
                 if line.starts_with('.') {
-                    if let Err(e) = handle_command(line, &mut data, &registry) {
+                    if let Err(e) = handle_command(line, &mut data, &registry, &mut rl) {
                         println!("{}Error: {}{}", colors::ERROR, e, colors::RESET);
                     }
                     continue;
@@ -719,6 +719,7 @@ fn handle_command(
     line: &str,
     data: &mut Option<Variable>,
     registry: &FunctionRegistry,
+    rl: &mut Editor<JmespathHelper, DefaultHistory>,
 ) -> Result<()> {
     let parts: Vec<&str> = line.splitn(2, ' ').collect();
     let cmd = parts[0];
@@ -737,7 +738,7 @@ fn handle_command(
                 colors::RESET
             );
             println!(
-                "  {}.json <json>{}     Load inline JSON",
+                "  {}.json [json]{}     Load JSON (inline or multiline mode)",
                 colors::FUNCTION,
                 colors::RESET
             );
@@ -799,9 +800,49 @@ fn handle_command(
         }
 
         ".json" => {
-            let json = arg.ok_or_else(|| anyhow::anyhow!("Usage: .json <json>"))?;
-            let value =
-                Variable::from_json(json).map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
+            let json_str = if let Some(inline) = arg {
+                // Inline JSON provided
+                inline.to_string()
+            } else {
+                // Multiline input mode
+                println!(
+                    "{}Enter JSON (empty line to finish, Ctrl+C to cancel):{}",
+                    colors::INFO,
+                    colors::RESET
+                );
+                let mut lines = Vec::new();
+                loop {
+                    match rl.readline("... ") {
+                        Ok(line) => {
+                            if line.trim().is_empty() && !lines.is_empty() {
+                                // Check if we have valid JSON so far
+                                let current = lines.join("\n");
+                                if serde_json::from_str::<serde_json::Value>(&current).is_ok() {
+                                    break;
+                                }
+                            }
+                            lines.push(line);
+
+                            // Try to parse - if valid, we're done
+                            let current = lines.join("\n");
+                            if serde_json::from_str::<serde_json::Value>(&current).is_ok() {
+                                break;
+                            }
+                        }
+                        Err(rustyline::error::ReadlineError::Interrupted) => {
+                            println!("{}Cancelled{}", colors::INFO, colors::RESET);
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            return Err(anyhow::anyhow!("Read error: {}", e));
+                        }
+                    }
+                }
+                lines.join("\n")
+            };
+
+            let value = Variable::from_json(&json_str)
+                .map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
             println!(
                 "{}Loaded:{} {}",
                 colors::SUCCESS,
