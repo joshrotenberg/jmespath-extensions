@@ -632,9 +632,11 @@ pub fn suggest_queries(var: &Variable) -> Vec<Suggestion> {
     match var {
         Variable::Object(obj) => {
             suggest_for_object(obj, "", &mut suggestions);
+            suggest_advanced_object(obj, &mut suggestions);
         }
         Variable::Array(arr) => {
             suggest_for_array(arr, "", &mut suggestions);
+            suggest_advanced_array(arr, &mut suggestions);
         }
         _ => {
             // Primitives - not much to suggest
@@ -648,7 +650,7 @@ pub fn suggest_queries(var: &Variable) -> Vec<Suggestion> {
     // Deduplicate and limit suggestions
     let mut seen = HashSet::new();
     suggestions.retain(|s| seen.insert(s.query.clone()));
-    suggestions.truncate(15);
+    suggestions.truncate(20); // Allow more for advanced suggestions
 
     suggestions
 }
@@ -954,6 +956,259 @@ fn looks_like_date(s: &str) -> bool {
 /// Check if a string looks like a URL
 fn looks_like_url(s: &str) -> bool {
     s.starts_with("http://") || s.starts_with("https://")
+}
+
+/// Advanced suggestions for objects with arrays
+fn suggest_advanced_object(
+    obj: &std::collections::BTreeMap<String, Rc<Variable>>,
+    suggestions: &mut Vec<Suggestion>,
+) {
+    // Find arrays of objects for advanced patterns
+    let array_fields: Vec<_> = obj
+        .iter()
+        .filter_map(|(k, v)| {
+            if let Variable::Array(arr) = v.as_ref()
+                && arr
+                    .first()
+                    .is_some_and(|f| matches!(f.as_ref(), Variable::Object(_)))
+            {
+                return Some((k.clone(), arr));
+            }
+            None
+        })
+        .collect();
+
+    for (field_name, arr) in &array_fields {
+        if let Some(first) = arr.first()
+            && let Variable::Object(inner) = first.as_ref()
+        {
+            let keys: Vec<_> = inner.keys().collect();
+
+            // Find categorical (string) and numeric fields
+            let string_fields: Vec<_> = inner
+                .iter()
+                .filter(|(_, v)| matches!(v.as_ref(), Variable::String(_)))
+                .map(|(k, _)| k.clone())
+                .collect();
+
+            let numeric_fields: Vec<_> = inner
+                .iter()
+                .filter(|(_, v)| matches!(v.as_ref(), Variable::Number(_)))
+                .map(|(k, _)| k.clone())
+                .collect();
+
+            // Aggregation: count by category
+            if let Some(cat_field) = string_fields.first() {
+                suggestions.push(Suggestion {
+                    query: format!(
+                        "group_by_expr({}, &{}) | map_values(@, &length(@))",
+                        field_name, cat_field
+                    ),
+                    description: format!("Count by {}", cat_field),
+                });
+
+                // If we have a numeric field too, sum by category
+                if let Some(num_field) = numeric_fields.first() {
+                    suggestions.push(Suggestion {
+                        query: format!(
+                            "group_by_expr({}, &{}) | map_values(@, &sum([*].{}))",
+                            field_name, cat_field, num_field
+                        ),
+                        description: format!("Sum {} by {}", num_field, cat_field),
+                    });
+                }
+            }
+
+            // Pipeline: filter → transform → sort
+            if keys.len() >= 2 {
+                let id_field = keys
+                    .iter()
+                    .find(|k| k.contains("id") || k.contains("name") || k.contains("title"))
+                    .unwrap_or(&keys[0]);
+
+                if let Some(num_field) = numeric_fields.first() {
+                    suggestions.push(Suggestion {
+                        query: format!(
+                            "{}[?{} > `0`] | [*].{{{}: {}, {}: {}}} | sort_by(@, &{}) | reverse(@)",
+                            field_name,
+                            num_field,
+                            id_field,
+                            id_field,
+                            num_field,
+                            num_field,
+                            num_field
+                        ),
+                        description: format!("Top items by {}", num_field),
+                    });
+                }
+            }
+
+            // Nested array flattening
+            for (key, val) in inner.iter() {
+                if let Variable::Array(nested) = val.as_ref()
+                    && !nested.is_empty()
+                {
+                    suggestions.push(Suggestion {
+                        query: format!("{}[].{}[] | flatten(@) | unique(@)", field_name, key),
+                        description: format!("Flatten and unique {}", key),
+                    });
+                }
+            }
+
+            // Multi-field statistics
+            if numeric_fields.len() >= 2 {
+                let stats: Vec<_> = numeric_fields
+                    .iter()
+                    .take(3)
+                    .map(|f| format!("{}_avg: avg({}[*].{})", f, field_name, f))
+                    .collect();
+                suggestions.push(Suggestion {
+                    query: format!("{{{}}}", stats.join(", ")),
+                    description: "Multi-field averages".to_string(),
+                });
+            }
+
+            // Transform with map_expr
+            if !keys.is_empty() {
+                suggestions.push(Suggestion {
+                    query: format!(
+                        "map_expr({}, &{{original: @, computed: length(to_string(@))}})",
+                        field_name
+                    ),
+                    description: "Transform each item with map_expr".to_string(),
+                });
+            }
+        }
+    }
+
+    // Check for multiple arrays that might be joinable
+    if array_fields.len() >= 2 {
+        let names: Vec<_> = array_fields.iter().map(|(k, _)| k.as_str()).collect();
+        suggestions.push(Suggestion {
+            query: format!(
+                "{{{}}} | to_entries(@)",
+                names
+                    .iter()
+                    .map(|n| format!("{}: length({})", n, n))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            description: "Compare array sizes".to_string(),
+        });
+    }
+}
+
+/// Advanced suggestions for top-level arrays
+fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion>) {
+    if arr.is_empty() {
+        return;
+    }
+
+    let first = arr.first().unwrap();
+
+    if let Variable::Object(obj) = first.as_ref() {
+        let keys: Vec<_> = obj.keys().collect();
+
+        // Find field types
+        let string_fields: Vec<_> = obj
+            .iter()
+            .filter(|(_, v)| matches!(v.as_ref(), Variable::String(_)))
+            .map(|(k, _)| k.clone())
+            .collect();
+
+        let numeric_fields: Vec<_> = obj
+            .iter()
+            .filter(|(_, v)| matches!(v.as_ref(), Variable::Number(_)))
+            .map(|(k, _)| k.clone())
+            .collect();
+
+        let bool_fields: Vec<_> = obj
+            .iter()
+            .filter(|(_, v)| matches!(v.as_ref(), Variable::Bool(_)))
+            .map(|(k, _)| k.clone())
+            .collect();
+
+        // Aggregation with reduce_expr
+        if let Some(num_field) = numeric_fields.first() {
+            suggestions.push(Suggestion {
+                query: format!("reduce_expr(@, &add(acc, @.{}), `0`)", num_field),
+                description: format!("Running total of {} with reduce", num_field),
+            });
+        }
+
+        // Conditional aggregation
+        if let (Some(bool_field), Some(num_field)) = (bool_fields.first(), numeric_fields.first()) {
+            suggestions.push(Suggestion {
+                query: format!(
+                    "{{when_true: sum([?{}].{}), when_false: sum([?!{}].{})}}",
+                    bool_field, num_field, bool_field, num_field
+                ),
+                description: format!("Sum {} split by {}", num_field, bool_field),
+            });
+        }
+
+        // Pivot-like: group and extract
+        if let (Some(cat_field), Some(val_field)) = (string_fields.first(), numeric_fields.first())
+        {
+            suggestions.push(Suggestion {
+                query: format!(
+                    "group_by_expr(@, &{}) | to_entries(@) | [*].{{category: key, total: sum(value[*].{}), count: length(value)}}",
+                    cat_field, val_field
+                ),
+                description: format!("Pivot: aggregate {} by {}", val_field, cat_field),
+            });
+        }
+
+        // Top N pattern
+        if let Some(num_field) = numeric_fields.first() {
+            let display_field = keys
+                .iter()
+                .find(|k| k.contains("name") || k.contains("id") || k.contains("title"))
+                .unwrap_or(&keys[0]);
+            suggestions.push(Suggestion {
+                query: format!(
+                    "sort_by(@, &{}) | reverse(@) | [:3] | [*].{{{}: {}, {}: {}}}",
+                    num_field, display_field, display_field, num_field, num_field
+                ),
+                description: format!("Top 3 by {}", num_field),
+            });
+        }
+
+        // Scan for running calculations
+        if let Some(num_field) = numeric_fields.first() {
+            suggestions.push(Suggestion {
+                query: format!("scan_expr(@, &add(acc, @.{}), `0`)", num_field),
+                description: format!("Running sum of {}", num_field),
+            });
+        }
+
+        // Complex filter with multiple conditions
+        if !bool_fields.is_empty() && !numeric_fields.is_empty() {
+            suggestions.push(Suggestion {
+                query: format!(
+                    "[?{} && {} > `0`] | length(@)",
+                    bool_fields[0], numeric_fields[0]
+                ),
+                description: format!(
+                    "Count where {} and {} > 0",
+                    bool_fields[0], numeric_fields[0]
+                ),
+            });
+        }
+
+        // Nested object exploration
+        for (key, val) in obj.iter() {
+            if let Variable::Object(nested) = val.as_ref() {
+                let nested_keys: Vec<_> = nested.keys().take(2).collect();
+                if !nested_keys.is_empty() {
+                    suggestions.push(Suggestion {
+                        query: format!("[*].{} | [*].{}", key, nested_keys[0]),
+                        description: format!("Extract nested {}.{}", key, nested_keys[0]),
+                    });
+                }
+            }
+        }
+    }
 }
 
 /// Print suggestions for the current data
