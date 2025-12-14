@@ -566,6 +566,42 @@ fn describe_value(value: &Variable) -> String {
     }
 }
 
+/// Check if a query line needs continuation (multiline input)
+fn needs_continuation(line: &str) -> bool {
+    let trimmed = line.trim();
+
+    // Ends with pipe - definitely continues
+    if trimmed.ends_with('|') {
+        return true;
+    }
+
+    // Count brackets to check for unclosed structures
+    let mut brackets = 0i32;
+    let mut parens = 0i32;
+    let mut braces = 0i32;
+    let mut in_string = false;
+    let mut in_literal = false;
+    let mut prev_char = ' ';
+
+    for c in trimmed.chars() {
+        match c {
+            '\'' if !in_literal && prev_char != '\\' => in_string = !in_string,
+            '`' if !in_string && prev_char != '\\' => in_literal = !in_literal,
+            '[' if !in_string && !in_literal => brackets += 1,
+            ']' if !in_string && !in_literal => brackets -= 1,
+            '(' if !in_string && !in_literal => parens += 1,
+            ')' if !in_string && !in_literal => parens -= 1,
+            '{' if !in_string && !in_literal => braces += 1,
+            '}' if !in_string && !in_literal => braces -= 1,
+            _ => {}
+        }
+        prev_char = c;
+    }
+
+    // Unclosed brackets, parens, or braces
+    brackets > 0 || parens > 0 || braces > 0 || in_string || in_literal
+}
+
 /// Run the REPL
 pub fn run(demo_name: Option<&str>) -> Result<()> {
     let helper = JmespathHelper::new();
@@ -654,19 +690,52 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                     continue;
                 }
 
-                let _ = rl.add_history_entry(line);
-
                 // Handle commands
                 if line.starts_with('.') {
+                    let _ = rl.add_history_entry(line);
                     if let Err(e) = handle_command(line, &mut data, &registry, &mut rl) {
                         println!("{}Error: {}{}", colors::ERROR, e, colors::RESET);
                     }
                     continue;
                 }
 
+                // Check for multiline query (ends with | or has unclosed brackets)
+                let full_query = if needs_continuation(line) {
+                    let mut lines = vec![line.to_string()];
+                    loop {
+                        match rl.readline("... ") {
+                            Ok(cont) => {
+                                let cont = cont.trim();
+                                if cont.is_empty() {
+                                    break;
+                                }
+                                lines.push(cont.to_string());
+                                let combined = lines.join(" ");
+                                if !needs_continuation(&combined) {
+                                    break;
+                                }
+                            }
+                            Err(ReadlineError::Interrupted) => {
+                                println!("{}Cancelled{}", colors::INFO, colors::RESET);
+                                lines.clear();
+                                break;
+                            }
+                            Err(_) => break,
+                        }
+                    }
+                    if lines.is_empty() {
+                        continue;
+                    }
+                    lines.join(" ")
+                } else {
+                    line.to_string()
+                };
+
+                let _ = rl.add_history_entry(&full_query);
+
                 // Execute JMESPath expression
                 if let Some(ref d) = data {
-                    match runtime.compile(line) {
+                    match runtime.compile(&full_query) {
                         Ok(expr) => match expr.search(d) {
                             Ok(result) => {
                                 if !result.is_null() {
