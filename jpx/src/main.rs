@@ -1,3 +1,5 @@
+mod repl;
+
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser, ValueEnum, builder::styling};
 use clap_complete::{Shell, generate};
@@ -154,6 +156,14 @@ struct Args {
     /// Explain how an expression is parsed (show AST)
     #[arg(long)]
     explain: bool,
+
+    /// Start interactive REPL mode
+    #[arg(long)]
+    repl: bool,
+
+    /// Load a demo dataset (use with --repl)
+    #[arg(long, value_name = "NAME")]
+    demo: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -166,6 +176,11 @@ fn main() -> Result<()> {
         let name = cmd.get_name().to_string();
         generate(shell, &mut cmd, name, &mut io::stdout());
         return Ok(());
+    }
+
+    // Handle REPL mode
+    if args.repl || args.demo.is_some() {
+        return repl::run(args.demo.as_deref());
     }
 
     // Create registry for introspection
