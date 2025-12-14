@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.2...v0.6.3) - 2025-12-14
+
+### Fixed
+
+- wrap JSON literals in backticks for jsonpatch benchmarks ([#166](https://github.com/joshrotenberg/jmespath-extensions/pull/166))
+
+### Other
+
+- add quick reference table and multiple examples support ([#165](https://github.com/joshrotenberg/jmespath-extensions/pull/165))
+
 ## [0.6.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.1...v0.6.2) - 2025-12-13
 
 ### Fixed
