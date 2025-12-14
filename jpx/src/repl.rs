@@ -317,20 +317,20 @@ impl JmespathHelper {
                 }
 
                 // Operators
-                '|' | '.' | ',' | ':' | '?' | '*' | '!' => {
+                '|' | '.' | ',' | ':' | '?' | '*' => {
                     result.push_str(colors::OPERATOR);
                     result.push(c);
                     result.push_str(colors::RESET);
                     i += 1;
                 }
 
-                // Comparison operators
-                '=' | '<' | '>' => {
+                // Comparison operators (including ! for !=)
+                '=' | '<' | '>' | '!' => {
                     result.push_str(colors::OPERATOR);
                     result.push(c);
                     i += 1;
-                    // Handle == != <= >=
-                    if i < chars.len() && (chars[i] == '=' || (c == '!' && chars[i] == '=')) {
+                    // Handle ==, !=, <=, >=
+                    if i < chars.len() && chars[i] == '=' {
                         result.push(chars[i]);
                         i += 1;
                     }
