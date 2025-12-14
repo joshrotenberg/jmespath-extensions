@@ -420,9 +420,10 @@ fn validate_examples(functions: &[Function]) {
             // (but not for aliases or special cases)
             if !expression.contains(&func.name) {
                 // Check aliases too
-                let has_alias = func.aliases.as_ref().map_or(false, |aliases| {
-                    aliases.iter().any(|a| expression.contains(a))
-                });
+                let has_alias = func
+                    .aliases
+                    .as_ref()
+                    .is_some_and(|aliases| aliases.iter().any(|a| expression.contains(a)));
 
                 if !has_alias {
                     warnings.push(format!(
