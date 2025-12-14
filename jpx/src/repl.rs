@@ -1212,7 +1212,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
 }
 
 /// Print suggestions for the current data
-pub fn print_suggestions(var: &Variable) {
+pub fn print_suggestions(var: &Variable, runtime: &Runtime) {
     let suggestions = suggest_queries(var);
 
     if suggestions.is_empty() {
@@ -1224,8 +1224,29 @@ pub fn print_suggestions(var: &Variable) {
         return;
     }
 
+    // Validate each suggestion before displaying
+    let valid_suggestions: Vec<_> = suggestions
+        .into_iter()
+        .filter(|s| {
+            // Try to compile and execute the query
+            match runtime.compile(&s.query) {
+                Ok(expr) => expr.search(var).is_ok(),
+                Err(_) => false,
+            }
+        })
+        .collect();
+
+    if valid_suggestions.is_empty() {
+        println!(
+            "{}No valid suggestions for this data shape{}",
+            colors::INFO,
+            colors::RESET
+        );
+        return;
+    }
+
     println!("{}Suggested queries:{}", colors::BOLD, colors::RESET);
-    for suggestion in suggestions {
+    for suggestion in valid_suggestions {
         println!(
             "  {}# {}{}",
             colors::HINT,
@@ -1353,7 +1374,7 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                 if line.starts_with('.') {
                     let _ = rl.add_history_entry(line);
                     if let Err(e) =
-                        handle_command(line, &mut data, &registry, &mut rl, &data_fields)
+                        handle_command(line, &mut data, &registry, &runtime, &mut rl, &data_fields)
                     {
                         println!("{}Error: {}{}", colors::ERROR, e, colors::RESET);
                     }
@@ -1449,6 +1470,7 @@ fn handle_command(
     line: &str,
     data: &mut Option<Variable>,
     registry: &FunctionRegistry,
+    runtime: &Runtime,
     rl: &mut Editor<JmespathHelper, DefaultHistory>,
     data_fields: &Rc<RefCell<Vec<String>>>,
 ) -> Result<()> {
@@ -1653,8 +1675,8 @@ fn handle_command(
         }
 
         ".suggest" | ".s" => {
-            if let Some(d) = data {
-                print_suggestions(d);
+            if let Some(d) = &data {
+                print_suggestions(d, runtime);
             } else {
                 println!(
                     "{}No data loaded. Use .load <file> or .demo <name>{}",
