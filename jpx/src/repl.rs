@@ -14,37 +14,39 @@ use rustyline::history::DefaultHistory;
 use rustyline::validate::Validator;
 use rustyline::{Editor, Helper};
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::rc::Rc;
 
-// ANSI color codes
+// ANSI color codes - using basic 16-color for better terminal compatibility
 mod colors {
     pub const RESET: &str = "\x1b[0m";
     pub const BOLD: &str = "\x1b[1m";
 
-    // JMESPath syntax
-    pub const FUNCTION: &str = "\x1b[38;5;39m"; // Blue
-    pub const STRING: &str = "\x1b[38;5;78m"; // Green
-    pub const NUMBER: &str = "\x1b[38;5;180m"; // Orange/tan
-    pub const LITERAL: &str = "\x1b[38;5;141m"; // Purple
-    pub const OPERATOR: &str = "\x1b[38;5;204m"; // Pink
-    pub const BRACKET: &str = "\x1b[38;5;248m"; // Gray
-    pub const FIELD: &str = "\x1b[38;5;255m"; // White
-    pub const AT: &str = "\x1b[38;5;220m"; // Yellow
-    pub const AMPERSAND: &str = "\x1b[38;5;141m"; // Purple (expression ref)
+    // JMESPath syntax (basic 16-color)
+    pub const FUNCTION: &str = "\x1b[36m"; // Cyan
+    pub const STRING: &str = "\x1b[32m"; // Green
+    pub const NUMBER: &str = "\x1b[33m"; // Yellow
+    pub const LITERAL: &str = "\x1b[35m"; // Magenta
+    pub const OPERATOR: &str = "\x1b[31m"; // Red
+    pub const BRACKET: &str = "\x1b[37m"; // White
+    pub const FIELD: &str = "\x1b[97m"; // Bright white
+    pub const AT: &str = "\x1b[93m"; // Bright yellow
+    pub const AMPERSAND: &str = "\x1b[35m"; // Magenta
 
     // JSON output
-    pub const JSON_KEY: &str = "\x1b[38;5;39m"; // Blue
-    pub const JSON_STRING: &str = "\x1b[38;5;78m"; // Green
-    pub const JSON_NUMBER: &str = "\x1b[38;5;180m"; // Orange
-    pub const JSON_BOOL: &str = "\x1b[38;5;220m"; // Yellow
-    pub const JSON_NULL: &str = "\x1b[38;5;241m"; // Gray
+    pub const JSON_KEY: &str = "\x1b[34m"; // Blue
+    pub const JSON_STRING: &str = "\x1b[32m"; // Green
+    pub const JSON_NUMBER: &str = "\x1b[33m"; // Yellow
+    pub const JSON_BOOL: &str = "\x1b[93m"; // Bright yellow
+    pub const JSON_NULL: &str = "\x1b[90m"; // Bright black (gray)
 
     // UI
-    pub const PROMPT: &str = "\x1b[38;5;39m"; // Blue
-    pub const ERROR: &str = "\x1b[38;5;196m"; // Red
-    pub const SUCCESS: &str = "\x1b[38;5;78m"; // Green
-    pub const INFO: &str = "\x1b[38;5;248m"; // Gray
-    pub const HINT: &str = "\x1b[38;5;241m"; // Dark gray
+    pub const PROMPT: &str = "\x1b[36m"; // Cyan
+    pub const ERROR: &str = "\x1b[91m"; // Bright red
+    pub const SUCCESS: &str = "\x1b[32m"; // Green
+    pub const INFO: &str = "\x1b[90m"; // Bright black (gray)
+    pub const HINT: &str = "\x1b[90m"; // Bright black (gray)
 }
 
 /// Demo themes with pre-loaded data and suggested queries
@@ -214,16 +216,20 @@ pub const DEMOS: &[Demo] = &[
 /// JMESPath syntax highlighter and completer
 pub struct JmespathHelper {
     functions: HashSet<String>,
+    data_fields: Rc<RefCell<Vec<String>>>,
 }
 
 impl JmespathHelper {
-    pub fn new() -> Self {
+    pub fn new(data_fields: Rc<RefCell<Vec<String>>>) -> Self {
         let mut registry = FunctionRegistry::new();
         registry.register_all();
 
         let functions: HashSet<String> = registry.functions().map(|f| f.name.to_string()).collect();
 
-        Self { functions }
+        Self {
+            functions,
+            data_fields,
+        }
     }
 
     /// Highlight JMESPath expression
@@ -411,6 +417,17 @@ impl Completer for JmespathHelper {
                 replacement: format!("{}(", f),
             })
             .collect();
+
+        // Also complete data field names
+        let fields = self.data_fields.borrow();
+        for field in fields.iter() {
+            if field.starts_with(prefix) {
+                completions.push(Pair {
+                    display: field.clone(),
+                    replacement: field.clone(),
+                });
+            }
+        }
 
         completions.sort_by(|a, b| a.display.cmp(&b.display));
 
@@ -602,9 +619,32 @@ fn needs_continuation(line: &str) -> bool {
     brackets > 0 || parens > 0 || braces > 0 || in_string || in_literal
 }
 
+/// Extract top-level field names from a Variable for completion
+fn extract_fields(var: &Variable) -> Vec<String> {
+    match var {
+        Variable::Object(obj) => obj.keys().map(|k| k.to_string()).collect(),
+        Variable::Array(arr) => {
+            // For arrays, get fields from first object element if any
+            arr.iter()
+                .find_map(|v| {
+                    if let Variable::Object(obj) = v.as_ref() {
+                        Some(obj.keys().map(|k| k.to_string()).collect())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
+        }
+        _ => vec![],
+    }
+}
+
 /// Run the REPL
 pub fn run(demo_name: Option<&str>) -> Result<()> {
-    let helper = JmespathHelper::new();
+    // Shared state for data field completion
+    let data_fields: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(vec![]));
+
+    let helper = JmespathHelper::new(Rc::clone(&data_fields));
     let mut rl: Editor<JmespathHelper, DefaultHistory> = Editor::new()?;
     rl.set_helper(Some(helper));
 
@@ -644,7 +684,9 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
     // Load demo if specified
     if let Some(name) = demo_name {
         if let Some(demo) = DEMOS.iter().find(|d| d.name == name) {
-            data = Some(Variable::from_json(demo.data).unwrap());
+            let value = Variable::from_json(demo.data).unwrap();
+            *data_fields.borrow_mut() = extract_fields(&value);
+            data = Some(value);
             println!(
                 "{}Loaded demo:{} {} - {}",
                 colors::SUCCESS,
@@ -693,7 +735,9 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                 // Handle commands
                 if line.starts_with('.') {
                     let _ = rl.add_history_entry(line);
-                    if let Err(e) = handle_command(line, &mut data, &registry, &mut rl) {
+                    if let Err(e) =
+                        handle_command(line, &mut data, &registry, &mut rl, &data_fields)
+                    {
                         println!("{}Error: {}{}", colors::ERROR, e, colors::RESET);
                     }
                     continue;
@@ -703,14 +747,8 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                 let full_query = if needs_continuation(line) {
                     let mut lines = vec![line.to_string()];
                     loop {
-                        // Use simple stdin for continuation to avoid highlighting glitches
-                        print!("{}...{} ", colors::PROMPT, colors::RESET);
-                        std::io::Write::flush(&mut std::io::stdout()).ok();
-
-                        let mut cont = String::new();
-                        match std::io::stdin().read_line(&mut cont) {
-                            Ok(0) => break, // EOF
-                            Ok(_) => {
+                        match rl.readline("... ") {
+                            Ok(cont) => {
                                 let cont = cont.trim();
                                 if cont.is_empty() {
                                     break;
@@ -720,6 +758,11 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                                 if !needs_continuation(&combined) {
                                     break;
                                 }
+                            }
+                            Err(ReadlineError::Interrupted) => {
+                                println!("{}Cancelled{}", colors::INFO, colors::RESET);
+                                lines.clear();
+                                break;
                             }
                             Err(_) => break,
                         }
@@ -790,6 +833,7 @@ fn handle_command(
     data: &mut Option<Variable>,
     registry: &FunctionRegistry,
     rl: &mut Editor<JmespathHelper, DefaultHistory>,
+    data_fields: &Rc<RefCell<Vec<String>>>,
 ) -> Result<()> {
     let parts: Vec<&str> = line.splitn(2, ' ').collect();
     let cmd = parts[0];
@@ -866,6 +910,7 @@ fn handle_command(
                 colors::RESET,
                 describe_value(&value)
             );
+            *data_fields.borrow_mut() = extract_fields(&value);
             *data = Some(value);
         }
 
@@ -919,6 +964,7 @@ fn handle_command(
                 colors::RESET,
                 describe_value(&value)
             );
+            *data_fields.borrow_mut() = extract_fields(&value);
             *data = Some(value);
         }
 
@@ -934,7 +980,9 @@ fn handle_command(
         ".demo" => {
             let name = arg.unwrap_or("users");
             if let Some(demo) = DEMOS.iter().find(|d| d.name == name) {
-                *data = Some(Variable::from_json(demo.data).unwrap());
+                let value = Variable::from_json(demo.data).unwrap();
+                *data_fields.borrow_mut() = extract_fields(&value);
+                *data = Some(value);
                 println!(
                     "{}Loaded demo:{} {} - {}",
                     colors::SUCCESS,
