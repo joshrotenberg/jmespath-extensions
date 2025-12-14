@@ -54,6 +54,7 @@ pub struct Demo {
     pub name: &'static str,
     pub description: &'static str,
     pub data: &'static str,
+    pub root_key: &'static str, // The main data field name (e.g., "users", "events")
     pub queries: &'static [(&'static str, &'static str)], // (query, description)
 }
 
@@ -70,6 +71,7 @@ pub const DEMOS: &[Demo] = &[
   ],
   "meta": {"total": 4, "version": "1.0"}
 }"#,
+        root_key: "users",
         queries: &[
             ("users[*].name", "Get all user names"),
             ("users[?active].name", "Get active user names"),
@@ -98,6 +100,7 @@ pub const DEMOS: &[Demo] = &[
   ],
   "origin": {"name": "San Francisco", "lat": 37.7749, "lon": -122.4194}
 }"#,
+        root_key: "cities",
         queries: &[
             ("cities[*].name", "List all cities"),
             (
@@ -128,6 +131,7 @@ pub const DEMOS: &[Demo] = &[
   ],
   "words": ["hello", "hallo", "helo", "help", "world"]
 }"#,
+        root_key: "articles",
         queries: &[
             (
                 "articles[0].body | word_count(@)",
@@ -160,6 +164,7 @@ pub const DEMOS: &[Demo] = &[
   ],
   "now": 1704200000
 }"#,
+        root_key: "events",
         queries: &[
             (
                 "events[*].{name: name, date: format_date(timestamp, '%Y-%m-%d')}",
@@ -194,6 +199,7 @@ pub const DEMOS: &[Demo] = &[
   ],
   "customers": {"alice": {"tier": "gold", "discount": 0.1}, "bob": {"tier": "silver", "discount": 0.05}}
 }"#,
+        root_key: "orders",
         queries: &[
             (
                 "orders[*].{id: id, total: sum(items[*].multiply(qty, price))}",
@@ -1333,10 +1339,11 @@ pub fn run(demo_name: Option<&str>) -> Result<()> {
                 demo.description
             );
             println!(
-                "{}Data:{} {}\n",
+                "{}Data:{} {} (access via `{}`)\n",
                 colors::INFO,
                 colors::RESET,
-                describe_value(data.as_ref().unwrap())
+                describe_value(data.as_ref().unwrap()),
+                demo.root_key
             );
             println!("{}Try these queries:{}", colors::INFO, colors::RESET);
             for (query, desc) in demo.queries {
@@ -1635,10 +1642,11 @@ fn handle_command(
                     demo.description
                 );
                 println!(
-                    "{}Data:{} {}\n",
+                    "{}Data:{} {} (access via `{}`)\n",
                     colors::INFO,
                     colors::RESET,
-                    describe_value(data.as_ref().unwrap())
+                    describe_value(data.as_ref().unwrap()),
+                    demo.root_key
                 );
                 println!("{}Try these queries:{}", colors::INFO, colors::RESET);
                 for (query, desc) in demo.queries {
