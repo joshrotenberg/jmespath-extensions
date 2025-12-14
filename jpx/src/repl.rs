@@ -2,6 +2,9 @@
 //!
 //! Provides an interactive environment for exploring JSON data with JMESPath queries.
 
+// Allow nested if-let blocks instead of if-let chains for MSRV compatibility
+#![allow(clippy::collapsible_if)]
+
 use anyhow::{Context, Result};
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
