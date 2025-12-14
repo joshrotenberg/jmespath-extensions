@@ -74,7 +74,7 @@ pub const DEMOS: &[Demo] = &[
             ("users[*].name", "Get all user names"),
             ("users[?active].name", "Get active user names"),
             ("users[?age > `30`]", "Users older than 30"),
-            ("group_by_expr(users, &role)", "Group users by role"),
+            ("group_by_expr('role', users)", "Group users by role"),
             (
                 "users | sort_by_expr(@, &age) | [].{name: name, age: age}",
                 "Sort by age",
@@ -203,7 +203,7 @@ pub const DEMOS: &[Demo] = &[
                 "orders[].items[] | unique_by(@, &sku)",
                 "Unique products ordered",
             ),
-            ("group_by_expr(orders, &customer)", "Orders by customer"),
+            ("group_by_expr('customer', orders)", "Orders by customer"),
             ("orders[?status == 'pending'].id", "Pending order IDs"),
             (
                 "orders[*].items[*].price | flatten(@) | {min: min(@), max: max(@), avg: avg(@)}",
@@ -748,8 +748,8 @@ fn suggest_for_object(
                                     }
                                     suggestions.push(Suggestion {
                                         query: format!(
-                                            "group_by_expr({}, &{})",
-                                            field_path, inner_key
+                                            "group_by_expr('{}', {})",
+                                            inner_key, field_path
                                         ),
                                         description: format!("Group by {}", inner_key),
                                     });
@@ -1001,8 +1001,8 @@ fn suggest_advanced_object(
             if let Some(cat_field) = string_fields.first() {
                 suggestions.push(Suggestion {
                     query: format!(
-                        "group_by_expr({}, &{}) | map_values(@, &length(@))",
-                        field_name, cat_field
+                        "group_by_expr('{}', {}) | map_values('length(@)', @)",
+                        cat_field, field_name
                     ),
                     description: format!("Count by {}", cat_field),
                 });
@@ -1011,8 +1011,8 @@ fn suggest_advanced_object(
                 if let Some(num_field) = numeric_fields.first() {
                     suggestions.push(Suggestion {
                         query: format!(
-                            "group_by_expr({}, &{}) | map_values(@, &sum([*].{}))",
-                            field_name, cat_field, num_field
+                            "group_by_expr('{}', {}) | map_values('sum([*].{})', @)",
+                            cat_field, field_name, num_field
                         ),
                         description: format!("Sum {} by {}", num_field, cat_field),
                     });
@@ -1152,7 +1152,7 @@ fn suggest_advanced_array(arr: &[Rc<Variable>], suggestions: &mut Vec<Suggestion
         {
             suggestions.push(Suggestion {
                 query: format!(
-                    "group_by_expr(@, &{}) | to_entries(@) | [*].{{category: key, total: sum(value[*].{}), count: length(value)}}",
+                    "group_by_expr('{}', @) | to_entries(@) | [*].{{category: key, total: sum(value[*].{}), count: length(value)}}",
                     cat_field, val_field
                 ),
                 description: format!("Pivot: aggregate {} by {}", val_field, cat_field),
