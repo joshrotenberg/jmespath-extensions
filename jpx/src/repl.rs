@@ -735,95 +735,104 @@ fn suggest_for_object(
                     });
 
                     // Check if array of objects
-                    if let Some(first) = arr.first()
-                        && let Variable::Object(inner_obj) = first.as_ref()
-                    {
-                        let inner_keys: Vec<_> = inner_obj.keys().take(3).collect();
-                        if !inner_keys.is_empty() {
-                            suggestions.push(Suggestion {
-                                query: format!("{}[*].{}", field_path, inner_keys[0]),
-                                description: format!("Get {} from each item", inner_keys[0]),
-                                level: 3,
-                            });
-                        }
+                    if let Some(first) = arr.first() {
+                        if let Variable::Object(inner_obj) = first.as_ref() {
+                            let inner_keys: Vec<_> = inner_obj.keys().take(3).collect();
+                            if !inner_keys.is_empty() {
+                                suggestions.push(Suggestion {
+                                    query: format!("{}[*].{}", field_path, inner_keys[0]),
+                                    description: format!("Get {} from each item", inner_keys[0]),
+                                    level: 3,
+                                });
+                            }
 
-                        // Suggest filtering
-                        for (inner_key, inner_val) in inner_obj.iter().take(2) {
-                            match inner_val.as_ref() {
-                                Variable::Bool(_) => {
-                                    suggestions.push(Suggestion {
-                                        query: format!("{}[?{}]", field_path, inner_key),
-                                        description: format!("Filter where {} is true", inner_key),
-                                        level: 3,
-                                    });
-                                }
-                                Variable::Number(_) => {
-                                    suggestions.push(Suggestion {
-                                        query: format!("{}[?{} > `0`]", field_path, inner_key),
-                                        description: format!("Filter by {} comparison", inner_key),
-                                        level: 3,
-                                    });
-                                    suggestions.push(Suggestion {
-                                        query: format!("sum({}[*].{})", field_path, inner_key),
-                                        description: format!("Sum of {}", inner_key),
-                                        level: 3,
-                                    });
-                                    suggestions.push(Suggestion {
-                                        query: format!("avg({}[*].{})", field_path, inner_key),
-                                        description: format!("Average of {}", inner_key),
-                                        level: 3,
-                                    });
-                                }
-                                Variable::String(s) => {
-                                    // Check for date-like strings
-                                    if looks_like_date(s) {
+                            // Suggest filtering
+                            for (inner_key, inner_val) in inner_obj.iter().take(2) {
+                                match inner_val.as_ref() {
+                                    Variable::Bool(_) => {
                                         suggestions.push(Suggestion {
-                                            query: format!(
-                                                "{}[*].{{item: @, formatted: format_date({}, '%Y-%m-%d')}}",
-                                                field_path, inner_key
+                                            query: format!("{}[?{}]", field_path, inner_key),
+                                            description: format!(
+                                                "Filter where {} is true",
+                                                inner_key
                                             ),
-                                            description: format!("Format {} dates", inner_key),
-                level: 3,
-                                        });
-                                    } else {
-                                        suggestions.push(Suggestion {
-                                            query: format!(
-                                                "{}[?{} == '{}']",
-                                                field_path,
-                                                inner_key,
-                                                s.chars().take(10).collect::<String>()
-                                            ),
-                                            description: format!("Filter by {}", inner_key),
                                             level: 3,
                                         });
                                     }
-                                    suggestions.push(Suggestion {
-                                        query: format!(
-                                            "group_by_expr('{}', {})",
-                                            inner_key, field_path
-                                        ),
-                                        description: format!("Group by {}", inner_key),
-                                        level: 3,
-                                    });
+                                    Variable::Number(_) => {
+                                        suggestions.push(Suggestion {
+                                            query: format!("{}[?{} > `0`]", field_path, inner_key),
+                                            description: format!(
+                                                "Filter by {} comparison",
+                                                inner_key
+                                            ),
+                                            level: 3,
+                                        });
+                                        suggestions.push(Suggestion {
+                                            query: format!("sum({}[*].{})", field_path, inner_key),
+                                            description: format!("Sum of {}", inner_key),
+                                            level: 3,
+                                        });
+                                        suggestions.push(Suggestion {
+                                            query: format!("avg({}[*].{})", field_path, inner_key),
+                                            description: format!("Average of {}", inner_key),
+                                            level: 3,
+                                        });
+                                    }
+                                    Variable::String(s) => {
+                                        // Check for date-like strings
+                                        if looks_like_date(s) {
+                                            suggestions.push(Suggestion {
+                                                query: format!(
+                                                    "{}[*].{{item: @, formatted: format_date({}, '%Y-%m-%d')}}",
+                                                    field_path, inner_key
+                                                ),
+                                                description: format!(
+                                                    "Format {} dates",
+                                                    inner_key
+                                                ),
+                                                level: 3,
+                                            });
+                                        } else {
+                                            suggestions.push(Suggestion {
+                                                query: format!(
+                                                    "{}[?{} == '{}']",
+                                                    field_path,
+                                                    inner_key,
+                                                    s.chars().take(10).collect::<String>()
+                                                ),
+                                                description: format!("Filter by {}", inner_key),
+                                                level: 3,
+                                            });
+                                        }
+                                        suggestions.push(Suggestion {
+                                            query: format!(
+                                                "group_by_expr('{}', {})",
+                                                inner_key, field_path
+                                            ),
+                                            description: format!("Group by {}", inner_key),
+                                            level: 3,
+                                        });
+                                    }
+                                    _ => {}
                                 }
-                                _ => {}
                             }
-                        }
 
-                        // Sorting
-                        if let Some((sort_key, _)) = inner_obj.iter().find(|(_, v)| {
-                            matches!(v.as_ref(), Variable::Number(_) | Variable::String(_))
-                        }) {
-                            suggestions.push(Suggestion {
-                                query: format!(
-                                    "sort_by({}, &{}) | [].{}",
-                                    field_path,
-                                    sort_key,
-                                    inner_keys.first().unwrap_or(&sort_key)
-                                ),
-                                description: format!("Sort by {}", sort_key),
-                                level: 3,
-                            });
+                            // Sorting
+                            if let Some((sort_key, _)) = inner_obj.iter().find(|(_, v)| {
+                                matches!(v.as_ref(), Variable::Number(_) | Variable::String(_))
+                            }) {
+                                suggestions.push(Suggestion {
+                                    query: format!(
+                                        "sort_by({}, &{}) | [].{}",
+                                        field_path,
+                                        sort_key,
+                                        inner_keys.first().unwrap_or(&sort_key)
+                                    ),
+                                    description: format!("Sort by {}", sort_key),
+                                    level: 3,
+                                });
+                            }
                         }
                     }
 
@@ -1043,69 +1052,69 @@ fn suggest_advanced_object(
     let array_fields: Vec<_> = obj
         .iter()
         .filter_map(|(k, v)| {
-            if let Variable::Array(arr) = v.as_ref()
-                && arr
+            if let Variable::Array(arr) = v.as_ref() {
+                if arr
                     .first()
                     .is_some_and(|f| matches!(f.as_ref(), Variable::Object(_)))
-            {
-                return Some((k.clone(), arr));
+                {
+                    return Some((k.clone(), arr));
+                }
             }
             None
         })
         .collect();
 
     for (field_name, arr) in &array_fields {
-        if let Some(first) = arr.first()
-            && let Variable::Object(inner) = first.as_ref()
-        {
-            let keys: Vec<_> = inner.keys().collect();
+        if let Some(first) = arr.first() {
+            if let Variable::Object(inner) = first.as_ref() {
+                let keys: Vec<_> = inner.keys().collect();
 
-            // Find categorical (string) and numeric fields
-            let string_fields: Vec<_> = inner
-                .iter()
-                .filter(|(_, v)| matches!(v.as_ref(), Variable::String(_)))
-                .map(|(k, _)| k.clone())
-                .collect();
+                // Find categorical (string) and numeric fields
+                let string_fields: Vec<_> = inner
+                    .iter()
+                    .filter(|(_, v)| matches!(v.as_ref(), Variable::String(_)))
+                    .map(|(k, _)| k.clone())
+                    .collect();
 
-            let numeric_fields: Vec<_> = inner
-                .iter()
-                .filter(|(_, v)| matches!(v.as_ref(), Variable::Number(_)))
-                .map(|(k, _)| k.clone())
-                .collect();
+                let numeric_fields: Vec<_> = inner
+                    .iter()
+                    .filter(|(_, v)| matches!(v.as_ref(), Variable::Number(_)))
+                    .map(|(k, _)| k.clone())
+                    .collect();
 
-            // Aggregation: count by category
-            if let Some(cat_field) = string_fields.first() {
-                suggestions.push(Suggestion {
-                    query: format!(
-                        "group_by_expr('{}', {}) | map_values('length(@)', @)",
-                        cat_field, field_name
-                    ),
-                    description: format!("Count by {}", cat_field),
-                    level: 3,
-                });
-
-                // If we have a numeric field too, sum by category
-                if let Some(num_field) = numeric_fields.first() {
+                // Aggregation: count by category
+                if let Some(cat_field) = string_fields.first() {
                     suggestions.push(Suggestion {
                         query: format!(
-                            "group_by_expr('{}', {}) | map_values('sum([*].{})', @)",
-                            cat_field, field_name, num_field
+                            "group_by_expr('{}', {}) | map_values('length(@)', @)",
+                            cat_field, field_name
                         ),
-                        description: format!("Sum {} by {}", num_field, cat_field),
+                        description: format!("Count by {}", cat_field),
                         level: 3,
                     });
+
+                    // If we have a numeric field too, sum by category
+                    if let Some(num_field) = numeric_fields.first() {
+                        suggestions.push(Suggestion {
+                            query: format!(
+                                "group_by_expr('{}', {}) | map_values('sum([*].{})', @)",
+                                cat_field, field_name, num_field
+                            ),
+                            description: format!("Sum {} by {}", num_field, cat_field),
+                            level: 3,
+                        });
+                    }
                 }
-            }
 
-            // Pipeline: filter → transform → sort
-            if keys.len() >= 2 {
-                let id_field = keys
-                    .iter()
-                    .find(|k| k.contains("id") || k.contains("name") || k.contains("title"))
-                    .unwrap_or(&keys[0]);
+                // Pipeline: filter → transform → sort
+                if keys.len() >= 2 {
+                    let id_field = keys
+                        .iter()
+                        .find(|k| k.contains("id") || k.contains("name") || k.contains("title"))
+                        .unwrap_or(&keys[0]);
 
-                if let Some(num_field) = numeric_fields.first() {
-                    suggestions.push(Suggestion {
+                    if let Some(num_field) = numeric_fields.first() {
+                        suggestions.push(Suggestion {
                         query: format!(
                             "{}[?{} > `0`] | [*].{{{}: {}, {}: {}}} | sort_by(@, &{}) | reverse(@)",
                             field_name,
@@ -1119,46 +1128,50 @@ fn suggest_advanced_object(
                         description: format!("Top items by {}", num_field),
                         level: 3,
                     });
+                    }
                 }
-            }
 
-            // Nested array flattening
-            for (key, val) in inner.iter() {
-                if let Variable::Array(nested) = val.as_ref()
-                    && !nested.is_empty()
-                {
+                // Nested array flattening
+                for (key, val) in inner.iter() {
+                    if let Variable::Array(nested) = val.as_ref() {
+                        if !nested.is_empty() {
+                            suggestions.push(Suggestion {
+                                query: format!(
+                                    "{}[].{}[] | flatten(@) | unique(@)",
+                                    field_name, key
+                                ),
+                                description: format!("Flatten and unique {}", key),
+                                level: 3,
+                            });
+                        }
+                    }
+                }
+
+                // Multi-field statistics
+                if numeric_fields.len() >= 2 {
+                    let stats: Vec<_> = numeric_fields
+                        .iter()
+                        .take(3)
+                        .map(|f| format!("{}_avg: avg({}[*].{})", f, field_name, f))
+                        .collect();
                     suggestions.push(Suggestion {
-                        query: format!("{}[].{}[] | flatten(@) | unique(@)", field_name, key),
-                        description: format!("Flatten and unique {}", key),
+                        query: format!("{{{}}}", stats.join(", ")),
+                        description: "Multi-field averages".to_string(),
                         level: 3,
                     });
                 }
-            }
 
-            // Multi-field statistics
-            if numeric_fields.len() >= 2 {
-                let stats: Vec<_> = numeric_fields
-                    .iter()
-                    .take(3)
-                    .map(|f| format!("{}_avg: avg({}[*].{})", f, field_name, f))
-                    .collect();
-                suggestions.push(Suggestion {
-                    query: format!("{{{}}}", stats.join(", ")),
-                    description: "Multi-field averages".to_string(),
-                    level: 3,
-                });
-            }
-
-            // Transform with map_expr
-            if !keys.is_empty() {
-                suggestions.push(Suggestion {
-                    query: format!(
-                        "map_expr({}, &{{original: @, computed: length(to_string(@))}})",
-                        field_name
-                    ),
-                    description: "Transform each item with map_expr".to_string(),
-                    level: 3,
-                });
+                // Transform with map_expr
+                if !keys.is_empty() {
+                    suggestions.push(Suggestion {
+                        query: format!(
+                            "map_expr({}, &{{original: @, computed: length(to_string(@))}})",
+                            field_name
+                        ),
+                        description: "Transform each item with map_expr".to_string(),
+                        level: 3,
+                    });
+                }
             }
         }
     }
