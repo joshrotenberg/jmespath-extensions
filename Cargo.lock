@@ -853,6 +853,7 @@ dependencies = [
  "rustyline",
  "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]
