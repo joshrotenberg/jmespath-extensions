@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.12...jpx-v0.1.13) - 2025-12-14
+
+### Added
+
+- add .suggest command for smart query suggestions ([#161](https://github.com/joshrotenberg/jmespath-extensions/pull/161))
+- add interactive REPL with syntax highlighting and demos ([#159](https://github.com/joshrotenberg/jmespath-extensions/pull/159))
+
 ## [0.1.12](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.11...jpx-v0.1.12) - 2025-12-13
 
 ### Other
