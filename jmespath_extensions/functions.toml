@@ -1632,7 +1632,7 @@ features = ["core"]
 [[functions]]
 name = "json_merge_patch"
 category = "jsonpatch"
-description = "Apply JSON Merge Patch (RFC 7386) to an object"
+description = "Apply JSON Merge Patch (RFC 7396) to an object"
 signature = "object, object -> object"
 examples = [
     { code = "json_merge_patch({a: 1, b: 2}, {b: 3, c: 4}) -> {a: 1, b: 3, c: 4}", description = "Merge objects" },
