@@ -95,9 +95,9 @@ impl Function for JsonPatchFn {
 }
 
 // =============================================================================
-// json_merge_patch(obj, patch) -> object (RFC 7386)
-// Apply a JSON Merge Patch (RFC 7386) to an object.
-// See: https://datatracker.ietf.org/doc/html/rfc7386
+// json_merge_patch(obj, patch) -> object (RFC 7396)
+// Apply a JSON Merge Patch (RFC 7396) to an object.
+// See: https://datatracker.ietf.org/doc/html/rfc7396
 // =============================================================================
 
 define_function!(

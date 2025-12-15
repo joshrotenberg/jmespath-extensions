@@ -182,7 +182,7 @@ All features are opt-in. Use `default-features = false` to select only what you 
 | `duration` | `parse_duration`, `format_duration`, etc. | None |
 | `color` | `hex_to_rgb`, `rgb_to_hex`, `lighten`, `darken`, etc. | None |
 | `computing` | `parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, etc. | None |
-| `jsonpatch` | `json_patch`, `json_merge_patch`, `json_diff` (RFC 6902/7386) | json-patch |
+| `jsonpatch` | `json_patch`, `json_merge_patch`, `json_diff` (RFC 6902/7396) | json-patch |
 | `multi-match` | `match_any`, `match_all`, `match_which`, `match_count`, `replace_many` | aho-corasick |
 
 ### Minimal Dependencies
@@ -255,7 +255,7 @@ cidr_contains('192.168.0.0/16', '192.168.1.1') → true
 is_private_ip('10.0.0.1')                      → true
 ```
 
-### JSON Patch (RFC 6902/7386)
+### JSON Patch (RFC 6902/7396)
 
 ```
 json_patch({a: 1}, [{op: 'add', path: '/b', value: 2}])  → {a: 1, b: 2}
