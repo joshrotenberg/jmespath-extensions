@@ -1,5 +1,5 @@
 [workspace]
-members = ["jmespath_extensions", "jpx"]
+members = ["jmespath_extensions", "jpx", "jpx-lsp"]
 resolver = "2"
 
 [workspace.package]
