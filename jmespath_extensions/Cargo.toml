@@ -75,6 +75,8 @@ computing = []
 jsonpatch = ["dep:json-patch"]
 multi-match = ["dep:aho-corasick"]
 format = ["dep:csv"]
+# env feature is opt-in (not in full) as it can expose sensitive environment data
+env = []
 
 [build-dependencies]
 toml = "0.8"

@@ -969,6 +969,32 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "html_escape"
+category = "encoding"
+description = "Escape HTML special characters"
+signature = "string -> string"
+examples = [
+    { code = '''html_escape('<div>') -> \"&lt;div&gt;\"''', description = "Escape tags" },
+    { code = '''html_escape('a & b') -> \"a &amp; b\"''', description = "Escape ampersand" },
+    { code = '''html_escape('\"quoted\"') -> \"&quot;quoted&quot;\"''', description = "Escape quotes" },
+    { code = "html_escape(user_input) -> safe for HTML", description = "Sanitize input" },
+]
+features = ["core"]
+
+[[functions]]
+name = "html_unescape"
+category = "encoding"
+description = "Unescape HTML entities"
+signature = "string -> string"
+examples = [
+    { code = '''html_unescape('&lt;div&gt;') -> \"<div>\"''', description = "Unescape tags" },
+    { code = '''html_unescape('a &amp; b') -> \"a & b\"''', description = "Unescape ampersand" },
+    { code = '''html_unescape('&quot;quoted&quot;') -> \"\\\"quoted\\\"\"''', description = "Unescape quotes" },
+    { code = "html_unescape(escaped) -> original", description = "Decode entities" },
+]
+features = ["core"]
+
 # =============================================================================
 # EXPRESSION FUNCTIONS
 # =============================================================================
@@ -3979,6 +4005,19 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "pretty"
+category = "utility"
+description = "Pretty-print value as formatted JSON string"
+signature = "any, number? -> string"
+examples = [
+    { code = '''pretty({a: 1}) -> \"{\n  \\\"a\\\": 1\n}\"''', description = "Default 2-space indent" },
+    { code = '''pretty({a: 1}, `4`) -> 4-space indent''', description = "Custom indent" },
+    { code = "pretty(config) -> readable JSON", description = "Format for display" },
+    { code = "sprintf('Config:\\n%s', pretty(@)) -> embedded", description = "Embed in output" },
+]
+features = ["core"]
+
 # =============================================================================
 # UUID FUNCTIONS
 # =============================================================================
@@ -4212,3 +4251,32 @@ examples = [
     { code = '''to_csv_table([]) -> ""''', description = "Empty array" },
 ]
 features = ["format"]
+
+# =============================================================================
+# ENVIRONMENT FUNCTIONS (opt-in, requires "env" feature)
+# =============================================================================
+
+[[functions]]
+name = "env"
+category = "utility"
+description = "Get all environment variables as an object"
+signature = "-> object"
+examples = [
+    { code = "env() -> {HOME: '/Users/...', PATH: '...', ...}", description = "All env vars" },
+    { code = "env().HOME -> home directory", description = "Access specific var" },
+    { code = "keys(env()) -> list of var names", description = "List all var names" },
+]
+features = ["env"]
+
+[[functions]]
+name = "get_env"
+category = "utility"
+description = "Get a single environment variable by name"
+signature = "string -> string | null"
+examples = [
+    { code = '''get_env('HOME') -> \"/Users/josh\"''', description = "Get home directory" },
+    { code = "get_env('PATH') -> system PATH", description = "Get PATH" },
+    { code = "get_env('MISSING') -> null", description = "Returns null if not set" },
+    { code = "default(get_env('PORT'), '8080') -> with fallback", description = "With default value" },
+]
+features = ["env"]

@@ -36,6 +36,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("hex_decode", Box::new(HexDecodeFn::new()));
     runtime.register_function("jwt_decode", Box::new(JwtDecodeFn::new()));
     runtime.register_function("jwt_header", Box::new(JwtHeaderFn::new()));
+    runtime.register_function("html_escape", Box::new(HtmlEscapeFn::new()));
+    runtime.register_function("html_unescape", Box::new(HtmlUnescapeFn::new()));
 }
 
 // =============================================================================
@@ -250,6 +252,67 @@ impl Function for JwtHeaderFn {
     }
 }
 
+// =============================================================================
+// html_escape(string) -> string
+// =============================================================================
+
+define_function!(HtmlEscapeFn, vec![ArgumentType::String], None);
+
+impl Function for HtmlEscapeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let escaped = s
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#x27;");
+
+        Ok(Rc::new(Variable::String(escaped)))
+    }
+}
+
+// =============================================================================
+// html_unescape(string) -> string
+// =============================================================================
+
+define_function!(HtmlUnescapeFn, vec![ArgumentType::String], None);
+
+impl Function for HtmlUnescapeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Order matters: decode &amp; last to avoid double-decoding
+        let unescaped = s
+            .replace("&#x27;", "'")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
+            .replace("&quot;", "\"")
+            .replace("&gt;", ">")
+            .replace("&lt;", "<")
+            .replace("&amp;", "&");
+
+        Ok(Rc::new(Variable::String(unescaped)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,5 +474,70 @@ mod tests {
         let data = Variable::String("eyJhbGciOiJIUzI1NiJ9.bm90IGpzb24.sig".to_string());
         let result = expr.search(&data).unwrap();
         assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_html_escape_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("html_escape(@)").unwrap();
+        let data = Variable::String("<div class=\"test\">Hello & goodbye</div>".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "&lt;div class=&quot;test&quot;&gt;Hello &amp; goodbye&lt;/div&gt;"
+        );
+    }
+
+    #[test]
+    fn test_html_escape_quotes() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("html_escape(@)").unwrap();
+        let data = Variable::String("It's a \"test\"".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "It&#x27;s a &quot;test&quot;");
+    }
+
+    #[test]
+    fn test_html_escape_no_change() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("html_escape(@)").unwrap();
+        let data = Variable::String("Hello World".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello World");
+    }
+
+    #[test]
+    fn test_html_unescape_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("html_unescape(@)").unwrap();
+        let data = Variable::String(
+            "&lt;div class=&quot;test&quot;&gt;Hello &amp; goodbye&lt;/div&gt;".to_string(),
+        );
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "<div class=\"test\">Hello & goodbye</div>"
+        );
+    }
+
+    #[test]
+    fn test_html_unescape_quotes() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("html_unescape(@)").unwrap();
+        let data = Variable::String("It&#x27;s a &quot;test&quot;".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "It's a \"test\"");
+    }
+
+    #[test]
+    fn test_html_roundtrip() {
+        let runtime = setup_runtime();
+        let escape = runtime.compile("html_escape(@)").unwrap();
+        let unescape = runtime.compile("html_unescape(@)").unwrap();
+        let original = "<script>alert('xss')</script>";
+        let data = Variable::String(original.to_string());
+        let escaped = escape.search(&data).unwrap();
+        let roundtrip = unescape.search(&escaped).unwrap();
+        assert_eq!(roundtrip.as_string().unwrap(), original);
     }
 }
