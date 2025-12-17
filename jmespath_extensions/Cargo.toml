@@ -40,10 +40,11 @@ nanoid = { workspace = true, optional = true }
 ulid = { workspace = true, optional = true }
 json-patch = { workspace = true, optional = true }
 aho-corasick = { workspace = true, optional = true }
+csv = { workspace = true, optional = true }
 
 [features]
 default = ["full"]
-full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch", "multi-match"]
+full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch", "multi-match", "format"]
 core = ["string", "array", "object", "math", "type", "utility", "validation", "path", "expression"]
 string = []
 array = []
@@ -73,6 +74,7 @@ color = []
 computing = []
 jsonpatch = ["dep:json-patch"]
 multi-match = ["dep:aho-corasick"]
+format = ["dep:csv"]
 
 [build-dependencies]
 toml = "0.8"

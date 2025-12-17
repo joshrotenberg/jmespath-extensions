@@ -4159,3 +4159,56 @@ examples = [
     { code = "luhn_check('0') -> true", description = "Single zero" },
 ]
 features = ["core"]
+
+# =============================================================================
+# FORMAT FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "to_csv"
+category = "format"
+description = "Convert array to CSV row string (RFC 4180 compliant)"
+signature = "array -> string"
+examples = [
+    { code = '''to_csv(['a', 'b', 'c']) -> "a,b,c"''', description = "Simple strings" },
+    { code = '''to_csv(['hello', `42`, `true`, `null`]) -> "hello,42,true,"''', description = "Mixed types" },
+    { code = '''to_csv(['hello, world', 'test']) -> "\"hello, world\",test"''', description = "Value with comma is quoted" },
+    { code = '''to_csv(['say "hello"', 'test']) -> "\"say \"\"hello\"\"\",test"''', description = "Quotes are doubled" },
+]
+features = ["format"]
+
+[[functions]]
+name = "to_tsv"
+category = "format"
+description = "Convert array to TSV row string (tab-separated)"
+signature = "array -> string"
+examples = [
+    { code = '''to_tsv(['a', 'b', 'c']) -> "a\tb\tc"''', description = "Simple strings" },
+    { code = '''to_tsv(['hello', `42`, `true`]) -> "hello\t42\ttrue"''', description = "Mixed types" },
+]
+features = ["format"]
+
+[[functions]]
+name = "to_csv_rows"
+category = "format"
+description = "Convert array of arrays to multi-line CSV string"
+signature = "array -> string"
+examples = [
+    { code = '''to_csv_rows([[`1`, `2`, `3`], [`4`, `5`, `6`]]) -> "1,2,3\n4,5,6"''', description = "Numeric rows" },
+    { code = '''to_csv_rows([['a', 'b'], ['c', 'd']]) -> "a,b\nc,d"''', description = "String rows" },
+    { code = '''to_csv_rows([]) -> ""''', description = "Empty array" },
+]
+features = ["format"]
+
+[[functions]]
+name = "to_csv_table"
+category = "format"
+description = "Convert array of objects to CSV with header row"
+signature = "array, array? -> string"
+examples = [
+    { code = '''to_csv_table([{name: 'alice', age: `30`}]) -> "age,name\n30,alice"''', description = "Keys sorted alphabetically" },
+    { code = '''to_csv_table([{name: 'alice', age: `30`}], ['name', 'age']) -> "name,age\nalice,30"''', description = "Explicit column order" },
+    { code = '''to_csv_table([{a: `1`}, {a: `2`, b: `3`}], ['a', 'b']) -> "a,b\n1,\n2,3"''', description = "Missing fields become empty" },
+    { code = '''to_csv_table([]) -> ""''', description = "Empty array" },
+]
+features = ["format"]
