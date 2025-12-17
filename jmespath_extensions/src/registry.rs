@@ -93,6 +93,7 @@ pub enum Category {
     Computing,
     MultiMatch,
     Jsonpatch,
+    Format,
 }
 
 impl Category {
@@ -128,6 +129,7 @@ impl Category {
             Category::Computing,
             Category::MultiMatch,
             Category::Jsonpatch,
+            Category::Format,
         ]
     }
 
@@ -163,6 +165,7 @@ impl Category {
             Category::Computing => "computing",
             Category::MultiMatch => "multi-match",
             Category::Jsonpatch => "jsonpatch",
+            Category::Format => "format",
         }
     }
 
@@ -227,6 +230,8 @@ impl Category {
             Category::MultiMatch => true,
             #[cfg(feature = "jsonpatch")]
             Category::Jsonpatch => true,
+            #[cfg(feature = "format")]
+            Category::Format => true,
             #[allow(unreachable_patterns)]
             _ => false,
         }
@@ -244,12 +249,21 @@ pub enum Feature {
     Fp,
     /// JEP-aligned functions
     Jep,
+    /// Format output functions (CSV, TSV)
+    #[allow(non_camel_case_types)]
+    format,
 }
 
 impl Feature {
     /// Returns all features
     pub fn all() -> &'static [Feature] {
-        &[Feature::Spec, Feature::Core, Feature::Fp, Feature::Jep]
+        &[
+            Feature::Spec,
+            Feature::Core,
+            Feature::Fp,
+            Feature::Jep,
+            Feature::format,
+        ]
     }
 
     /// Returns the feature name as a string
@@ -259,6 +273,7 @@ impl Feature {
             Feature::Core => "core",
             Feature::Fp => "fp",
             Feature::Jep => "jep",
+            Feature::format => "format",
         }
     }
 }
@@ -515,6 +530,8 @@ impl FunctionRegistry {
             Category::MultiMatch => crate::multi_match::register(runtime),
             #[cfg(feature = "jsonpatch")]
             Category::Jsonpatch => crate::jsonpatch::register(runtime),
+            #[cfg(feature = "format")]
+            Category::Format => crate::format::register(runtime),
             #[allow(unreachable_patterns)]
             _ => {}
         }
