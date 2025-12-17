@@ -38,6 +38,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("jwt_header", Box::new(JwtHeaderFn::new()));
     runtime.register_function("html_escape", Box::new(HtmlEscapeFn::new()));
     runtime.register_function("html_unescape", Box::new(HtmlUnescapeFn::new()));
+    runtime.register_function("shell_escape", Box::new(ShellEscapeFn::new()));
 }
 
 // =============================================================================
@@ -313,6 +314,32 @@ impl Function for HtmlUnescapeFn {
     }
 }
 
+// =============================================================================
+// shell_escape(string) -> string
+// =============================================================================
+
+define_function!(ShellEscapeFn, vec![ArgumentType::String], None);
+
+impl Function for ShellEscapeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Shell escaping: wrap in single quotes and escape internal single quotes
+        // The pattern is: replace ' with '\'' (end quote, escaped quote, start quote)
+        let escaped = format!("'{}'", s.replace('\'', "'\\''"));
+
+        Ok(Rc::new(Variable::String(escaped)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -539,5 +566,54 @@ mod tests {
         let escaped = escape.search(&data).unwrap();
         let roundtrip = unescape.search(&escaped).unwrap();
         assert_eq!(roundtrip.as_string().unwrap(), original);
+    }
+
+    #[test]
+    fn test_shell_escape_simple() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "'hello world'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_single_quote() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("it's here".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "'it'\\''s here'");
+    }
+
+    #[test]
+    fn test_shell_escape_special_chars() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("$HOME; rm -rf /".to_string());
+        let result = expr.search(&data).unwrap();
+        // Should be safely quoted
+        assert_eq!(result.as_string().unwrap(), "'$HOME; rm -rf /'");
+    }
+
+    #[test]
+    fn test_shell_escape_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "''");
+    }
+
+    #[test]
+    fn test_shell_escape_multiple_quotes() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("don't say 'hello'".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "'don'\\''t say '\\''hello'\\'''"
+        );
     }
 }

@@ -3254,6 +3254,18 @@ examples = [
 features = ["core"]
 
 [[functions]]
+name = "explode"
+category = "string"
+description = "Convert a string to an array of Unicode codepoints"
+signature = "string -> array"
+examples = [
+    { code = "explode('abc') -> [97, 98, 99]", description = "ASCII characters" },
+    { code = "explode('A☺') -> [65, 9786]", description = "Unicode characters" },
+    { code = "explode('') -> []", description = "Empty string" },
+]
+features = ["core"]
+
+[[functions]]
 name = "find_first"
 category = "string"
 description = "Find first occurrence of substring"
@@ -3288,6 +3300,18 @@ examples = [
     { code = "indices('hello', 'l') -> [2, 3]", description = "Multiple occurrences" },
     { code = "indices('ababa', 'aba') -> [0, 2]", description = "Overlapping matches" },
     { code = "indices('hello', 'x') -> []", description = "No matches" },
+]
+features = ["core"]
+
+[[functions]]
+name = "implode"
+category = "string"
+description = "Convert an array of Unicode codepoints to a string"
+signature = "array -> string"
+examples = [
+    { code = '''implode([97, 98, 99]) -> \"abc\"''', description = "ASCII codepoints" },
+    { code = '''implode([65, 9786]) -> \"A☺\"''', description = "Unicode codepoints" },
+    { code = '''implode([]) -> \"\"''', description = "Empty array" },
 ]
 features = ["core"]
 
