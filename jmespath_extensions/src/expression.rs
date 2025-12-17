@@ -61,6 +61,9 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("take_while", Box::new(TakeWhileFn::new()));
     runtime.register_function("drop_while", Box::new(DropWhileFn::new()));
     runtime.register_function("zip_with", Box::new(ZipWithFn::new()));
+
+    // Recursive transformation
+    runtime.register_function("walk", Box::new(WalkFn::new()));
 }
 
 // =============================================================================
@@ -2150,6 +2153,89 @@ impl Function for ZipWithFn {
     }
 }
 
+// =============================================================================
+// walk(expr, value) -> value (recursive transformation)
+// =============================================================================
+
+/// Recursively apply a transformation to every component of a data structure.
+///
+/// The transformation is applied bottom-up: for arrays and objects, children
+/// are transformed first, then the expression is applied to the result.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string to apply at each node
+/// * `value` - The value to walk
+///
+/// # Returns
+/// The transformed value.
+///
+/// # Example
+/// ```text
+/// walk('if(is_array(@), sort(@), @)', {a: [3, 1, 2]}) -> {a: [1, 2, 3]}
+/// walk('if(is_object(@), merge(@, {visited: `true`}), @)', data) -> all objects get visited: true
+/// ```
+pub struct WalkFn {
+    signature: Signature,
+}
+
+impl Default for WalkFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WalkFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Any], None),
+        }
+    }
+}
+
+/// Recursively walk a value, applying the expression bottom-up
+fn walk_value(value: &Rcvar, compiled: &jmespath::Expression<'_>) -> Result<Rcvar, JmespathError> {
+    match &**value {
+        Variable::Array(arr) => {
+            // First, recursively walk all elements
+            let walked_elements: Result<Vec<Rcvar>, _> =
+                arr.iter().map(|elem| walk_value(elem, compiled)).collect();
+            let new_array = Rc::new(Variable::Array(walked_elements?));
+            // Then apply the expression to the array itself
+            compiled.search(new_array)
+        }
+        Variable::Object(obj) => {
+            // First, recursively walk all values
+            let walked_entries: Result<std::collections::BTreeMap<String, Rcvar>, _> = obj
+                .iter()
+                .map(|(k, v)| walk_value(v, compiled).map(|walked| (k.clone(), walked)))
+                .collect();
+            let new_object = Rc::new(Variable::Object(walked_entries?));
+            // Then apply the expression to the object itself
+            compiled.search(new_object)
+        }
+        // For scalars (string, number, bool, null), just apply the expression
+        _ => compiled.search(value.clone()),
+    }
+}
+
+impl Function for WalkFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in walk: {}", e)),
+            )
+        })?;
+
+        walk_value(&args[1], &compiled)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3544,5 +3630,100 @@ mod tests {
         assert_eq!(arr[0].as_number().unwrap(), 10.0);
         assert_eq!(arr[1].as_number().unwrap(), 18.0);
         assert_eq!(arr[2].as_number().unwrap(), 28.0);
+    }
+
+    // =========================================================================
+    // walk tests
+    // =========================================================================
+
+    #[test]
+    fn test_walk_identity() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"a": [1, 2, 3], "b": {"c": 4}}"#).unwrap();
+        let expr = runtime.compile("walk('@', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // Identity should return the same structure
+        assert!(result.is_object());
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("a"));
+        assert!(obj.contains_key("b"));
+    }
+
+    #[test]
+    fn test_walk_type_of_all() {
+        let mut runtime = setup();
+        crate::type_conv::register(&mut runtime);
+        let data = Variable::from_json(r#"{"a": 5, "b": [1, 2]}"#).unwrap();
+        // type() works on everything - shows bottom-up processing
+        let expr = runtime.compile("walk('type(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // After walking, everything becomes its type string, and the final result
+        // is type of the top-level result
+        assert_eq!(result.as_string().unwrap(), "object");
+    }
+
+    #[test]
+    fn test_walk_nested_arrays() {
+        let runtime = setup();
+        // Use only arrays (no scalars inside) so length works at every level
+        let data = Variable::from_json(r#"[[[], []], [[]]]"#).unwrap();
+        // length works on arrays - get lengths at each level
+        let expr = runtime.compile("walk('length(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // Inner [] -> 0, outer arrays get lengths, top level has 2 elements
+        assert_eq!(result.as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_walk_scalar() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Number(serde_json::Number::from(5));
+        // Double the number
+        let expr = runtime.compile("walk('multiply(@, `2`)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap(), 10.0);
+    }
+
+    #[test]
+    fn test_walk_length_all() {
+        let mut runtime = setup();
+        let data = Variable::from_json(r#"{"items": ["a", "bb", "ccc"]}"#).unwrap();
+        // Get length of everything (works for strings, arrays, objects)
+        let expr = runtime.compile("walk('length(@)', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // Top level object has 1 key
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_walk_preserves_structure() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"a": [1, {"b": 2}], "c": "hello"}"#).unwrap();
+        // Identity transform - should preserve structure
+        let expr = runtime.compile("walk('@', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("a"));
+        assert!(obj.contains_key("c"));
+        let arr = obj.get("a").unwrap().as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn test_walk_empty_structures() {
+        let runtime = setup();
+
+        // Empty array
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("walk('@', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_array().unwrap().is_empty());
+
+        // Empty object
+        let data = Variable::from_json(r#"{}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_object().unwrap().is_empty());
     }
 }

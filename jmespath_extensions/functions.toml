@@ -1367,6 +1367,19 @@ examples = [
 ]
 features = ["core", "fp"]
 
+[[functions]]
+name = "walk"
+category = "expression"
+description = "Recursively apply expression to all components of a value (bottom-up)"
+signature = "string, any -> any"
+examples = [
+    { code = "walk('@', data) -> data unchanged", description = "Identity transform" },
+    { code = "walk('type(@)', {a: 1}) -> 'object'", description = "Get type of result" },
+    { code = "walk('length(@)', [[], []]) -> 2", description = "Lengths of nested arrays" },
+    { code = "walk('keys(@)', {a: {b: 1}}) -> ['a']", description = "Keys at each level" },
+]
+features = ["core", "fp"]
+
 # =============================================================================
 # FUZZY FUNCTIONS
 # =============================================================================
