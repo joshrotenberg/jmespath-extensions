@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.3...v0.7.0) - 2025-12-18
+
+### Added
+
+- add jq-inspired utility functions (pretty, html_escape, env) ([#175](https://github.com/joshrotenberg/jmespath-extensions/pull/175))
+- add CSV/TSV formatting functions ([#174](https://github.com/joshrotenberg/jmespath-extensions/pull/174))
+
+### Other
+
+- update JSON Merge Patch RFC reference from 7386 to 7396 ([#170](https://github.com/joshrotenberg/jmespath-extensions/pull/170))
+
 ## [0.6.3](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.2...v0.6.3) - 2025-12-14
 
 ### Fixed

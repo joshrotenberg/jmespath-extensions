@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.14](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.13...jpx-v0.1.14) - 2025-12-18
+
+### Added
+
+- move REPL demos to demos.toml with build.rs generation ([#168](https://github.com/joshrotenberg/jmespath-extensions/pull/168))
+
 ## [0.1.13](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.12...jpx-v0.1.13) - 2025-12-14
 
 ### Added
