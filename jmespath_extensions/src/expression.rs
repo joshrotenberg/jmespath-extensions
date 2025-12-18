@@ -3687,7 +3687,7 @@ mod tests {
 
     #[test]
     fn test_walk_length_all() {
-        let mut runtime = setup();
+        let runtime = setup();
         let data = Variable::from_json(r#"{"items": ["a", "bb", "ccc"]}"#).unwrap();
         // Get length of everything (works for strings, arrays, objects)
         let expr = runtime.compile("walk('length(@)', @)").unwrap();
