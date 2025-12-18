@@ -74,6 +74,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("abbreviate", Box::new(AbbreviateFn::new()));
     runtime.register_function("center", Box::new(CenterFn::new()));
     runtime.register_function("reverse_string", Box::new(ReverseStringFn::new()));
+    runtime.register_function("explode", Box::new(ExplodeFn::new()));
+    runtime.register_function("implode", Box::new(ImplodeFn::new()));
 }
 
 // =============================================================================
@@ -2163,6 +2165,77 @@ impl Function for ReverseStringFn {
     }
 }
 
+// =============================================================================
+// explode(string) -> array
+// Convert a string to an array of Unicode codepoints (integers)
+// =============================================================================
+
+define_function!(ExplodeFn, vec![ArgumentType::String], None);
+
+impl Function for ExplodeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let codepoints: Vec<Rcvar> = s
+            .chars()
+            .map(|c| Rc::new(Variable::Number(serde_json::Number::from(c as u32))) as Rcvar)
+            .collect();
+
+        Ok(Rc::new(Variable::Array(codepoints)))
+    }
+}
+
+// =============================================================================
+// implode(array) -> string
+// Convert an array of Unicode codepoints (integers) back to a string
+// =============================================================================
+
+define_function!(ImplodeFn, vec![ArgumentType::Array], None);
+
+impl Function for ImplodeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let mut result = String::new();
+        for item in arr.iter() {
+            let codepoint = item.as_number().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected array of numbers (codepoints)".to_owned()),
+                )
+            })? as u32;
+
+            let c = char::from_u32(codepoint).ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse(format!("Invalid Unicode codepoint: {}", codepoint)),
+                )
+            })?;
+            result.push(c);
+        }
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2880,5 +2953,84 @@ mod tests {
         let data = Variable::String("racecar".to_string());
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "racecar");
+    }
+
+    // =========================================================================
+    // explode tests
+    // =========================================================================
+
+    #[test]
+    fn test_explode_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("explode(@)").unwrap();
+        let data = Variable::String("abc".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as u32, 97); // 'a'
+        assert_eq!(arr[1].as_number().unwrap() as u32, 98); // 'b'
+        assert_eq!(arr[2].as_number().unwrap() as u32, 99); // 'c'
+    }
+
+    #[test]
+    fn test_explode_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("explode(@)").unwrap();
+        let data = Variable::String("".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_explode_unicode() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("explode(@)").unwrap();
+        let data = Variable::String("A☺".to_string());
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as u32, 65); // 'A'
+        assert_eq!(arr[1].as_number().unwrap() as u32, 9786); // '☺'
+    }
+
+    // =========================================================================
+    // implode tests
+    // =========================================================================
+
+    #[test]
+    fn test_implode_basic() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("implode(@)").unwrap();
+        let data: Variable = serde_json::from_str("[97, 98, 99]").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "abc");
+    }
+
+    #[test]
+    fn test_implode_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("implode(@)").unwrap();
+        let data: Variable = serde_json::from_str("[]").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "");
+    }
+
+    #[test]
+    fn test_implode_unicode() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("implode(@)").unwrap();
+        let data: Variable = serde_json::from_str("[65, 9786]").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "A☺");
+    }
+
+    #[test]
+    fn test_explode_implode_roundtrip() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("implode(explode(@))").unwrap();
+        let data = Variable::String("Hello, 世界!".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello, 世界!");
     }
 }

@@ -252,6 +252,9 @@ pub enum Feature {
     /// Format output functions (CSV, TSV)
     #[allow(non_camel_case_types)]
     format,
+    /// Environment variable access (opt-in for security)
+    #[allow(non_camel_case_types)]
+    env,
 }
 
 impl Feature {
@@ -263,6 +266,7 @@ impl Feature {
             Feature::Fp,
             Feature::Jep,
             Feature::format,
+            Feature::env,
         ]
     }
 
@@ -274,6 +278,7 @@ impl Feature {
             Feature::Fp => "fp",
             Feature::Jep => "jep",
             Feature::format => "format",
+            Feature::env => "env",
         }
     }
 }

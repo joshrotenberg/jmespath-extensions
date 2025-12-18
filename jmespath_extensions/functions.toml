@@ -969,6 +969,32 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "html_escape"
+category = "encoding"
+description = "Escape HTML special characters"
+signature = "string -> string"
+examples = [
+    { code = '''html_escape('<div>') -> \"&lt;div&gt;\"''', description = "Escape tags" },
+    { code = '''html_escape('a & b') -> \"a &amp; b\"''', description = "Escape ampersand" },
+    { code = '''html_escape('\"quoted\"') -> \"&quot;quoted&quot;\"''', description = "Escape quotes" },
+    { code = "html_escape(user_input) -> safe for HTML", description = "Sanitize input" },
+]
+features = ["core"]
+
+[[functions]]
+name = "html_unescape"
+category = "encoding"
+description = "Unescape HTML entities"
+signature = "string -> string"
+examples = [
+    { code = '''html_unescape('&lt;div&gt;') -> \"<div>\"''', description = "Unescape tags" },
+    { code = '''html_unescape('a &amp; b') -> \"a & b\"''', description = "Unescape ampersand" },
+    { code = '''html_unescape('&quot;quoted&quot;') -> \"\\\"quoted\\\"\"''', description = "Unescape quotes" },
+    { code = "html_unescape(escaped) -> original", description = "Decode entities" },
+]
+features = ["core"]
+
 # =============================================================================
 # EXPRESSION FUNCTIONS
 # =============================================================================
@@ -1338,6 +1364,19 @@ examples = [
     { code = "zip_with('multiply([0], [1])', [2, 3], [4, 5]) -> [8, 15]", description = "Multiply pairs" },
     { code = "zip_with('concat([0], [1])', ['a', 'b'], ['1', '2']) -> ['a1', 'b2']", description = "Concat pairs" },
     { code = "zip_with('add([0], [1])', [], []) -> []", description = "Empty arrays" },
+]
+features = ["core", "fp"]
+
+[[functions]]
+name = "walk"
+category = "expression"
+description = "Recursively apply expression to all components of a value (bottom-up)"
+signature = "string, any -> any"
+examples = [
+    { code = "walk('@', data) -> data unchanged", description = "Identity transform" },
+    { code = "walk('type(@)', {a: 1}) -> 'object'", description = "Get type of result" },
+    { code = "walk('length(@)', [[], []]) -> 2", description = "Lengths of nested arrays" },
+    { code = "walk('keys(@)', {a: {b: 1}}) -> ['a']", description = "Keys at each level" },
 ]
 features = ["core", "fp"]
 
@@ -3215,6 +3254,18 @@ examples = [
 features = ["core"]
 
 [[functions]]
+name = "explode"
+category = "string"
+description = "Convert a string to an array of Unicode codepoints"
+signature = "string -> array"
+examples = [
+    { code = "explode('abc') -> [97, 98, 99]", description = "ASCII characters" },
+    { code = "explode('A☺') -> [65, 9786]", description = "Unicode characters" },
+    { code = "explode('') -> []", description = "Empty string" },
+]
+features = ["core"]
+
+[[functions]]
 name = "find_first"
 category = "string"
 description = "Find first occurrence of substring"
@@ -3249,6 +3300,18 @@ examples = [
     { code = "indices('hello', 'l') -> [2, 3]", description = "Multiple occurrences" },
     { code = "indices('ababa', 'aba') -> [0, 2]", description = "Overlapping matches" },
     { code = "indices('hello', 'x') -> []", description = "No matches" },
+]
+features = ["core"]
+
+[[functions]]
+name = "implode"
+category = "string"
+description = "Convert an array of Unicode codepoints to a string"
+signature = "array -> string"
+examples = [
+    { code = '''implode([97, 98, 99]) -> \"abc\"''', description = "ASCII codepoints" },
+    { code = '''implode([65, 9786]) -> \"A☺\"''', description = "Unicode codepoints" },
+    { code = '''implode([]) -> \"\"''', description = "Empty array" },
 ]
 features = ["core"]
 
@@ -3979,6 +4042,19 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "pretty"
+category = "utility"
+description = "Pretty-print value as formatted JSON string"
+signature = "any, number? -> string"
+examples = [
+    { code = '''pretty({a: 1}) -> \"{\n  \\\"a\\\": 1\n}\"''', description = "Default 2-space indent" },
+    { code = '''pretty({a: 1}, `4`) -> 4-space indent''', description = "Custom indent" },
+    { code = "pretty(config) -> readable JSON", description = "Format for display" },
+    { code = "sprintf('Config:\\n%s', pretty(@)) -> embedded", description = "Embed in output" },
+]
+features = ["core"]
+
 # =============================================================================
 # UUID FUNCTIONS
 # =============================================================================
@@ -4212,3 +4288,32 @@ examples = [
     { code = '''to_csv_table([]) -> ""''', description = "Empty array" },
 ]
 features = ["format"]
+
+# =============================================================================
+# ENVIRONMENT FUNCTIONS (opt-in, requires "env" feature)
+# =============================================================================
+
+[[functions]]
+name = "env"
+category = "utility"
+description = "Get all environment variables as an object"
+signature = "-> object"
+examples = [
+    { code = "env() -> {HOME: '/Users/...', PATH: '...', ...}", description = "All env vars" },
+    { code = "env().HOME -> home directory", description = "Access specific var" },
+    { code = "keys(env()) -> list of var names", description = "List all var names" },
+]
+features = ["env"]
+
+[[functions]]
+name = "get_env"
+category = "utility"
+description = "Get a single environment variable by name"
+signature = "string -> string | null"
+examples = [
+    { code = '''get_env('HOME') -> \"/Users/josh\"''', description = "Get home directory" },
+    { code = "get_env('PATH') -> system PATH", description = "Get PATH" },
+    { code = "get_env('MISSING') -> null", description = "Returns null if not set" },
+    { code = "default(get_env('PORT'), '8080') -> with fallback", description = "With default value" },
+]
+features = ["env"]

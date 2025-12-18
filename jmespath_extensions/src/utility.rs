@@ -33,6 +33,12 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("json_encode", Box::new(JsonEncodeFn::new()));
     runtime.register_function("json_decode", Box::new(JsonDecodeFn::new()));
     runtime.register_function("json_pointer", Box::new(JsonPointerFn::new()));
+    runtime.register_function("pretty", Box::new(PrettyFn::new()));
+    #[cfg(feature = "env")]
+    {
+        runtime.register_function("env", Box::new(EnvFn::new()));
+        runtime.register_function("get_env", Box::new(GetEnvFn::new()));
+    }
 }
 
 // =============================================================================
@@ -184,6 +190,126 @@ impl Function for JsonEncodeFn {
 }
 
 // =============================================================================
+// pretty(any, indent?) -> string
+// =============================================================================
+
+define_function!(
+    PrettyFn,
+    vec![ArgumentType::Any],
+    Some(ArgumentType::Number)
+);
+
+impl Function for PrettyFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let indent = if args.len() > 1 {
+            args[1].as_number().unwrap_or(2.0) as usize
+        } else {
+            2
+        };
+
+        // For default indent of 2, use built-in to_string_pretty
+        if indent == 2 {
+            let pretty_str = serde_json::to_string_pretty(&*args[0]).map_err(|_| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Failed to serialize as JSON".to_owned()),
+                )
+            })?;
+            return Ok(Rc::new(Variable::String(pretty_str)));
+        }
+
+        // For custom indent, manually format
+        // Convert to compact JSON first, then parse as Value
+        let json_str = serde_json::to_string(&*args[0]).map_err(|_| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Failed to serialize as JSON".to_owned()),
+            )
+        })?;
+
+        // Manually build pretty output with custom indent
+        let pretty_str = pretty_print_json(&json_str, indent);
+
+        Ok(Rc::new(Variable::String(pretty_str)))
+    }
+}
+
+/// Pretty print JSON with custom indentation
+fn pretty_print_json(json: &str, indent_size: usize) -> String {
+    let mut result = String::new();
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut escape_next = false;
+    let indent = " ".repeat(indent_size);
+
+    for ch in json.chars() {
+        if escape_next {
+            result.push(ch);
+            escape_next = false;
+            continue;
+        }
+
+        if ch == '\\' && in_string {
+            result.push(ch);
+            escape_next = true;
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = !in_string;
+            result.push(ch);
+            continue;
+        }
+
+        if in_string {
+            result.push(ch);
+            continue;
+        }
+
+        match ch {
+            '{' | '[' => {
+                result.push(ch);
+                depth += 1;
+                result.push('\n');
+                for _ in 0..depth {
+                    result.push_str(&indent);
+                }
+            }
+            '}' | ']' => {
+                depth -= 1;
+                result.push('\n');
+                for _ in 0..depth {
+                    result.push_str(&indent);
+                }
+                result.push(ch);
+            }
+            ',' => {
+                result.push(ch);
+                result.push('\n');
+                for _ in 0..depth {
+                    result.push_str(&indent);
+                }
+            }
+            ':' => {
+                result.push_str(": ");
+            }
+            ' ' | '\n' | '\t' | '\r' => {
+                // Skip whitespace in compact JSON
+            }
+            _ => {
+                result.push(ch);
+            }
+        }
+    }
+
+    result
+}
+
+// =============================================================================
 // json_decode(string) -> any
 // =============================================================================
 
@@ -268,6 +394,56 @@ impl Function for JsonPointerFn {
                 Ok(Rc::new(var))
             }
             None => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// =============================================================================
+// env() -> object (all environment variables)
+// Requires "env" feature - opt-in for security
+// =============================================================================
+
+#[cfg(feature = "env")]
+define_function!(EnvFn, vec![], None);
+
+#[cfg(feature = "env")]
+impl Function for EnvFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let mut map = std::collections::BTreeMap::new();
+        for (key, value) in std::env::vars() {
+            map.insert(key, Rc::new(Variable::String(value)));
+        }
+
+        Ok(Rc::new(Variable::Object(map)))
+    }
+}
+
+// =============================================================================
+// get_env(name) -> string | null (single environment variable)
+// Requires "env" feature - opt-in for security
+// =============================================================================
+
+#[cfg(feature = "env")]
+define_function!(GetEnvFn, vec![ArgumentType::String], None);
+
+#[cfg(feature = "env")]
+impl Function for GetEnvFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let name = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        match std::env::var(name) {
+            Ok(value) => Ok(Rc::new(Variable::String(value))),
+            Err(_) => Ok(Rc::new(Variable::Null)),
         }
     }
 }
@@ -384,5 +560,65 @@ mod tests {
         let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_pretty_default_indent() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("pretty(@)").unwrap();
+        let data = Variable::from_json(r#"{"a":1,"b":[2,3]}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains('\n'));
+        assert!(s.contains("  ")); // 2-space indent
+    }
+
+    #[test]
+    fn test_pretty_custom_indent() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("pretty(@, `4`)").unwrap();
+        let data = Variable::from_json(r#"{"a":1}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains("    ")); // 4-space indent
+    }
+
+    #[test]
+    fn test_pretty_simple_value() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("pretty(@)").unwrap();
+        let data = Variable::String("hello".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "\"hello\"");
+    }
+
+    #[cfg(feature = "env")]
+    #[test]
+    fn test_env_returns_object() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("env()").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.is_object());
+    }
+
+    #[cfg(feature = "env")]
+    #[test]
+    fn test_get_env_existing() {
+        // PATH should exist on all systems
+        let runtime = setup_runtime();
+        let expr = runtime.compile("get_env('PATH')").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.is_string());
+    }
+
+    #[cfg(feature = "env")]
+    #[test]
+    fn test_get_env_missing() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("get_env('THIS_ENV_VAR_SHOULD_NOT_EXIST_12345')")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.is_null());
     }
 }
