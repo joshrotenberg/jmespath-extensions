@@ -24,7 +24,7 @@ Use jpx as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) s
 
 **12 tools available:** `evaluate`, `evaluate_file`, `batch_evaluate`, `functions`, `describe`, `categories`, `validate`, `format`, `diff`, `patch`, `merge`, `keys`
 
-See [jpx MCP documentation](jpx/MCP.md) for details.
+See the [jpx README](jpx/README.md) for details.
 
 ---
 
