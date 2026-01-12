@@ -51,6 +51,13 @@ jpx mcp
 | Tool | Description |
 |------|-------------|
 | `evaluate` | Run JMESPath expressions against JSON input |
+| `evaluate_file` | Query JSON files directly from disk (with security checks) |
+| `batch_evaluate` | Run multiple expressions against the same input |
+| `format` | Pretty-print JSON with configurable indentation |
+| `diff` | Generate RFC 6902 JSON Patch between two documents |
+| `patch` | Apply RFC 6902 JSON Patch operations |
+| `merge` | Apply RFC 7396 JSON Merge Patch |
+| `keys` | Extract object keys (optionally recursive with dot notation) |
 | `functions` | List available functions (with optional category filter) |
 | `describe` | Get detailed info for a specific function |
 | `categories` | List all function categories |
@@ -81,6 +88,31 @@ User: I have this JSON: {"users": [{"name": "alice", "age": 30}, {"name": "bob",
 
 Claude: [Uses jpx.evaluate with expression "users[?age > `28`].name"]
         Result: ["alice"]
+```
+
+#### More MCP Examples
+
+**Query a file directly:**
+```
+Claude: [Uses jpx.evaluate_file with file_path="/data/users.json", expression="users[*].email"]
+```
+
+**Batch multiple queries:**
+```
+Claude: [Uses jpx.batch_evaluate with input and expressions=["length(users)", "users[0].name", "max(users[*].age)"]]
+        Result: {results: [{expression: "length(users)", result: 10}, ...]}
+```
+
+**Compare JSON documents (RFC 6902):**
+```
+Claude: [Uses jpx.diff with source and target documents]
+        Result: [{"op": "replace", "path": "/name", "value": "bob"}, {"op": "add", "path": "/age", "value": 30}]
+```
+
+**Explore JSON structure:**
+```
+Claude: [Uses jpx.keys with input and recursive=true]
+        Result: ["user", "user.name", "user.profile", "user.profile.settings"]
 ```
 
 ## Usage
