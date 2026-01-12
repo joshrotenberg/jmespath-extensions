@@ -121,6 +121,16 @@ pub struct MergeParams {
     pub patch: String,
 }
 
+/// Parameters for the keys tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct KeysParams {
+    /// JSON document to extract keys from
+    pub input: String,
+    /// If true, recursively extract all keys using dot notation (default: false)
+    #[serde(default)]
+    pub recursive: bool,
+}
+
 // =============================================================================
 // Response types
 // =============================================================================
@@ -557,6 +567,55 @@ impl JpxMcp {
 
         json_result(&input)
     }
+
+    /// Extract keys from a JSON object
+    #[tool(
+        description = "Extract keys from a JSON object. By default returns top-level keys only. Set recursive=true to get all nested keys in dot notation (e.g., 'user.profile.age'). Useful for understanding JSON structure before querying."
+    )]
+    async fn keys(
+        &self,
+        Parameters(params): Parameters<KeysParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse input JSON
+        let value: Value = serde_json::from_str(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON: {}", e), None))?;
+
+        let keys: Vec<String> = if params.recursive {
+            // Recursively collect all keys with dot notation
+            collect_keys_recursive(&value, String::new())
+        } else {
+            // Top-level keys only
+            match &value {
+                Value::Object(map) => map.keys().cloned().collect(),
+                _ => vec![],
+            }
+        };
+
+        json_result(&keys)
+    }
+}
+
+/// Recursively collect keys from a JSON value using dot notation
+fn collect_keys_recursive(value: &Value, prefix: String) -> Vec<String> {
+    let mut keys = Vec::new();
+
+    if let Value::Object(map) = value {
+        for (key, val) in map {
+            let full_key = if prefix.is_empty() {
+                key.clone()
+            } else {
+                format!("{}.{}", prefix, key)
+            };
+            keys.push(full_key.clone());
+
+            // Recurse into nested objects
+            if val.is_object() {
+                keys.extend(collect_keys_recursive(val, full_key));
+            }
+        }
+    }
+
+    keys
 }
 
 #[tool_handler]
@@ -572,9 +631,9 @@ impl ServerHandler for JpxMcp {
                 "JMESPath query tool with 320+ extended functions. Use 'evaluate' to run queries, \
                  'batch_evaluate' for multiple expressions on the same input, 'format' to pretty-print JSON, \
                  'diff' to generate RFC 6902 JSON Patches between documents, 'patch' to apply RFC 6902 patches, \
-                 'merge' to apply RFC 7396 JSON Merge Patches, 'functions' to discover available functions, \
-                 'describe' for function details, 'categories' to list function categories, \
-                 and 'validate' to check expression syntax."
+                 'merge' to apply RFC 7396 JSON Merge Patches, 'keys' to extract object keys (optionally recursive), \
+                 'functions' to discover available functions, 'describe' for function details, \
+                 'categories' to list function categories, and 'validate' to check expression syntax."
                     .to_string(),
             ),
         }
@@ -1181,5 +1240,162 @@ mod tests {
         } else {
             panic!("Expected content");
         }
+    }
+
+    // =========================================================================
+    // Keys tool tests
+    // =========================================================================
+
+    #[test]
+    fn test_keys_params_default_recursive() {
+        let params: KeysParams = serde_json::from_str(r#"{"input": "{}"}"#).unwrap();
+        assert!(!params.recursive); // default is false
+    }
+
+    #[test]
+    fn test_keys_params_recursive_true() {
+        let params: KeysParams =
+            serde_json::from_str(r#"{"input": "{}", "recursive": true}"#).unwrap();
+        assert!(params.recursive);
+    }
+
+    #[tokio::test]
+    async fn test_keys_top_level() {
+        let mcp = JpxMcp::new();
+        let params = KeysParams {
+            input: r#"{"name":"alice","age":30,"city":"NYC"}"#.to_string(),
+            recursive: false,
+        };
+        let result = mcp.keys(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\""));
+                assert!(text_content.text.contains("\"age\""));
+                assert!(text_content.text.contains("\"city\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_keys_recursive() {
+        let mcp = JpxMcp::new();
+        let params = KeysParams {
+            input: r#"{"user":{"name":"alice","profile":{"age":30}}}"#.to_string(),
+            recursive: true,
+        };
+        let result = mcp.keys(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"user\""));
+                assert!(text_content.text.contains("\"user.name\""));
+                assert!(text_content.text.contains("\"user.profile\""));
+                assert!(text_content.text.contains("\"user.profile.age\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_keys_nested_non_recursive() {
+        let mcp = JpxMcp::new();
+        let params = KeysParams {
+            input: r#"{"user":{"name":"alice","profile":{"age":30}}}"#.to_string(),
+            recursive: false,
+        };
+        let result = mcp.keys(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                // Should only have top-level key
+                assert!(text_content.text.contains("\"user\""));
+                assert!(!text_content.text.contains("\"user.name\""));
+                assert!(!text_content.text.contains("\"name\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_keys_empty_object() {
+        let mcp = JpxMcp::new();
+        let params = KeysParams {
+            input: r#"{}"#.to_string(),
+            recursive: false,
+        };
+        let result = mcp.keys(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert_eq!(text_content.text.trim(), "[]");
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_keys_array_input() {
+        let mcp = JpxMcp::new();
+        let params = KeysParams {
+            input: r#"[1, 2, 3]"#.to_string(),
+            recursive: false,
+        };
+        let result = mcp.keys(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        // Arrays don't have keys
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert_eq!(text_content.text.trim(), "[]");
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_keys_invalid_json() {
+        let mcp = JpxMcp::new();
+        let params = KeysParams {
+            input: r#"{"invalid": }"#.to_string(),
+            recursive: false,
+        };
+        let result = mcp.keys(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Invalid JSON"));
+    }
+
+    #[test]
+    fn test_collect_keys_recursive_helper() {
+        let value: Value = serde_json::from_str(r#"{"a":{"b":{"c":1},"d":2},"e":3}"#).unwrap();
+        let keys = collect_keys_recursive(&value, String::new());
+
+        assert!(keys.contains(&"a".to_string()));
+        assert!(keys.contains(&"a.b".to_string()));
+        assert!(keys.contains(&"a.b.c".to_string()));
+        assert!(keys.contains(&"a.d".to_string()));
+        assert!(keys.contains(&"e".to_string()));
+        assert_eq!(keys.len(), 5);
     }
 }
