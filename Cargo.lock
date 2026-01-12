@@ -1025,6 +1025,7 @@ dependencies = [
  "dirs",
  "jmespath",
  "jmespath_extensions",
+ "json-patch",
  "rmcp",
  "rustyline",
  "schemars 0.8.22",

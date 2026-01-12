@@ -80,6 +80,47 @@ pub struct BatchEvaluateParams {
     pub expressions: Vec<String>,
 }
 
+/// Parameters for the format tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct FormatParams {
+    /// JSON string to format
+    pub input: String,
+    /// Number of spaces for indentation (default: 2, use 0 for compact)
+    #[serde(default = "default_indent")]
+    pub indent: usize,
+}
+
+fn default_indent() -> usize {
+    2
+}
+
+/// Parameters for the diff tool (RFC 6902)
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct DiffParams {
+    /// Source JSON document
+    pub source: String,
+    /// Target JSON document
+    pub target: String,
+}
+
+/// Parameters for the patch tool (RFC 6902)
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PatchParams {
+    /// JSON document to patch
+    pub input: String,
+    /// JSON Patch operations array (RFC 6902)
+    pub patch: String,
+}
+
+/// Parameters for the merge tool (RFC 7396)
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct MergeParams {
+    /// JSON document to merge into
+    pub input: String,
+    /// JSON Merge Patch document (RFC 7396)
+    pub patch: String,
+}
+
 // =============================================================================
 // Response types
 // =============================================================================
@@ -406,6 +447,116 @@ impl JpxMcp {
 
         json_result(&BatchEvaluateResult { results })
     }
+
+    /// Format/pretty-print JSON
+    #[tool(
+        description = "Format and validate JSON. Pretty-prints the input with configurable indentation. Use indent=0 for compact output. Returns an error if the input is not valid JSON."
+    )]
+    async fn format(
+        &self,
+        Parameters(params): Parameters<FormatParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse the JSON to validate and normalize it
+        let value: Value = serde_json::from_str(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON: {}", e), None))?;
+
+        // Format based on indent
+        let formatted = if params.indent == 0 {
+            serde_json::to_string(&value)
+                .map_err(|e| McpError::internal_error(format!("Formatting error: {}", e), None))?
+        } else {
+            // Create a custom formatter with the specified indent
+            let indent_str = " ".repeat(params.indent);
+            let mut buf = Vec::new();
+            let formatter = serde_json::ser::PrettyFormatter::with_indent(indent_str.as_bytes());
+            let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+            value.serialize(&mut ser).map_err(|e| {
+                McpError::internal_error(format!("Serialization error: {}", e), None)
+            })?;
+            String::from_utf8(buf)
+                .map_err(|e| McpError::internal_error(format!("UTF-8 error: {}", e), None))?
+        };
+
+        Ok(text_result(formatted))
+    }
+
+    /// Generate a JSON Patch (RFC 6902) between two documents
+    #[tool(
+        description = "Generate a JSON Patch (RFC 6902) that transforms the source document into the target document. Returns an array of patch operations (add, remove, replace, move, copy, test). See https://datatracker.ietf.org/doc/html/rfc6902"
+    )]
+    async fn diff(
+        &self,
+        Parameters(params): Parameters<DiffParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse source JSON
+        let source: Value = serde_json::from_str(&params.source)
+            .map_err(|e| McpError::invalid_params(format!("Invalid source JSON: {}", e), None))?;
+
+        // Parse target JSON
+        let target: Value = serde_json::from_str(&params.target)
+            .map_err(|e| McpError::invalid_params(format!("Invalid target JSON: {}", e), None))?;
+
+        // Generate the diff
+        let patch = json_patch::diff(&source, &target);
+
+        // Convert patch to JSON value
+        let patch_json = serde_json::to_value(&patch).map_err(|e| {
+            McpError::internal_error(format!("Failed to serialize patch: {}", e), None)
+        })?;
+
+        json_result(&patch_json)
+    }
+
+    /// Apply a JSON Patch (RFC 6902) to a document
+    #[tool(
+        description = "Apply a JSON Patch (RFC 6902) to a JSON document. The patch is an array of operations (add, remove, replace, move, copy, test). Returns the patched document or an error if the patch cannot be applied. See https://datatracker.ietf.org/doc/html/rfc6902"
+    )]
+    async fn patch(
+        &self,
+        Parameters(params): Parameters<PatchParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse input JSON
+        let mut input: Value = serde_json::from_str(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid input JSON: {}", e), None))?;
+
+        // Parse patch JSON
+        let patch_value: Value = serde_json::from_str(&params.patch)
+            .map_err(|e| McpError::invalid_params(format!("Invalid patch JSON: {}", e), None))?;
+
+        // Convert to json_patch::Patch
+        let patch: json_patch::Patch = serde_json::from_value(patch_value).map_err(|e| {
+            McpError::invalid_params(format!("Invalid JSON Patch format: {}", e), None)
+        })?;
+
+        // Apply the patch
+        json_patch::patch(&mut input, &patch)
+            .map_err(|e| McpError::invalid_params(format!("Failed to apply patch: {}", e), None))?;
+
+        json_result(&input)
+    }
+
+    /// Apply a JSON Merge Patch (RFC 7396) to a document
+    #[tool(
+        description = "Apply a JSON Merge Patch (RFC 7396) to a JSON document. The merge patch is a JSON document that describes changes: values are replaced, null values remove keys, and objects are merged recursively. Simpler than JSON Patch but less expressive. See https://datatracker.ietf.org/doc/html/rfc7396"
+    )]
+    async fn merge(
+        &self,
+        Parameters(params): Parameters<MergeParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse input JSON
+        let mut input: Value = serde_json::from_str(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid input JSON: {}", e), None))?;
+
+        // Parse merge patch JSON
+        let patch: Value = serde_json::from_str(&params.patch).map_err(|e| {
+            McpError::invalid_params(format!("Invalid merge patch JSON: {}", e), None)
+        })?;
+
+        // Apply the merge patch
+        json_patch::merge(&mut input, &patch);
+
+        json_result(&input)
+    }
 }
 
 #[tool_handler]
@@ -419,9 +570,11 @@ impl ServerHandler for JpxMcp {
             server_info: Implementation::from_build_env(),
             instructions: Some(
                 "JMESPath query tool with 320+ extended functions. Use 'evaluate' to run queries, \
-                 'batch_evaluate' for multiple expressions on the same input, 'functions' to discover \
-                 available functions, 'describe' for function details, 'categories' to list function \
-                 categories, and 'validate' to check expression syntax."
+                 'batch_evaluate' for multiple expressions on the same input, 'format' to pretty-print JSON, \
+                 'diff' to generate RFC 6902 JSON Patches between documents, 'patch' to apply RFC 6902 patches, \
+                 'merge' to apply RFC 7396 JSON Merge Patches, 'functions' to discover available functions, \
+                 'describe' for function details, 'categories' to list function categories, \
+                 and 'validate' to check expression syntax."
                     .to_string(),
             ),
         }
@@ -637,5 +790,396 @@ mod tests {
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("\"alice\""));
         assert!(json.contains("Compile error"));
+    }
+
+    // =========================================================================
+    // Format tool tests
+    // =========================================================================
+
+    #[test]
+    fn test_format_params_default_indent() {
+        let params: FormatParams = serde_json::from_str(r#"{"input": "{}"}"#).unwrap();
+        assert_eq!(params.indent, 2); // default
+    }
+
+    #[test]
+    fn test_format_params_custom_indent() {
+        let params: FormatParams = serde_json::from_str(r#"{"input": "{}", "indent": 4}"#).unwrap();
+        assert_eq!(params.indent, 4);
+    }
+
+    #[test]
+    fn test_format_params_compact() {
+        let params: FormatParams = serde_json::from_str(r#"{"input": "{}", "indent": 0}"#).unwrap();
+        assert_eq!(params.indent, 0);
+    }
+
+    #[tokio::test]
+    async fn test_format_pretty_print() {
+        let mcp = JpxMcp::new();
+        let params = FormatParams {
+            input: r#"{"name":"alice","age":30}"#.to_string(),
+            indent: 2,
+        };
+        let result = mcp.format(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("  \"name\": \"alice\""));
+                assert!(text_content.text.contains("  \"age\": 30"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_format_compact() {
+        let mcp = JpxMcp::new();
+        let params = FormatParams {
+            input: r#"{ "name" : "alice" , "age" : 30 }"#.to_string(),
+            indent: 0,
+        };
+        let result = mcp.format(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert_eq!(text_content.text, r#"{"age":30,"name":"alice"}"#);
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_format_invalid_json() {
+        let mcp = JpxMcp::new();
+        let params = FormatParams {
+            input: r#"{"invalid": }"#.to_string(),
+            indent: 2,
+        };
+        let result = mcp.format(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Invalid JSON"));
+    }
+
+    // =========================================================================
+    // Diff tool tests (RFC 6902)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_diff_add_field() {
+        let mcp = JpxMcp::new();
+        let params = DiffParams {
+            source: r#"{"name":"alice"}"#.to_string(),
+            target: r#"{"name":"alice","age":30}"#.to_string(),
+        };
+        let result = mcp.diff(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("add"));
+                assert!(text_content.text.contains("/age"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_diff_remove_field() {
+        let mcp = JpxMcp::new();
+        let params = DiffParams {
+            source: r#"{"name":"alice","age":30}"#.to_string(),
+            target: r#"{"name":"alice"}"#.to_string(),
+        };
+        let result = mcp.diff(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("remove"));
+                assert!(text_content.text.contains("/age"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_diff_replace_value() {
+        let mcp = JpxMcp::new();
+        let params = DiffParams {
+            source: r#"{"name":"alice"}"#.to_string(),
+            target: r#"{"name":"bob"}"#.to_string(),
+        };
+        let result = mcp.diff(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("replace"));
+                assert!(text_content.text.contains("/name"));
+                assert!(text_content.text.contains("bob"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_diff_no_changes() {
+        let mcp = JpxMcp::new();
+        let params = DiffParams {
+            source: r#"{"name":"alice"}"#.to_string(),
+            target: r#"{"name":"alice"}"#.to_string(),
+        };
+        let result = mcp.diff(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert_eq!(text_content.text.trim(), "[]");
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    // =========================================================================
+    // Patch tool tests (RFC 6902)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_patch_add() {
+        let mcp = JpxMcp::new();
+        let params = PatchParams {
+            input: r#"{"name":"alice"}"#.to_string(),
+            patch: r#"[{"op":"add","path":"/age","value":30}]"#.to_string(),
+        };
+        let result = mcp.patch(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\": \"alice\""));
+                assert!(text_content.text.contains("\"age\": 30"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_patch_remove() {
+        let mcp = JpxMcp::new();
+        let params = PatchParams {
+            input: r#"{"name":"alice","age":30}"#.to_string(),
+            patch: r#"[{"op":"remove","path":"/age"}]"#.to_string(),
+        };
+        let result = mcp.patch(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\": \"alice\""));
+                assert!(!text_content.text.contains("age"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_patch_replace() {
+        let mcp = JpxMcp::new();
+        let params = PatchParams {
+            input: r#"{"name":"alice"}"#.to_string(),
+            patch: r#"[{"op":"replace","path":"/name","value":"bob"}]"#.to_string(),
+        };
+        let result = mcp.patch(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\": \"bob\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_patch_invalid_path() {
+        let mcp = JpxMcp::new();
+        let params = PatchParams {
+            input: r#"{"name":"alice"}"#.to_string(),
+            patch: r#"[{"op":"remove","path":"/nonexistent"}]"#.to_string(),
+        };
+        let result = mcp.patch(Parameters(params)).await;
+        assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // Merge tool tests (RFC 7396)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_merge_add_field() {
+        let mcp = JpxMcp::new();
+        let params = MergeParams {
+            input: r#"{"name":"alice"}"#.to_string(),
+            patch: r#"{"age":30}"#.to_string(),
+        };
+        let result = mcp.merge(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\": \"alice\""));
+                assert!(text_content.text.contains("\"age\": 30"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_merge_remove_with_null() {
+        let mcp = JpxMcp::new();
+        let params = MergeParams {
+            input: r#"{"name":"alice","age":30}"#.to_string(),
+            patch: r#"{"age":null}"#.to_string(),
+        };
+        let result = mcp.merge(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\": \"alice\""));
+                assert!(!text_content.text.contains("\"age\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_merge_replace_value() {
+        let mcp = JpxMcp::new();
+        let params = MergeParams {
+            input: r#"{"name":"alice","age":30}"#.to_string(),
+            patch: r#"{"age":31}"#.to_string(),
+        };
+        let result = mcp.merge(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"age\": 31"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_merge_nested() {
+        let mcp = JpxMcp::new();
+        let params = MergeParams {
+            input: r#"{"user":{"name":"alice","age":30}}"#.to_string(),
+            patch: r#"{"user":{"city":"NYC"}}"#.to_string(),
+        };
+        let result = mcp.merge(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\": \"alice\""));
+                assert!(text_content.text.contains("\"age\": 30"));
+                assert!(text_content.text.contains("\"city\": \"NYC\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    // =========================================================================
+    // Roundtrip test: diff -> patch
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_diff_patch_roundtrip() {
+        let mcp = JpxMcp::new();
+        let source = r#"{"name":"alice","age":30}"#;
+        let target = r#"{"name":"bob","age":31,"city":"NYC"}"#;
+
+        // Generate diff
+        let diff_params = DiffParams {
+            source: source.to_string(),
+            target: target.to_string(),
+        };
+        let diff_result = mcp.diff(Parameters(diff_params)).await.unwrap();
+
+        // Extract patch from diff result
+        let patch_str = if let Some(content) = diff_result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                text_content.text.clone()
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        };
+
+        // Apply patch to source
+        let patch_params = PatchParams {
+            input: source.to_string(),
+            patch: patch_str,
+        };
+        let patch_result = mcp.patch(Parameters(patch_params)).await.unwrap();
+
+        // Verify result matches target
+        if let Some(content) = patch_result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"name\": \"bob\""));
+                assert!(text_content.text.contains("\"age\": 31"));
+                assert!(text_content.text.contains("\"city\": \"NYC\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
     }
 }
