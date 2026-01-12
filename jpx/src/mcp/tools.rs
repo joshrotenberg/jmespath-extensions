@@ -80,6 +80,20 @@ pub struct BatchEvaluateParams {
     pub expressions: Vec<String>,
 }
 
+/// Parameters for the format tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct FormatParams {
+    /// JSON string to format
+    pub input: String,
+    /// Number of spaces for indentation (default: 2, use 0 for compact)
+    #[serde(default = "default_indent")]
+    pub indent: usize,
+}
+
+fn default_indent() -> usize {
+    2
+}
+
 // =============================================================================
 // Response types
 // =============================================================================
@@ -406,6 +420,38 @@ impl JpxMcp {
 
         json_result(&BatchEvaluateResult { results })
     }
+
+    /// Format/pretty-print JSON
+    #[tool(
+        description = "Format and validate JSON. Pretty-prints the input with configurable indentation. Use indent=0 for compact output. Returns an error if the input is not valid JSON."
+    )]
+    async fn format(
+        &self,
+        Parameters(params): Parameters<FormatParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse the JSON to validate and normalize it
+        let value: Value = serde_json::from_str(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON: {}", e), None))?;
+
+        // Format based on indent
+        let formatted = if params.indent == 0 {
+            serde_json::to_string(&value)
+                .map_err(|e| McpError::internal_error(format!("Formatting error: {}", e), None))?
+        } else {
+            // Create a custom formatter with the specified indent
+            let indent_str = " ".repeat(params.indent);
+            let mut buf = Vec::new();
+            let formatter = serde_json::ser::PrettyFormatter::with_indent(indent_str.as_bytes());
+            let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+            value.serialize(&mut ser).map_err(|e| {
+                McpError::internal_error(format!("Serialization error: {}", e), None)
+            })?;
+            String::from_utf8(buf)
+                .map_err(|e| McpError::internal_error(format!("UTF-8 error: {}", e), None))?
+        };
+
+        Ok(text_result(formatted))
+    }
 }
 
 #[tool_handler]
@@ -419,9 +465,9 @@ impl ServerHandler for JpxMcp {
             server_info: Implementation::from_build_env(),
             instructions: Some(
                 "JMESPath query tool with 320+ extended functions. Use 'evaluate' to run queries, \
-                 'batch_evaluate' for multiple expressions on the same input, 'functions' to discover \
-                 available functions, 'describe' for function details, 'categories' to list function \
-                 categories, and 'validate' to check expression syntax."
+                 'batch_evaluate' for multiple expressions on the same input, 'format' to pretty-print JSON, \
+                 'functions' to discover available functions, 'describe' for function details, \
+                 'categories' to list function categories, and 'validate' to check expression syntax."
                     .to_string(),
             ),
         }
@@ -637,5 +683,102 @@ mod tests {
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("\"alice\""));
         assert!(json.contains("Compile error"));
+    }
+
+    #[test]
+    fn test_format_params_default_indent() {
+        let params: FormatParams = serde_json::from_str(r#"{"input": "{}"}"#).unwrap();
+        assert_eq!(params.indent, 2); // default
+    }
+
+    #[test]
+    fn test_format_params_custom_indent() {
+        let params: FormatParams = serde_json::from_str(r#"{"input": "{}", "indent": 4}"#).unwrap();
+        assert_eq!(params.indent, 4);
+    }
+
+    #[test]
+    fn test_format_params_compact() {
+        let params: FormatParams = serde_json::from_str(r#"{"input": "{}", "indent": 0}"#).unwrap();
+        assert_eq!(params.indent, 0);
+    }
+
+    #[tokio::test]
+    async fn test_format_pretty_print() {
+        let mcp = JpxMcp::new();
+        let params = FormatParams {
+            input: r#"{"name":"alice","age":30}"#.to_string(),
+            indent: 2,
+        };
+        let result = mcp.format(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        // Check formatted output - Content derefs to RawContent
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("  \"name\": \"alice\""));
+                assert!(text_content.text.contains("  \"age\": 30"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_format_compact() {
+        let mcp = JpxMcp::new();
+        let params = FormatParams {
+            input: r#"{ "name" : "alice" , "age" : 30 }"#.to_string(),
+            indent: 0,
+        };
+        let result = mcp.format(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                // Compact output should have no unnecessary whitespace
+                assert_eq!(text_content.text, r#"{"age":30,"name":"alice"}"#);
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_format_custom_indent() {
+        let mcp = JpxMcp::new();
+        let params = FormatParams {
+            input: r#"{"key":"value"}"#.to_string(),
+            indent: 4,
+        };
+        let result = mcp.format(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("    \"key\": \"value\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_format_invalid_json() {
+        let mcp = JpxMcp::new();
+        let params = FormatParams {
+            input: r#"{"invalid": }"#.to_string(),
+            indent: 2,
+        };
+        let result = mcp.format(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Invalid JSON"));
     }
 }
