@@ -1,7 +1,9 @@
+#[cfg(feature = "mcp")]
+mod mcp;
 mod repl;
 
 use anyhow::{Context, Result};
-use clap::{CommandFactory, Parser, ValueEnum, builder::styling};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum, builder::styling};
 use clap_complete::{Shell, generate};
 use jmespath::ast::Ast;
 use jmespath::{Runtime, Variable};
@@ -61,6 +63,14 @@ enum ColorMode {
     Never,
 }
 
+/// Subcommands for jpx
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Start MCP (Model Context Protocol) server for AI assistant integration
+    #[cfg(feature = "mcp")]
+    Mcp,
+}
+
 /// JMESPath CLI with extended functions
 ///
 /// A command-line tool for querying JSON data using JMESPath expressions
@@ -80,6 +90,10 @@ enum ColorMode {
     "\nDocumentation: https://docs.rs/jmespath_extensions"
 ))]
 struct Args {
+    /// Subcommand to run
+    #[command(subcommand)]
+    command: Option<Commands>,
+
     /// JMESPath expression(s) to evaluate (multiple expressions are chained)
     #[arg(short = 'e', long = "expression", conflicts_with = "query_file")]
     expressions: Vec<String>,
@@ -169,6 +183,12 @@ struct Args {
 fn main() -> Result<()> {
     let mut args = Args::parse();
     apply_env_defaults(&mut args);
+
+    // Handle subcommands
+    #[cfg(feature = "mcp")]
+    if let Some(Commands::Mcp) = args.command {
+        return tokio::runtime::Runtime::new()?.block_on(mcp::run());
+    }
 
     // Handle shell completions
     if let Some(shell) = args.completions {
