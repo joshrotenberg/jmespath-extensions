@@ -68,7 +68,11 @@ enum ColorMode {
 enum Commands {
     /// Start MCP (Model Context Protocol) server for AI assistant integration
     #[cfg(feature = "mcp")]
-    Mcp,
+    Mcp {
+        /// Strict mode - only use standard JMESPath functions (no extensions)
+        #[arg(long)]
+        strict: bool,
+    },
 }
 
 /// JMESPath CLI with extended functions
@@ -186,8 +190,8 @@ fn main() -> Result<()> {
 
     // Handle subcommands
     #[cfg(feature = "mcp")]
-    if let Some(Commands::Mcp) = args.command {
-        return tokio::runtime::Runtime::new()?.block_on(mcp::run());
+    if let Some(Commands::Mcp { strict }) = args.command {
+        return tokio::runtime::Runtime::new()?.block_on(mcp::run(strict));
     }
 
     // Handle shell completions
