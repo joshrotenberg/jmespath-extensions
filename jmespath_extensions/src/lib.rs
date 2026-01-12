@@ -347,6 +347,9 @@ pub mod multi_match;
 #[cfg(feature = "format")]
 pub mod format;
 
+#[cfg(feature = "language")]
+pub mod language;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -462,6 +465,9 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "format")]
     format::register(runtime);
+
+    #[cfg(feature = "language")]
+    language::register(runtime);
 }
 
 #[cfg(test)]
