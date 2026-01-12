@@ -25,6 +25,62 @@ cargo install jpx
 git clone https://github.com/joshrotenberg/jmespath-extensions
 cd jmespath-extensions/jpx
 cargo install --path .
+
+# With MCP server support
+cargo install --path . --features mcp
+```
+
+## MCP Server (AI Assistant Integration)
+
+jpx can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server, allowing AI assistants like Claude to use JMESPath for JSON querying and transformation.
+
+### Building with MCP Support
+
+```bash
+cargo build -p jpx --features mcp --release
+```
+
+### Running the Server
+
+```bash
+jpx mcp
+```
+
+### MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `evaluate` | Run JMESPath expressions against JSON input |
+| `functions` | List available functions (with optional category filter) |
+| `describe` | Get detailed info for a specific function |
+| `categories` | List all function categories |
+| `validate` | Check expression syntax without executing |
+
+### Claude Desktop Configuration
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "jpx": {
+      "command": "/path/to/jpx",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Example Usage
+
+Once configured, Claude can use jpx to query JSON data:
+
+```
+User: I have this JSON: {"users": [{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]}
+      Get the names of users over 28.
+
+Claude: [Uses jpx.evaluate with expression "users[?age > `28`].name"]
+        Result: ["alice"]
 ```
 
 ## Usage
