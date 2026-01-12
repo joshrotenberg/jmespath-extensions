@@ -29,9 +29,15 @@ pub fn register(runtime: &mut Runtime) {
         Box::new(NormalizedLevenshteinFn::new()),
     );
     runtime.register_function("damerau_levenshtein", Box::new(DamerauLevenshteinFn::new()));
+    runtime.register_function(
+        "normalized_damerau_levenshtein",
+        Box::new(NormalizedDamerauLevenshteinFn::new()),
+    );
     runtime.register_function("jaro", Box::new(JaroFn::new()));
     runtime.register_function("jaro_winkler", Box::new(JaroWinklerFn::new()));
     runtime.register_function("sorensen_dice", Box::new(SorensenDiceFn::new()));
+    runtime.register_function("hamming", Box::new(HammingFn::new()));
+    runtime.register_function("osa_distance", Box::new(OsaDistanceFn::new()));
 }
 
 // levenshtein(s1, s2) -> number
@@ -148,6 +154,65 @@ impl Function for SorensenDiceFn {
     }
 }
 
+// normalized_damerau_levenshtein(s1, s2) -> number (0.0-1.0)
+define_function!(
+    NormalizedDamerauLevenshteinFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    None
+);
+
+impl Function for NormalizedDamerauLevenshteinFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s1 = args[0].as_string().unwrap();
+        let s2 = args[1].as_string().unwrap();
+        let sim = strsim::normalized_damerau_levenshtein(s1, s2);
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(sim).unwrap(),
+        )))
+    }
+}
+
+// hamming(s1, s2) -> number (returns null if strings have different lengths)
+define_function!(
+    HammingFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    None
+);
+
+impl Function for HammingFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s1 = args[0].as_string().unwrap();
+        let s2 = args[1].as_string().unwrap();
+        match strsim::hamming(s1, s2) {
+            Ok(dist) => Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(dist as f64).unwrap(),
+            ))),
+            Err(_) => Ok(Rc::new(Variable::Null)), // Different lengths
+        }
+    }
+}
+
+// osa_distance(s1, s2) -> number (Optimal String Alignment distance)
+define_function!(
+    OsaDistanceFn,
+    vec![ArgumentType::String, ArgumentType::String],
+    None
+);
+
+impl Function for OsaDistanceFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s1 = args[0].as_string().unwrap();
+        let s2 = args[1].as_string().unwrap();
+        let dist = strsim::osa_distance(s1, s2);
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(dist as f64).unwrap(),
+        )))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,5 +325,69 @@ mod tests {
         let expr = runtime.compile("sorensen_dice('test', 'test')").unwrap();
         let result = expr.search(&Variable::Null).unwrap();
         assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_normalized_damerau_levenshtein() {
+        let runtime = setup();
+        let expr = runtime
+            .compile("normalized_damerau_levenshtein('hello', 'hello')")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_normalized_damerau_levenshtein_transposition() {
+        let runtime = setup();
+        // "ab" vs "ba" - transposition
+        let expr = runtime
+            .compile("normalized_damerau_levenshtein('ab', 'ba')")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let sim = result.as_number().unwrap();
+        assert!(sim > 0.0 && sim < 1.0);
+    }
+
+    #[test]
+    fn test_hamming() {
+        let runtime = setup();
+        let expr = runtime.compile("hamming('karolin', 'kathrin')").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn test_hamming_identical() {
+        let runtime = setup();
+        let expr = runtime.compile("hamming('hello', 'hello')").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_hamming_different_lengths() {
+        let runtime = setup();
+        // Different lengths should return null
+        let expr = runtime.compile("hamming('hello', 'hi')").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_osa_distance() {
+        let runtime = setup();
+        // OSA allows transpositions
+        let expr = runtime.compile("osa_distance('ab', 'ba')").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_osa_distance_identical() {
+        let runtime = setup();
+        let expr = runtime.compile("osa_distance('hello', 'hello')").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_number().unwrap(), 0.0);
     }
 }

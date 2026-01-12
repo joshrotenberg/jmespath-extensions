@@ -1456,6 +1456,42 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "normalized_damerau_levenshtein"
+category = "fuzzy"
+description = "Normalized Damerau-Levenshtein similarity (0-1)"
+signature = "string, string -> number"
+examples = [
+    { code = "normalized_damerau_levenshtein('hello', 'hello') -> 1.0", description = "Identical strings" },
+    { code = "normalized_damerau_levenshtein('ab', 'ba') -> 0.5", description = "Transposition" },
+    { code = "normalized_damerau_levenshtein('abc', 'xyz') -> 0.0", description = "Completely different" },
+]
+features = ["core"]
+
+[[functions]]
+name = "hamming"
+category = "fuzzy"
+description = "Hamming distance (number of differing positions). Returns null if strings have different lengths"
+signature = "string, string -> number|null"
+examples = [
+    { code = "hamming('karolin', 'kathrin') -> 3", description = "Three differing positions" },
+    { code = "hamming('hello', 'hello') -> 0", description = "Identical strings" },
+    { code = "hamming('hello', 'hi') -> null", description = "Different lengths" },
+]
+features = ["core"]
+
+[[functions]]
+name = "osa_distance"
+category = "fuzzy"
+description = "Optimal String Alignment distance (like Levenshtein but allows adjacent transpositions)"
+signature = "string, string -> number"
+examples = [
+    { code = "osa_distance('ab', 'ba') -> 1", description = "Single transposition" },
+    { code = "osa_distance('hello', 'hello') -> 0", description = "Identical strings" },
+    { code = "osa_distance('ca', 'abc') -> 3", description = "Multiple edits" },
+]
+features = ["core"]
+
 # =============================================================================
 # GEO FUNCTIONS
 # =============================================================================
