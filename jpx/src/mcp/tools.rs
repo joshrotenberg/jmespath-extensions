@@ -71,6 +71,15 @@ pub struct ValidateParams {
     pub expression: String,
 }
 
+/// Parameters for the batch_evaluate tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct BatchEvaluateParams {
+    /// JSON input to evaluate the expressions against
+    pub input: String,
+    /// List of JMESPath expressions to evaluate
+    pub expressions: Vec<String>,
+}
+
 // =============================================================================
 // Response types
 // =============================================================================
@@ -111,6 +120,26 @@ pub struct ValidationResult {
     pub valid: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+/// Result for a single expression in a batch evaluation
+#[derive(Debug, Serialize)]
+pub struct BatchExpressionResult {
+    /// The expression that was evaluated
+    pub expression: String,
+    /// The result if successful
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<Value>,
+    /// The error message if evaluation failed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Result for batch evaluation
+#[derive(Debug, Serialize)]
+pub struct BatchEvaluateResult {
+    /// Results for each expression in order
+    pub results: Vec<BatchExpressionResult>,
 }
 
 // =============================================================================
@@ -317,6 +346,66 @@ impl JpxMcp {
 
         json_result(&result)
     }
+
+    /// Evaluate multiple JMESPath expressions against the same input
+    #[tool(
+        description = "Evaluate multiple JMESPath expressions against the same JSON input in a single call. Parses the input once and runs all expressions, returning results for each. Useful for extracting multiple values from the same data."
+    )]
+    async fn batch_evaluate(
+        &self,
+        Parameters(params): Parameters<BatchEvaluateParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse input JSON once
+        let var = jmespath::Variable::from_json(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON input: {}", e), None))?;
+
+        let rt = runtime();
+
+        // Evaluate each expression
+        let results: Vec<BatchExpressionResult> = params
+            .expressions
+            .iter()
+            .map(|expr_str| {
+                // Compile expression
+                let compiled = match rt.compile(expr_str) {
+                    Ok(expr) => expr,
+                    Err(e) => {
+                        return BatchExpressionResult {
+                            expression: expr_str.clone(),
+                            result: None,
+                            error: Some(format!("Compile error: {}", e)),
+                        };
+                    }
+                };
+
+                // Execute expression
+                match compiled.search(&var) {
+                    Ok(result) => {
+                        // Convert to JSON Value
+                        match serde_json::to_value(&*result) {
+                            Ok(json_value) => BatchExpressionResult {
+                                expression: expr_str.clone(),
+                                result: Some(json_value),
+                                error: None,
+                            },
+                            Err(e) => BatchExpressionResult {
+                                expression: expr_str.clone(),
+                                result: None,
+                                error: Some(format!("Serialization error: {}", e)),
+                            },
+                        }
+                    }
+                    Err(e) => BatchExpressionResult {
+                        expression: expr_str.clone(),
+                        result: None,
+                        error: Some(format!("Evaluation error: {}", e)),
+                    },
+                }
+            })
+            .collect();
+
+        json_result(&BatchEvaluateResult { results })
+    }
 }
 
 #[tool_handler]
@@ -330,8 +419,9 @@ impl ServerHandler for JpxMcp {
             server_info: Implementation::from_build_env(),
             instructions: Some(
                 "JMESPath query tool with 320+ extended functions. Use 'evaluate' to run queries, \
-                 'functions' to discover available functions, 'describe' for function details, \
-                 'categories' to list function categories, and 'validate' to check expression syntax."
+                 'batch_evaluate' for multiple expressions on the same input, 'functions' to discover \
+                 available functions, 'describe' for function details, 'categories' to list function \
+                 categories, and 'validate' to check expression syntax."
                     .to_string(),
             ),
         }
@@ -478,5 +568,74 @@ mod tests {
     fn test_jpx_mcp_default() {
         let mcp = JpxMcp::default();
         drop(mcp);
+    }
+
+    #[test]
+    fn test_batch_expression_result_success() {
+        let result = BatchExpressionResult {
+            expression: "name".to_string(),
+            result: Some(serde_json::json!("alice")),
+            error: None,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"expression\":\"name\""));
+        assert!(json.contains("\"result\":\"alice\""));
+        assert!(!json.contains("error")); // None should be skipped
+    }
+
+    #[test]
+    fn test_batch_expression_result_error() {
+        let result = BatchExpressionResult {
+            expression: "invalid[".to_string(),
+            result: None,
+            error: Some("Parse error".to_string()),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"expression\":\"invalid[\""));
+        assert!(json.contains("\"error\":\"Parse error\""));
+        assert!(!json.contains("\"result\"")); // None should be skipped
+    }
+
+    #[test]
+    fn test_batch_evaluate_result_serialization() {
+        let result = BatchEvaluateResult {
+            results: vec![
+                BatchExpressionResult {
+                    expression: "name".to_string(),
+                    result: Some(serde_json::json!("alice")),
+                    error: None,
+                },
+                BatchExpressionResult {
+                    expression: "age".to_string(),
+                    result: Some(serde_json::json!(30)),
+                    error: None,
+                },
+            ],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"results\""));
+        assert!(json.contains("\"alice\""));
+        assert!(json.contains("30"));
+    }
+
+    #[test]
+    fn test_batch_evaluate_result_mixed() {
+        let result = BatchEvaluateResult {
+            results: vec![
+                BatchExpressionResult {
+                    expression: "name".to_string(),
+                    result: Some(serde_json::json!("alice")),
+                    error: None,
+                },
+                BatchExpressionResult {
+                    expression: "invalid[".to_string(),
+                    result: None,
+                    error: Some("Compile error".to_string()),
+                },
+            ],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"alice\""));
+        assert!(json.contains("Compile error"));
     }
 }
