@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.15](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.14...jpx-v0.1.15) - 2026-01-12
+
+### Added
+
+- *(mcp)* add --strict flag for standard-only JMESPath mode ([#189](https://github.com/joshrotenberg/jmespath-extensions/pull/189))
+- *(mcp)* add evaluate_file tool for file-based queries ([#187](https://github.com/joshrotenberg/jmespath-extensions/pull/187))
+- *(mcp)* add keys tool for extracting object keys ([#186](https://github.com/joshrotenberg/jmespath-extensions/pull/186))
+- *(mcp)* add format, diff, patch, and merge tools ([#185](https://github.com/joshrotenberg/jmespath-extensions/pull/185))
+- *(mcp)* add batch_evaluate tool for multiple expressions ([#183](https://github.com/joshrotenberg/jmespath-extensions/pull/183))
+- *(jpx)* add MCP server support ([#177](https://github.com/joshrotenberg/jmespath-extensions/pull/177))
+
+### Other
+
+- *(jpx)* update MCP server documentation with all 12 tools ([#188](https://github.com/joshrotenberg/jmespath-extensions/pull/188))
+
 ## [0.1.14](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.13...jpx-v0.1.14) - 2025-12-18
 
 ### Added
