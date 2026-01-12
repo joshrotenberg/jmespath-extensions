@@ -12,17 +12,30 @@ use serde_json::Value;
 use std::sync::OnceLock;
 
 /// Global JMESPath runtime with all extensions registered
-static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+static RUNTIME_FULL: OnceLock<Runtime> = OnceLock::new();
+
+/// Global JMESPath runtime with only standard functions (strict mode)
+static RUNTIME_STRICT: OnceLock<Runtime> = OnceLock::new();
 
 /// Global function registry for introspection
 static REGISTRY: OnceLock<FunctionRegistry> = OnceLock::new();
 
-/// Get the global JMESPath runtime
-fn runtime() -> &'static Runtime {
-    RUNTIME.get_or_init(|| {
+/// Get the full JMESPath runtime (with all extensions)
+fn runtime_full() -> &'static Runtime {
+    RUNTIME_FULL.get_or_init(|| {
         let mut runtime = Runtime::new();
         runtime.register_builtin_functions();
         register_all(&mut runtime);
+        runtime
+    })
+}
+
+/// Get the strict JMESPath runtime (standard functions only)
+fn runtime_strict() -> &'static Runtime {
+    RUNTIME_STRICT.get_or_init(|| {
+        let mut runtime = Runtime::new();
+        runtime.register_builtin_functions();
+        // No extensions registered
         runtime
     })
 }
@@ -175,7 +188,7 @@ impl From<&FunctionInfo> for FunctionDetail {
 }
 
 /// Validation result
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ValidationResult {
     pub valid: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -183,7 +196,7 @@ pub struct ValidationResult {
 }
 
 /// Result for a single expression in a batch evaluation
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BatchExpressionResult {
     /// The expression that was evaluated
     pub expression: String,
@@ -196,7 +209,7 @@ pub struct BatchExpressionResult {
 }
 
 /// Result for batch evaluation
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BatchEvaluateResult {
     /// Results for each expression in order
     pub results: Vec<BatchExpressionResult>,
@@ -269,22 +282,43 @@ fn error_result(message: impl Into<String>) -> CallToolResult {
 #[derive(Clone)]
 pub struct JpxMcp {
     tool_router: ToolRouter<JpxMcp>,
+    /// If true, only standard JMESPath functions are available in evaluate tools
+    strict: bool,
 }
 
 impl JpxMcp {
-    pub fn new() -> Self {
-        // Initialize the runtime and registry eagerly
-        let _ = runtime();
+    /// Create a new JpxMcp server
+    ///
+    /// # Arguments
+    /// * `strict` - If true, only standard JMESPath functions are available in evaluate tools.
+    ///   JSON utility tools (format, diff, patch, merge, keys) are always available.
+    pub fn new(strict: bool) -> Self {
+        // Initialize the appropriate runtime and registry eagerly
+        if strict {
+            let _ = runtime_strict();
+        } else {
+            let _ = runtime_full();
+        }
         let _ = registry();
         Self {
             tool_router: Self::tool_router(),
+            strict,
+        }
+    }
+
+    /// Get the appropriate runtime based on strict mode
+    fn runtime(&self) -> &'static Runtime {
+        if self.strict {
+            runtime_strict()
+        } else {
+            runtime_full()
         }
     }
 }
 
 impl Default for JpxMcp {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
@@ -298,8 +332,9 @@ impl JpxMcp {
         &self,
         Parameters(params): Parameters<EvaluateParams>,
     ) -> Result<CallToolResult, McpError> {
-        // Compile expression
-        let expr = runtime()
+        // Compile expression (uses strict or full runtime based on server mode)
+        let expr = self
+            .runtime()
             .compile(&params.expression)
             .map_err(|e| McpError::invalid_params(format!("Invalid expression: {}", e), None))?;
 
@@ -393,7 +428,8 @@ impl JpxMcp {
         &self,
         Parameters(params): Parameters<ValidateParams>,
     ) -> Result<CallToolResult, McpError> {
-        let result = match runtime().compile(&params.expression) {
+        // Validate against strict or full runtime based on server mode
+        let result = match self.runtime().compile(&params.expression) {
             Ok(_) => ValidationResult {
                 valid: true,
                 error: None,
@@ -419,7 +455,8 @@ impl JpxMcp {
         let var = jmespath::Variable::from_json(&params.input)
             .map_err(|e| McpError::invalid_params(format!("Invalid JSON input: {}", e), None))?;
 
-        let rt = runtime();
+        // Use strict or full runtime based on server mode
+        let rt = self.runtime();
 
         // Evaluate each expression
         let results: Vec<BatchExpressionResult> = params
@@ -657,8 +694,9 @@ impl JpxMcp {
         let content = std::fs::read_to_string(&canonical_path)
             .map_err(|e| McpError::invalid_params(format!("Cannot read file: {}", e), None))?;
 
-        // Compile expression
-        let expr = runtime()
+        // Compile expression (uses strict or full runtime based on server mode)
+        let expr = self
+            .runtime()
             .compile(&params.expression)
             .map_err(|e| McpError::invalid_params(format!("Invalid expression: {}", e), None))?;
 
@@ -808,11 +846,21 @@ mod tests {
     }
 
     #[test]
-    fn test_runtime_initialization() {
-        let rt = runtime();
+    fn test_runtime_full_initialization() {
+        let rt = runtime_full();
         // Should be able to compile a basic expression
         assert!(rt.compile("@").is_ok());
+        // Extension functions should work
         assert!(rt.compile("upper(@)").is_ok());
+    }
+
+    #[test]
+    fn test_runtime_strict_initialization() {
+        let rt = runtime_strict();
+        // Should be able to compile a basic expression
+        assert!(rt.compile("@").is_ok());
+        // Standard functions should work
+        assert!(rt.compile("length(@)").is_ok());
     }
 
     #[test]
@@ -856,7 +904,7 @@ mod tests {
 
     #[test]
     fn test_jpx_mcp_new() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         // Should initialize without panic
         drop(mcp);
     }
@@ -960,7 +1008,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_format_pretty_print() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = FormatParams {
             input: r#"{"name":"alice","age":30}"#.to_string(),
             indent: 2,
@@ -982,7 +1030,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_format_compact() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = FormatParams {
             input: r#"{ "name" : "alice" , "age" : 30 }"#.to_string(),
             indent: 0,
@@ -1003,7 +1051,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_format_invalid_json() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = FormatParams {
             input: r#"{"invalid": }"#.to_string(),
             indent: 2,
@@ -1020,7 +1068,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_diff_add_field() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = DiffParams {
             source: r#"{"name":"alice"}"#.to_string(),
             target: r#"{"name":"alice","age":30}"#.to_string(),
@@ -1042,7 +1090,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_diff_remove_field() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = DiffParams {
             source: r#"{"name":"alice","age":30}"#.to_string(),
             target: r#"{"name":"alice"}"#.to_string(),
@@ -1064,7 +1112,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_diff_replace_value() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = DiffParams {
             source: r#"{"name":"alice"}"#.to_string(),
             target: r#"{"name":"bob"}"#.to_string(),
@@ -1087,7 +1135,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_diff_no_changes() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = DiffParams {
             source: r#"{"name":"alice"}"#.to_string(),
             target: r#"{"name":"alice"}"#.to_string(),
@@ -1112,7 +1160,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_add() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = PatchParams {
             input: r#"{"name":"alice"}"#.to_string(),
             patch: r#"[{"op":"add","path":"/age","value":30}]"#.to_string(),
@@ -1134,7 +1182,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_remove() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = PatchParams {
             input: r#"{"name":"alice","age":30}"#.to_string(),
             patch: r#"[{"op":"remove","path":"/age"}]"#.to_string(),
@@ -1156,7 +1204,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_replace() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = PatchParams {
             input: r#"{"name":"alice"}"#.to_string(),
             patch: r#"[{"op":"replace","path":"/name","value":"bob"}]"#.to_string(),
@@ -1177,7 +1225,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_invalid_path() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = PatchParams {
             input: r#"{"name":"alice"}"#.to_string(),
             patch: r#"[{"op":"remove","path":"/nonexistent"}]"#.to_string(),
@@ -1192,7 +1240,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_merge_add_field() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = MergeParams {
             input: r#"{"name":"alice"}"#.to_string(),
             patch: r#"{"age":30}"#.to_string(),
@@ -1214,7 +1262,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_merge_remove_with_null() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = MergeParams {
             input: r#"{"name":"alice","age":30}"#.to_string(),
             patch: r#"{"age":null}"#.to_string(),
@@ -1236,7 +1284,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_merge_replace_value() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = MergeParams {
             input: r#"{"name":"alice","age":30}"#.to_string(),
             patch: r#"{"age":31}"#.to_string(),
@@ -1257,7 +1305,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_merge_nested() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = MergeParams {
             input: r#"{"user":{"name":"alice","age":30}}"#.to_string(),
             patch: r#"{"user":{"city":"NYC"}}"#.to_string(),
@@ -1284,7 +1332,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_diff_patch_roundtrip() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let source = r#"{"name":"alice","age":30}"#;
         let target = r#"{"name":"bob","age":31,"city":"NYC"}"#;
 
@@ -1346,7 +1394,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_keys_top_level() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = KeysParams {
             input: r#"{"name":"alice","age":30,"city":"NYC"}"#.to_string(),
             recursive: false,
@@ -1369,7 +1417,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_keys_recursive() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = KeysParams {
             input: r#"{"user":{"name":"alice","profile":{"age":30}}}"#.to_string(),
             recursive: true,
@@ -1393,7 +1441,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_keys_nested_non_recursive() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = KeysParams {
             input: r#"{"user":{"name":"alice","profile":{"age":30}}}"#.to_string(),
             recursive: false,
@@ -1417,7 +1465,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_keys_empty_object() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = KeysParams {
             input: r#"{}"#.to_string(),
             recursive: false,
@@ -1438,7 +1486,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_keys_array_input() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = KeysParams {
             input: r#"[1, 2, 3]"#.to_string(),
             recursive: false,
@@ -1460,7 +1508,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_keys_invalid_json() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = KeysParams {
             input: r#"{"invalid": }"#.to_string(),
             recursive: false,
@@ -1492,7 +1540,7 @@ mod tests {
     async fn test_evaluate_file_success() {
         use std::io::Write;
 
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
 
         // Create a temp file with JSON content
         let mut temp_file = tempfile::NamedTempFile::new().unwrap();
@@ -1524,7 +1572,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_evaluate_file_relative_path_rejected() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = EvaluateFileParams {
             file_path: "relative/path/file.json".to_string(),
             expression: "@".to_string(),
@@ -1537,7 +1585,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_evaluate_file_not_found() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
         let params = EvaluateFileParams {
             file_path: "/nonexistent/path/to/file.json".to_string(),
             expression: "@".to_string(),
@@ -1552,7 +1600,7 @@ mod tests {
     async fn test_evaluate_file_invalid_json() {
         use std::io::Write;
 
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
 
         // Create a temp file with invalid JSON
         let mut temp_file = tempfile::NamedTempFile::new().unwrap();
@@ -1573,7 +1621,7 @@ mod tests {
     async fn test_evaluate_file_invalid_expression() {
         use std::io::Write;
 
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
 
         // Create a temp file with valid JSON
         let mut temp_file = tempfile::NamedTempFile::new().unwrap();
@@ -1592,7 +1640,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_evaluate_file_directory_rejected() {
-        let mcp = JpxMcp::new();
+        let mcp = JpxMcp::new(false);
 
         // Use a known directory
         let params = EvaluateFileParams {
@@ -1603,5 +1651,311 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Not a file"));
+    }
+
+    // =========================================================================
+    // Strict mode tests
+    // =========================================================================
+
+    #[test]
+    fn test_strict_mode_rejects_extension_functions() {
+        let rt = runtime_strict();
+        // Extension function 'upper' should not be available in strict mode
+        // Note: jmespath compiles lazily - unknown functions fail at search time, not compile time
+        let expr = rt
+            .compile("upper('hello')")
+            .expect("compile should succeed");
+        let var = jmespath::Variable::from_json("\"test\"").unwrap();
+        let result = expr.search(&var);
+        assert!(
+            result.is_err(),
+            "Extension function 'upper' should fail at runtime in strict mode"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("undefined function"),
+            "Error should mention undefined function, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_full_mode_accepts_extension_functions() {
+        let rt = runtime_full();
+        // Extension function 'upper' should work in full mode
+        let expr = rt
+            .compile("upper('hello')")
+            .expect("compile should succeed");
+        let var = jmespath::Variable::from_json("\"test\"").unwrap();
+        let result = expr.search(&var);
+        assert!(
+            result.is_ok(),
+            "Extension function 'upper' should work in full mode"
+        );
+        // Should return "HELLO"
+        let value = result.unwrap();
+        assert_eq!(value.as_string().unwrap(), "HELLO");
+    }
+
+    #[test]
+    fn test_strict_mode_accepts_standard_functions() {
+        let rt = runtime_strict();
+        let var = jmespath::Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+
+        // Standard functions should compile and execute
+        let expr = rt.compile("length(@)").expect("length should compile");
+        let result = expr.search(&var);
+        assert!(result.is_ok(), "length should execute in strict mode");
+
+        let obj_var = jmespath::Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
+        let expr = rt.compile("keys(@)").expect("keys should compile");
+        let result = expr.search(&obj_var);
+        assert!(result.is_ok(), "keys should execute in strict mode");
+    }
+
+    #[test]
+    fn test_jpx_mcp_strict_mode_flag() {
+        let mcp_strict = JpxMcp::new(true);
+        assert!(mcp_strict.strict);
+
+        let mcp_full = JpxMcp::new(false);
+        assert!(!mcp_full.strict);
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_strict_mode_rejects_extensions() {
+        let mcp = JpxMcp::new(true);
+        let params = EvaluateParams {
+            input: r#""hello""#.to_string(),
+            expression: "upper(@)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await;
+        assert!(
+            result.is_err(),
+            "Extension function should fail in strict mode"
+        );
+        let err = result.unwrap_err();
+        // jmespath returns undefined function error at runtime (search time), wrapped as "Evaluation failed"
+        assert!(
+            err.message.contains("Evaluation failed") && err.message.contains("undefined function"),
+            "Expected undefined function error, got: {}",
+            err.message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_full_mode_accepts_extensions() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#""hello""#.to_string(),
+            expression: "upper(@)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("HELLO"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_strict_mode_allows_standard() {
+        let mcp = JpxMcp::new(true);
+        let params = EvaluateParams {
+            input: r#"[1, 2, 3]"#.to_string(),
+            expression: "length(@)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("3"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_evaluate_strict_mode() {
+        let mcp = JpxMcp::new(true);
+        let params = BatchEvaluateParams {
+            input: r#"{"items": [1, 2, 3]}"#.to_string(),
+            expressions: vec![
+                "length(items)".to_string(),  // standard - should work
+                "upper('hello')".to_string(), // extension - should fail
+            ],
+        };
+        let result = mcp.batch_evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let batch_result: BatchEvaluateResult =
+                    serde_json::from_str(&text_content.text).unwrap();
+
+                // First expression should succeed
+                assert!(batch_result.results[0].error.is_none());
+                assert_eq!(batch_result.results[0].result, Some(serde_json::json!(3)));
+
+                // Second expression should fail (extension function not available)
+                assert!(batch_result.results[1].error.is_some());
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_syntax_check() {
+        // Note: validate only does syntax/compile-time checking.
+        // The jmespath crate allows unknown functions to compile - they fail at search time.
+        // So validate reports syntax validity, not function availability.
+        let mcp = JpxMcp::new(true);
+
+        // Valid syntax (function availability checked at runtime, not compile time)
+        let params = ValidateParams {
+            expression: "upper(@)".to_string(),
+        };
+        let result = mcp.validate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let validation: ValidationResult =
+                    serde_json::from_str(&text_content.text).unwrap();
+                // Syntactically valid (function check happens at runtime)
+                assert!(validation.valid, "Expression should be syntactically valid");
+            } else {
+                panic!("Expected text content");
+            }
+        }
+
+        // Invalid syntax should fail
+        let params = ValidateParams {
+            expression: "invalid[".to_string(),
+        };
+        let result = mcp.validate(Parameters(params)).await.unwrap();
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let validation: ValidationResult =
+                    serde_json::from_str(&text_content.text).unwrap();
+                assert!(!validation.valid, "Invalid syntax should fail validation");
+                assert!(validation.error.is_some());
+            } else {
+                panic!("Expected text content");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_standard_functions() {
+        let mcp = JpxMcp::new(true);
+        let params = ValidateParams {
+            expression: "length(@)".to_string(),
+        };
+        let result = mcp.validate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let validation: ValidationResult =
+                    serde_json::from_str(&text_content.text).unwrap();
+                assert!(validation.valid, "Standard function should be valid");
+                assert!(validation.error.is_none());
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_file_strict_mode() {
+        use std::io::Write;
+
+        let mcp = JpxMcp::new(true);
+
+        // Create a temp file with JSON content
+        let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(temp_file, r#"{{"name": "alice"}}"#).unwrap();
+        let file_path = temp_file.path().to_str().unwrap().to_string();
+
+        // Extension function should fail in strict mode
+        let params = EvaluateFileParams {
+            file_path: file_path.clone(),
+            expression: "upper(name)".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await;
+        assert!(
+            result.is_err(),
+            "Extension function should fail in strict mode"
+        );
+
+        // Standard expression should work
+        let params = EvaluateFileParams {
+            file_path,
+            expression: "name".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+    }
+
+    #[tokio::test]
+    async fn test_json_utility_tools_unaffected_by_strict_mode() {
+        // JSON utility tools (format, diff, patch, merge, keys) should work
+        // identically in both strict and full mode since they don't use JMESPath
+        let mcp_strict = JpxMcp::new(true);
+
+        // format should work
+        let format_params = FormatParams {
+            input: r#"{"a":1}"#.to_string(),
+            indent: 2,
+        };
+        let result = mcp_strict.format(Parameters(format_params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        // diff should work
+        let diff_params = DiffParams {
+            source: r#"{"a":1}"#.to_string(),
+            target: r#"{"a":2}"#.to_string(),
+        };
+        let result = mcp_strict.diff(Parameters(diff_params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        // patch should work
+        let patch_params = PatchParams {
+            input: r#"{"a":1}"#.to_string(),
+            patch: r#"[{"op":"replace","path":"/a","value":2}]"#.to_string(),
+        };
+        let result = mcp_strict.patch(Parameters(patch_params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        // merge should work
+        let merge_params = MergeParams {
+            input: r#"{"a":1}"#.to_string(),
+            patch: r#"{"b":2}"#.to_string(),
+        };
+        let result = mcp_strict.merge(Parameters(merge_params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        // keys should work
+        let keys_params = KeysParams {
+            input: r#"{"a":1,"b":2}"#.to_string(),
+            recursive: false,
+        };
+        let result = mcp_strict.keys(Parameters(keys_params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
     }
 }
