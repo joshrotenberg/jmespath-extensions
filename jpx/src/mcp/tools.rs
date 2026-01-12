@@ -131,6 +131,15 @@ pub struct KeysParams {
     pub recursive: bool,
 }
 
+/// Parameters for the evaluate_file tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct EvaluateFileParams {
+    /// Path to the JSON file to read
+    pub file_path: String,
+    /// JMESPath expression to evaluate
+    pub expression: String,
+}
+
 // =============================================================================
 // Response types
 // =============================================================================
@@ -593,6 +602,82 @@ impl JpxMcp {
 
         json_result(&keys)
     }
+
+    /// Evaluate a JMESPath expression against a JSON file
+    #[tool(
+        description = "Read a JSON file from disk and evaluate a JMESPath expression against it. More efficient than passing large JSON content through the protocol. The file must exist and contain valid JSON."
+    )]
+    async fn evaluate_file(
+        &self,
+        Parameters(params): Parameters<EvaluateFileParams>,
+    ) -> Result<CallToolResult, McpError> {
+        use std::path::Path;
+
+        let path = Path::new(&params.file_path);
+
+        // Security: Validate the path
+        // 1. Must be absolute path
+        if !path.is_absolute() {
+            return Err(McpError::invalid_params(
+                "File path must be absolute".to_string(),
+                None,
+            ));
+        }
+
+        // 2. Canonicalize to resolve symlinks and check for traversal
+        let canonical_path = path
+            .canonicalize()
+            .map_err(|e| McpError::invalid_params(format!("Cannot resolve path: {}", e), None))?;
+
+        // 3. Check file exists and is a file (not directory)
+        if !canonical_path.is_file() {
+            return Err(McpError::invalid_params(
+                format!("Not a file: {}", canonical_path.display()),
+                None,
+            ));
+        }
+
+        // 4. Check file size (limit to 50MB)
+        let metadata = std::fs::metadata(&canonical_path).map_err(|e| {
+            McpError::invalid_params(format!("Cannot read file metadata: {}", e), None)
+        })?;
+        const MAX_FILE_SIZE: u64 = 50 * 1024 * 1024; // 50MB
+        if metadata.len() > MAX_FILE_SIZE {
+            return Err(McpError::invalid_params(
+                format!(
+                    "File too large: {} bytes (max {} bytes)",
+                    metadata.len(),
+                    MAX_FILE_SIZE
+                ),
+                None,
+            ));
+        }
+
+        // Read the file
+        let content = std::fs::read_to_string(&canonical_path)
+            .map_err(|e| McpError::invalid_params(format!("Cannot read file: {}", e), None))?;
+
+        // Compile expression
+        let expr = runtime()
+            .compile(&params.expression)
+            .map_err(|e| McpError::invalid_params(format!("Invalid expression: {}", e), None))?;
+
+        // Parse JSON
+        let var = jmespath::Variable::from_json(&content)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON in file: {}", e), None))?;
+
+        // Execute
+        let result = expr
+            .search(&var)
+            .map_err(|e| McpError::internal_error(format!("Evaluation failed: {}", e), None))?;
+
+        // Convert result back to JSON
+        let result_json: Value = serde_json::to_value(&*result).map_err(|e| {
+            McpError::internal_error(format!("Failed to serialize result: {}", e), None)
+        })?;
+
+        json_result(&result_json)
+    }
 }
 
 /// Recursively collect keys from a JSON value using dot notation
@@ -629,11 +714,11 @@ impl ServerHandler for JpxMcp {
             server_info: Implementation::from_build_env(),
             instructions: Some(
                 "JMESPath query tool with 320+ extended functions. Use 'evaluate' to run queries, \
-                 'batch_evaluate' for multiple expressions on the same input, 'format' to pretty-print JSON, \
-                 'diff' to generate RFC 6902 JSON Patches between documents, 'patch' to apply RFC 6902 patches, \
-                 'merge' to apply RFC 7396 JSON Merge Patches, 'keys' to extract object keys (optionally recursive), \
-                 'functions' to discover available functions, 'describe' for function details, \
-                 'categories' to list function categories, and 'validate' to check expression syntax."
+                 'evaluate_file' to query JSON files directly, 'batch_evaluate' for multiple expressions, \
+                 'format' to pretty-print JSON, 'diff' to generate RFC 6902 JSON Patches, \
+                 'patch' to apply RFC 6902 patches, 'merge' to apply RFC 7396 JSON Merge Patches, \
+                 'keys' to extract object keys (optionally recursive), 'functions' to discover functions, \
+                 'describe' for function details, 'categories' to list categories, and 'validate' to check syntax."
                     .to_string(),
             ),
         }
@@ -1397,5 +1482,126 @@ mod tests {
         assert!(keys.contains(&"a.d".to_string()));
         assert!(keys.contains(&"e".to_string()));
         assert_eq!(keys.len(), 5);
+    }
+
+    // =========================================================================
+    // EvaluateFile tool tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_evaluate_file_success() {
+        use std::io::Write;
+
+        let mcp = JpxMcp::new();
+
+        // Create a temp file with JSON content
+        let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            temp_file,
+            r#"{{"users": [{{"name": "alice"}}, {{"name": "bob"}}]}}"#
+        )
+        .unwrap();
+        let file_path = temp_file.path().to_str().unwrap().to_string();
+
+        let params = EvaluateFileParams {
+            file_path,
+            expression: "users[*].name".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"alice\""));
+                assert!(text_content.text.contains("\"bob\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_file_relative_path_rejected() {
+        let mcp = JpxMcp::new();
+        let params = EvaluateFileParams {
+            file_path: "relative/path/file.json".to_string(),
+            expression: "@".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("absolute"));
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_file_not_found() {
+        let mcp = JpxMcp::new();
+        let params = EvaluateFileParams {
+            file_path: "/nonexistent/path/to/file.json".to_string(),
+            expression: "@".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Cannot resolve path"));
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_file_invalid_json() {
+        use std::io::Write;
+
+        let mcp = JpxMcp::new();
+
+        // Create a temp file with invalid JSON
+        let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(temp_file, r#"{{invalid json}}"#).unwrap();
+        let file_path = temp_file.path().to_str().unwrap().to_string();
+
+        let params = EvaluateFileParams {
+            file_path,
+            expression: "@".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Invalid JSON"));
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_file_invalid_expression() {
+        use std::io::Write;
+
+        let mcp = JpxMcp::new();
+
+        // Create a temp file with valid JSON
+        let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(temp_file, r#"{{"key": "value"}}"#).unwrap();
+        let file_path = temp_file.path().to_str().unwrap().to_string();
+
+        let params = EvaluateFileParams {
+            file_path,
+            expression: "invalid[".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Invalid expression"));
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_file_directory_rejected() {
+        let mcp = JpxMcp::new();
+
+        // Use a known directory
+        let params = EvaluateFileParams {
+            file_path: "/tmp".to_string(),
+            expression: "@".to_string(),
+        };
+        let result = mcp.evaluate_file(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Not a file"));
     }
 }
