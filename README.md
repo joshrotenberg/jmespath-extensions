@@ -7,6 +7,27 @@
 
 Extended functions for JMESPath queries in Rust. **320+ functions** for strings, arrays, dates, hashing, encoding, and more.
 
+## MCP Server for AI Assistants
+
+Use jpx as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server to give AI assistants like Claude the ability to query and transform JSON data.
+
+```json
+{
+  "mcpServers": {
+    "jpx": {
+      "command": "jpx",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+**12 tools available:** `evaluate`, `evaluate_file`, `batch_evaluate`, `functions`, `describe`, `categories`, `validate`, `format`, `diff`, `patch`, `merge`, `keys`
+
+See the [jpx README](jpx/README.md) for details.
+
+---
+
 ## Built on jmespath.rs
 
 This crate extends the [`jmespath`](https://crates.io/crates/jmespath) crate by [@mtdowling](https://github.com/mtdowling), which provides the complete Rust implementation of the [JMESPath specification](https://jmespath.org/specification.html). All spec-compliant parsing, evaluation, and the 26 built-in functions come from that foundational library—we simply add extra functions on top.
