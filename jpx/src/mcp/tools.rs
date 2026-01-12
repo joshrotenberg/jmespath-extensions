@@ -4,12 +4,8 @@ use jmespath::Runtime;
 use jmespath_extensions::register_all;
 use jmespath_extensions::registry::{Category, FunctionInfo, FunctionRegistry};
 use rmcp::{
-    ErrorData as McpError, ServerHandler,
-    handler::server::router::tool::ToolRouter,
-    handler::server::wrapper::Parameters,
-    model::*,
-    schemars,
-    tool, tool_router, tool_handler,
+    ErrorData as McpError, ServerHandler, handler::server::router::tool::ToolRouter,
+    handler::server::wrapper::Parameters, model::*, schemars, tool, tool_handler, tool_router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -165,8 +161,9 @@ fn text_result(content: impl Into<String>) -> CallToolResult {
 
 /// Create a successful JSON result
 fn json_result(value: &impl Serialize) -> Result<CallToolResult, McpError> {
-    let json = serde_json::to_string_pretty(value)
-        .map_err(|e| McpError::internal_error(format!("Failed to serialize result: {}", e), None))?;
+    let json = serde_json::to_string_pretty(value).map_err(|e| {
+        McpError::internal_error(format!("Failed to serialize result: {}", e), None)
+    })?;
     Ok(text_result(json))
 }
 
@@ -205,7 +202,9 @@ impl Default for JpxMcp {
 #[tool_router]
 impl JpxMcp {
     /// Evaluate a JMESPath expression against JSON input
-    #[tool(description = "Evaluate a JMESPath expression against JSON input. Returns the result of applying the expression to the input data. Supports 320+ extended functions beyond standard JMESPath.")]
+    #[tool(
+        description = "Evaluate a JMESPath expression against JSON input. Returns the result of applying the expression to the input data. Supports 320+ extended functions beyond standard JMESPath."
+    )]
     async fn evaluate(
         &self,
         Parameters(params): Parameters<EvaluateParams>,
@@ -225,14 +224,17 @@ impl JpxMcp {
             .map_err(|e| McpError::internal_error(format!("Evaluation failed: {}", e), None))?;
 
         // Convert result back to JSON
-        let result_json: Value = serde_json::to_value(&*result)
-            .map_err(|e| McpError::internal_error(format!("Failed to serialize result: {}", e), None))?;
+        let result_json: Value = serde_json::to_value(&*result).map_err(|e| {
+            McpError::internal_error(format!("Failed to serialize result: {}", e), None)
+        })?;
 
         json_result(&result_json)
     }
 
     /// List available JMESPath functions
-    #[tool(description = "List available JMESPath functions. Optionally filter by category (e.g., 'String', 'Math', 'Array', 'Datetime', 'Hash', 'Encoding', etc.). Returns function names with signatures and descriptions.")]
+    #[tool(
+        description = "List available JMESPath functions. Optionally filter by category (e.g., 'String', 'Math', 'Array', 'Datetime', 'Hash', 'Encoding', etc.). Returns function names with signatures and descriptions."
+    )]
     async fn functions(
         &self,
         Parameters(params): Parameters<FunctionsParams>,
@@ -259,7 +261,9 @@ impl JpxMcp {
     }
 
     /// Get detailed information about a specific function
-    #[tool(description = "Get detailed information about a specific JMESPath function including its signature, description, example usage, and category. Accepts function name or alias.")]
+    #[tool(
+        description = "Get detailed information about a specific JMESPath function including its signature, description, example usage, and category. Accepts function name or alias."
+    )]
     async fn describe(
         &self,
         Parameters(params): Parameters<DescribeParams>,
@@ -279,7 +283,9 @@ impl JpxMcp {
     }
 
     /// List all function categories
-    #[tool(description = "List all available JMESPath function categories. Use these category names with the 'functions' tool to filter by category.")]
+    #[tool(
+        description = "List all available JMESPath function categories. Use these category names with the 'functions' tool to filter by category."
+    )]
     async fn categories(&self) -> Result<CallToolResult, McpError> {
         let categories: Vec<String> = Category::all()
             .iter()
@@ -291,7 +297,9 @@ impl JpxMcp {
     }
 
     /// Validate a JMESPath expression without executing it
-    #[tool(description = "Validate a JMESPath expression without executing it. Returns whether the expression is syntactically valid and any parse errors.")]
+    #[tool(
+        description = "Validate a JMESPath expression without executing it. Returns whether the expression is syntactically valid and any parse errors."
+    )]
     async fn validate(
         &self,
         Parameters(params): Parameters<ValidateParams>,
@@ -343,11 +351,132 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_category_all_categories() {
+        // Test all valid categories
+        let categories = [
+            "standard",
+            "string",
+            "array",
+            "object",
+            "math",
+            "type",
+            "utility",
+            "validation",
+            "path",
+            "expression",
+            "text",
+            "hash",
+            "encoding",
+            "regex",
+            "url",
+            "uuid",
+            "rand",
+            "datetime",
+            "fuzzy",
+            "phonetic",
+            "geo",
+            "semver",
+            "network",
+            "ids",
+            "duration",
+            "color",
+            "computing",
+            "multimatch",
+            "jsonpatch",
+            "format",
+        ];
+        for cat in categories {
+            assert!(
+                parse_category(cat).is_some(),
+                "Category '{}' should parse",
+                cat
+            );
+        }
+    }
+
+    #[test]
     fn test_function_detail_from() {
         let reg = registry();
         let info = reg.get_function("upper").unwrap();
         let detail = FunctionDetail::from(info);
         assert_eq!(detail.name, "upper");
         assert!(!detail.description.is_empty());
+    }
+
+    #[test]
+    fn test_function_detail_with_aliases() {
+        let reg = registry();
+        // find a function with aliases if one exists
+        if let Some(info) = reg.get_function("every") {
+            let detail = FunctionDetail::from(info);
+            assert_eq!(detail.name, "every");
+        }
+    }
+
+    #[test]
+    fn test_registry_initialization() {
+        let reg = registry();
+        // Should have many functions
+        assert!(reg.functions().count() > 100);
+    }
+
+    #[test]
+    fn test_runtime_initialization() {
+        let rt = runtime();
+        // Should be able to compile a basic expression
+        assert!(rt.compile("@").is_ok());
+        assert!(rt.compile("upper(@)").is_ok());
+    }
+
+    #[test]
+    fn test_text_result() {
+        let result = text_result("hello");
+        assert_eq!(result.is_error, Some(false));
+        assert_eq!(result.content.len(), 1);
+    }
+
+    #[test]
+    fn test_json_result() {
+        let value = serde_json::json!({"key": "value"});
+        let result = json_result(&value).unwrap();
+        assert_eq!(result.is_error, Some(false));
+    }
+
+    #[test]
+    fn test_error_result() {
+        let result = error_result("something went wrong");
+        assert_eq!(result.is_error, Some(true));
+    }
+
+    #[test]
+    fn test_validation_result_serialization() {
+        let valid = ValidationResult {
+            valid: true,
+            error: None,
+        };
+        let json = serde_json::to_string(&valid).unwrap();
+        assert!(json.contains("\"valid\":true"));
+        assert!(!json.contains("error")); // None should be skipped
+
+        let invalid = ValidationResult {
+            valid: false,
+            error: Some("parse error".to_string()),
+        };
+        let json = serde_json::to_string(&invalid).unwrap();
+        assert!(json.contains("\"valid\":false"));
+        assert!(json.contains("parse error"));
+    }
+
+    #[test]
+    fn test_jpx_mcp_new() {
+        let mcp = JpxMcp::new();
+        // Should initialize without panic
+        drop(mcp);
+    }
+
+    #[test]
+    fn test_jpx_mcp_default() {
+        let mcp = JpxMcp::default();
+        drop(mcp);
     }
 }
