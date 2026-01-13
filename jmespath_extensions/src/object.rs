@@ -49,6 +49,13 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("paths", Box::new(PathsFn::new()));
     runtime.register_function("leaves", Box::new(LeavesFn::new()));
     runtime.register_function("leaves_with_paths", Box::new(LeavesWithPathsFn::new()));
+    runtime.register_function("remove_nulls", Box::new(RemoveNullsFn::new()));
+    runtime.register_function("remove_empty", Box::new(RemoveEmptyFn::new()));
+    runtime.register_function(
+        "remove_empty_strings",
+        Box::new(RemoveEmptyStringsFn::new()),
+    );
+    runtime.register_function("compact_deep", Box::new(CompactDeepFn::new()));
 }
 
 // =============================================================================
@@ -1362,6 +1369,163 @@ fn collect_leaves_with_paths(
     }
 }
 
+// =============================================================================
+// remove_nulls(any) -> any (recursively remove null values)
+// =============================================================================
+
+define_function!(RemoveNullsFn, vec![ArgumentType::Any], None);
+
+impl Function for RemoveNullsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(remove_nulls_recursive(&args[0])))
+    }
+}
+
+fn is_null_value(value: &Variable) -> bool {
+    matches!(value, Variable::Null)
+}
+
+fn remove_nulls_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::Object(obj) => {
+            let cleaned: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .filter(|(_, v)| !is_null_value(v))
+                .map(|(k, v)| (k.clone(), Rc::new(remove_nulls_recursive(v))))
+                .collect();
+            Variable::Object(cleaned)
+        }
+        Variable::Array(arr) => {
+            let cleaned: Vec<Rcvar> = arr
+                .iter()
+                .filter(|v| !is_null_value(v))
+                .map(|v| Rc::new(remove_nulls_recursive(v)))
+                .collect();
+            Variable::Array(cleaned)
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// remove_empty(any) -> any (recursively remove nulls, empty strings, empty arrays, empty objects)
+// =============================================================================
+
+define_function!(RemoveEmptyFn, vec![ArgumentType::Any], None);
+
+impl Function for RemoveEmptyFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(remove_empty_recursive(&args[0])))
+    }
+}
+
+fn is_empty_value(value: &Variable) -> bool {
+    match value {
+        Variable::Null => true,
+        Variable::String(s) => s.is_empty(),
+        Variable::Array(arr) => arr.is_empty(),
+        Variable::Object(obj) => obj.is_empty(),
+        _ => false,
+    }
+}
+
+fn remove_empty_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::Object(obj) => {
+            let cleaned: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| (k.clone(), Rc::new(remove_empty_recursive(v))))
+                .filter(|(_, v)| !is_empty_value(v))
+                .collect();
+            Variable::Object(cleaned)
+        }
+        Variable::Array(arr) => {
+            let cleaned: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(remove_empty_recursive(v)))
+                .filter(|v| !is_empty_value(v))
+                .collect();
+            Variable::Array(cleaned)
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// remove_empty_strings(any) -> any (recursively remove empty string values)
+// =============================================================================
+
+define_function!(RemoveEmptyStringsFn, vec![ArgumentType::Any], None);
+
+impl Function for RemoveEmptyStringsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(remove_empty_strings_recursive(&args[0])))
+    }
+}
+
+fn is_empty_string(value: &Variable) -> bool {
+    matches!(value, Variable::String(s) if s.is_empty())
+}
+
+fn remove_empty_strings_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::Object(obj) => {
+            let cleaned: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .filter(|(_, v)| !is_empty_string(v))
+                .map(|(k, v)| (k.clone(), Rc::new(remove_empty_strings_recursive(v))))
+                .collect();
+            Variable::Object(cleaned)
+        }
+        Variable::Array(arr) => {
+            let cleaned: Vec<Rcvar> = arr
+                .iter()
+                .filter(|v| !is_empty_string(v))
+                .map(|v| Rc::new(remove_empty_strings_recursive(v)))
+                .collect();
+            Variable::Array(cleaned)
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// compact_deep(array) -> array (recursively compact arrays, removing nulls at all levels)
+// =============================================================================
+
+define_function!(CompactDeepFn, vec![ArgumentType::Array], None);
+
+impl Function for CompactDeepFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(compact_deep_recursive(&args[0])))
+    }
+}
+
+fn compact_deep_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::Array(arr) => {
+            let cleaned: Vec<Rcvar> = arr
+                .iter()
+                .filter(|v| !is_null_value(v))
+                .map(|v| Rc::new(compact_deep_recursive(v)))
+                .collect();
+            Variable::Array(cleaned)
+        }
+        Variable::Object(obj) => {
+            let cleaned: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| (k.clone(), Rc::new(compact_deep_recursive(v))))
+                .collect();
+            Variable::Object(cleaned)
+        }
+        _ => value.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1869,5 +2033,141 @@ mod tests {
         // Result should have the new key
         let new_obj = result.as_object().unwrap();
         assert!(new_obj.contains_key("b"));
+    }
+
+    // =========================================================================
+    // remove_nulls tests
+    // =========================================================================
+
+    #[test]
+    fn test_remove_nulls_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": null, "c": 2}"#).unwrap();
+        let expr = runtime.compile("remove_nulls(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert!(obj.contains_key("a"));
+        assert!(obj.contains_key("c"));
+        assert!(!obj.contains_key("b"));
+    }
+
+    #[test]
+    fn test_remove_nulls_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": {"c": null, "d": 2}}"#).unwrap();
+        let expr = runtime.compile("remove_nulls(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let nested = obj.get("b").unwrap().as_object().unwrap();
+        assert_eq!(nested.len(), 1);
+        assert!(nested.contains_key("d"));
+        assert!(!nested.contains_key("c"));
+    }
+
+    #[test]
+    fn test_remove_nulls_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, null, 2, null, 3]"#).unwrap();
+        let expr = runtime.compile("remove_nulls(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    // =========================================================================
+    // remove_empty tests
+    // =========================================================================
+
+    #[test]
+    fn test_remove_empty_basic() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"a": "", "b": [], "c": {}, "d": null, "e": "hello"}"#).unwrap();
+        let expr = runtime.compile("remove_empty(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 1);
+        assert!(obj.contains_key("e"));
+    }
+
+    #[test]
+    fn test_remove_empty_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": "", "c": 1}, "d": []}"#).unwrap();
+        let expr = runtime.compile("remove_empty(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 1);
+        let nested = obj.get("a").unwrap().as_object().unwrap();
+        assert_eq!(nested.len(), 1);
+        assert!(nested.contains_key("c"));
+    }
+
+    #[test]
+    fn test_remove_empty_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["", "hello", [], null, "world"]"#).unwrap();
+        let expr = runtime.compile("remove_empty(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+    }
+
+    // =========================================================================
+    // remove_empty_strings tests
+    // =========================================================================
+
+    #[test]
+    fn test_remove_empty_strings_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"name": "alice", "bio": "", "age": 30}"#).unwrap();
+        let expr = runtime.compile("remove_empty_strings(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert!(obj.contains_key("name"));
+        assert!(obj.contains_key("age"));
+        assert!(!obj.contains_key("bio"));
+    }
+
+    #[test]
+    fn test_remove_empty_strings_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["hello", "", "world", ""]"#).unwrap();
+        let expr = runtime.compile("remove_empty_strings(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+    }
+
+    // =========================================================================
+    // compact_deep tests
+    // =========================================================================
+
+    #[test]
+    fn test_compact_deep_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, null], [null, 2]]"#).unwrap();
+        let expr = runtime.compile("compact_deep(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        let first = arr[0].as_array().unwrap();
+        assert_eq!(first.len(), 1);
+        let second = arr[1].as_array().unwrap();
+        assert_eq!(second.len(), 1);
+    }
+
+    #[test]
+    fn test_compact_deep_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, null], [null, [2, null, 3]]]"#).unwrap();
+        let expr = runtime.compile("compact_deep(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        let second = arr[1].as_array().unwrap();
+        let inner = second[0].as_array().unwrap();
+        assert_eq!(inner.len(), 2); // [2, 3]
     }
 }

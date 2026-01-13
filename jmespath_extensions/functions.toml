@@ -2609,6 +2609,54 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "compact_deep"
+category = "object"
+description = "Recursively compact arrays, removing nulls at all levels"
+signature = "array -> array"
+examples = [
+    { code = "compact_deep([[1, null], [null, 2]]) -> [[1], [2]]", description = "Remove nulls from nested arrays" },
+    { code = "compact_deep([[1, null], [null, [2, null]]]) -> [[1], [[2]]]", description = "Deep nesting" },
+    { code = "compact_deep([1, null, 3]) -> [1, 3]", description = "Simple array" },
+]
+features = ["core"]
+
+[[functions]]
+name = "remove_empty"
+category = "object"
+description = "Recursively remove nulls, empty strings, empty arrays, and empty objects"
+signature = "any -> any"
+examples = [
+    { code = '''remove_empty({a: \"\", b: [], c: {}, d: null, e: \"hello\"}) -> {e: \"hello\"}''', description = "Remove all empty values" },
+    { code = '''remove_empty({a: {b: \"\", c: 1}}) -> {a: {c: 1}}''', description = "Nested cleanup" },
+    { code = '''remove_empty([\"\", \"hello\", [], null]) -> [\"hello\"]''', description = "Array cleanup" },
+]
+features = ["core"]
+
+[[functions]]
+name = "remove_empty_strings"
+category = "object"
+description = "Recursively remove empty string values"
+signature = "any -> any"
+examples = [
+    { code = '''remove_empty_strings({name: \"alice\", bio: \"\"}) -> {name: \"alice\"}''', description = "Remove empty strings" },
+    { code = '''remove_empty_strings([\"hello\", \"\", \"world\"]) -> [\"hello\", \"world\"]''', description = "From arrays" },
+    { code = '''remove_empty_strings({a: {b: \"\", c: \"x\"}}) -> {a: {c: \"x\"}}''', description = "Nested" },
+]
+features = ["core"]
+
+[[functions]]
+name = "remove_nulls"
+category = "object"
+description = "Recursively remove null values"
+signature = "any -> any"
+examples = [
+    { code = "remove_nulls({a: 1, b: null, c: 2}) -> {a: 1, c: 2}", description = "Remove nulls from object" },
+    { code = "remove_nulls({a: {b: null, c: 1}}) -> {a: {c: 1}}", description = "Nested nulls" },
+    { code = "remove_nulls([1, null, 2]) -> [1, 2]", description = "Remove from array" },
+]
+features = ["core"]
+
 # =============================================================================
 # PATH FUNCTIONS
 # =============================================================================
