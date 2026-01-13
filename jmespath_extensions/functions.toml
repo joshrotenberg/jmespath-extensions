@@ -4038,6 +4038,57 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "auto_parse"
+category = "type"
+description = "Intelligently parse strings to numbers, booleans, and nulls"
+signature = "any -> any"
+examples = [
+    { code = '''auto_parse({num: \"42\", bool: \"true\", nil: \"null\"}) -> {num: 42, bool: true, nil: null}''', description = "Parse mixed types" },
+    { code = '''auto_parse([\"42\", \"true\", \"hello\"]) -> [42, true, \"hello\"]''', description = "Parse array" },
+    { code = '''auto_parse({a: {b: \"123\"}}) -> {a: {b: 123}}''', description = "Nested parsing" },
+]
+features = ["core"]
+
+[[functions]]
+name = "parse_booleans"
+category = "type"
+description = "Recursively convert boolean strings to booleans"
+signature = "any -> any"
+examples = [
+    { code = "parse_booleans({active: \"true\"}) -> {active: true}", description = "Parse true" },
+    { code = "parse_booleans({flag: \"YES\"}) -> {flag: true}", description = "Parse yes" },
+    { code = "parse_booleans({enabled: \"1\"}) -> {enabled: true}", description = "Parse 1" },
+    { code = "parse_booleans({off: \"false\", on: \"true\"}) -> {off: false, on: true}", description = "Multiple booleans" },
+]
+features = ["core"]
+
+[[functions]]
+name = "parse_nulls"
+category = "type"
+description = "Recursively convert null-like strings to null"
+signature = "any -> any"
+examples = [
+    { code = "parse_nulls({a: \"null\"}) -> {a: null}", description = "Parse null" },
+    { code = "parse_nulls({a: \"None\"}) -> {a: null}", description = "Parse None" },
+    { code = "parse_nulls({a: \"nil\"}) -> {a: null}", description = "Parse nil" },
+    { code = "parse_nulls({a: \"undefined\"}) -> {a: null}", description = "Parse undefined" },
+]
+features = ["core"]
+
+[[functions]]
+name = "parse_numbers"
+category = "type"
+description = "Recursively convert numeric strings to numbers"
+signature = "any -> any"
+examples = [
+    { code = "parse_numbers({count: \"42\"}) -> {count: 42}", description = "Parse integer" },
+    { code = "parse_numbers({price: \"19.99\"}) -> {price: 19.99}", description = "Parse float" },
+    { code = "parse_numbers({a: {b: \"123\"}}) -> {a: {b: 123}}", description = "Nested parsing" },
+    { code = "parse_numbers({val: \"42abc\"}) -> {val: \"42abc\"}", description = "Non-numeric stays string" },
+]
+features = ["core"]
+
 # =============================================================================
 # URL FUNCTIONS
 # =============================================================================
