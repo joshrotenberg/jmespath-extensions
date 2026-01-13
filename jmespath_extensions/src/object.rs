@@ -56,6 +56,10 @@ pub fn register(runtime: &mut Runtime) {
         Box::new(RemoveEmptyStringsFn::new()),
     );
     runtime.register_function("compact_deep", Box::new(CompactDeepFn::new()));
+    // Data quality functions
+    runtime.register_function("completeness", Box::new(CompletenessFn::new()));
+    runtime.register_function("type_consistency", Box::new(TypeConsistencyFn::new()));
+    runtime.register_function("data_quality_score", Box::new(DataQualityScoreFn::new()));
 }
 
 // =============================================================================
@@ -1526,6 +1530,407 @@ fn compact_deep_recursive(value: &Variable) -> Variable {
     }
 }
 
+// =============================================================================
+// completeness(object) -> number (0-100)
+// =============================================================================
+
+define_function!(CompletenessFn, vec![ArgumentType::Object], None);
+
+impl Function for CompletenessFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let obj = args[0].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("completeness: expected object".to_string()),
+            )
+        })?;
+
+        if obj.is_empty() {
+            return Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(100.0).unwrap(),
+            )));
+        }
+
+        let mut total_fields = 0;
+        let mut non_null_fields = 0;
+
+        count_completeness(&args[0], &mut total_fields, &mut non_null_fields);
+
+        let score = if total_fields > 0 {
+            (non_null_fields as f64 / total_fields as f64) * 100.0
+        } else {
+            100.0
+        };
+
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(score).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+fn count_completeness(value: &Variable, total: &mut usize, non_null: &mut usize) {
+    match value {
+        Variable::Object(obj) => {
+            for (_, v) in obj.iter() {
+                *total += 1;
+                if !matches!(**v, Variable::Null) {
+                    *non_null += 1;
+                }
+                // Recursively check nested structures
+                count_completeness(v, total, non_null);
+            }
+        }
+        Variable::Array(arr) => {
+            for item in arr.iter() {
+                count_completeness(item, total, non_null);
+            }
+        }
+        _ => {}
+    }
+}
+
+// =============================================================================
+// type_consistency(array) -> object
+// =============================================================================
+
+define_function!(TypeConsistencyFn, vec![ArgumentType::Array], None);
+
+impl Function for TypeConsistencyFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("type_consistency: expected array".to_string()),
+            )
+        })?;
+
+        if arr.is_empty() {
+            let mut result = BTreeMap::new();
+            result.insert(
+                "consistent".to_string(),
+                Rc::new(Variable::Bool(true)) as Rcvar,
+            );
+            result.insert(
+                "types".to_string(),
+                Rc::new(Variable::Array(vec![])) as Rcvar,
+            );
+            result.insert(
+                "inconsistencies".to_string(),
+                Rc::new(Variable::Array(vec![])) as Rcvar,
+            );
+            return Ok(Rc::new(Variable::Object(result)));
+        }
+
+        // For arrays of objects, check field type consistency
+        let first_element = &arr[0];
+        if let Variable::Object(first_obj) = &**first_element {
+            return check_object_array_consistency(arr, first_obj);
+        }
+
+        // For simple arrays, check element type consistency
+        let mut type_counts: BTreeMap<String, usize> = BTreeMap::new();
+        for item in arr.iter() {
+            let type_name = get_type_name(item);
+            *type_counts.entry(type_name).or_insert(0) += 1;
+        }
+
+        let types: Vec<Rcvar> = type_counts
+            .keys()
+            .map(|t| Rc::new(Variable::String(t.clone())) as Rcvar)
+            .collect();
+
+        let consistent = type_counts.len() == 1;
+
+        let mut result = BTreeMap::new();
+        result.insert(
+            "consistent".to_string(),
+            Rc::new(Variable::Bool(consistent)) as Rcvar,
+        );
+        result.insert("types".to_string(), Rc::new(Variable::Array(types)));
+        result.insert(
+            "inconsistencies".to_string(),
+            Rc::new(Variable::Array(vec![])) as Rcvar,
+        );
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+fn check_object_array_consistency(
+    arr: &[Rcvar],
+    first_obj: &BTreeMap<String, Rcvar>,
+) -> Result<Rcvar, JmespathError> {
+    // Build expected types from first object
+    let mut expected_types: BTreeMap<String, String> = BTreeMap::new();
+    for (key, val) in first_obj.iter() {
+        expected_types.insert(key.clone(), get_type_name(val));
+    }
+
+    let mut inconsistencies: Vec<Rcvar> = Vec::new();
+
+    for (idx, item) in arr.iter().enumerate().skip(1) {
+        if let Variable::Object(obj) = &**item {
+            for (key, val) in obj.iter() {
+                let actual_type = get_type_name(val);
+                if let Some(expected) = expected_types.get(key) {
+                    // Allow null as valid for any type
+                    if &actual_type != expected && actual_type != "null" && expected != "null" {
+                        let mut issue = BTreeMap::new();
+                        issue.insert(
+                            "index".to_string(),
+                            Rc::new(Variable::Number((idx as i64).into())) as Rcvar,
+                        );
+                        issue.insert(
+                            "field".to_string(),
+                            Rc::new(Variable::String(key.clone())) as Rcvar,
+                        );
+                        issue.insert(
+                            "expected".to_string(),
+                            Rc::new(Variable::String(expected.clone())) as Rcvar,
+                        );
+                        issue.insert(
+                            "got".to_string(),
+                            Rc::new(Variable::String(actual_type)) as Rcvar,
+                        );
+                        inconsistencies.push(Rc::new(Variable::Object(issue)));
+                    }
+                }
+            }
+        }
+    }
+
+    let types: Vec<Rcvar> = expected_types
+        .iter()
+        .map(|(k, v)| {
+            let mut obj = BTreeMap::new();
+            obj.insert(
+                "field".to_string(),
+                Rc::new(Variable::String(k.clone())) as Rcvar,
+            );
+            obj.insert(
+                "type".to_string(),
+                Rc::new(Variable::String(v.clone())) as Rcvar,
+            );
+            Rc::new(Variable::Object(obj)) as Rcvar
+        })
+        .collect();
+
+    let mut result = BTreeMap::new();
+    result.insert(
+        "consistent".to_string(),
+        Rc::new(Variable::Bool(inconsistencies.is_empty())) as Rcvar,
+    );
+    result.insert("types".to_string(), Rc::new(Variable::Array(types)));
+    result.insert(
+        "inconsistencies".to_string(),
+        Rc::new(Variable::Array(inconsistencies)),
+    );
+
+    Ok(Rc::new(Variable::Object(result)))
+}
+
+fn get_type_name(value: &Variable) -> String {
+    match value {
+        Variable::Null => "null".to_string(),
+        Variable::Bool(_) => "boolean".to_string(),
+        Variable::Number(_) => "number".to_string(),
+        Variable::String(_) => "string".to_string(),
+        Variable::Array(_) => "array".to_string(),
+        Variable::Object(_) => "object".to_string(),
+        Variable::Expref(_) => "expression".to_string(),
+    }
+}
+
+// =============================================================================
+// data_quality_score(any) -> object
+// =============================================================================
+
+define_function!(DataQualityScoreFn, vec![ArgumentType::Any], None);
+
+impl Function for DataQualityScoreFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let value = &args[0];
+
+        let mut stats = QualityStats::default();
+        analyze_quality(value, String::new(), &mut stats);
+
+        // Calculate score (0-100)
+        // Deductions: nulls, empty strings, type inconsistencies
+        let total_issues = stats.null_count + stats.empty_string_count + stats.type_issues.len();
+        let score = if stats.total_fields == 0 {
+            100.0
+        } else {
+            let issue_ratio = total_issues as f64 / stats.total_fields as f64;
+            (100.0 * (1.0 - issue_ratio)).max(0.0)
+        };
+
+        // Build issues array
+        let mut issues: Vec<Rcvar> = Vec::new();
+
+        for path in &stats.null_paths {
+            let mut issue = BTreeMap::new();
+            issue.insert(
+                "path".to_string(),
+                Rc::new(Variable::String(path.clone())) as Rcvar,
+            );
+            issue.insert(
+                "issue".to_string(),
+                Rc::new(Variable::String("null".to_string())) as Rcvar,
+            );
+            issues.push(Rc::new(Variable::Object(issue)));
+        }
+
+        for path in &stats.empty_string_paths {
+            let mut issue = BTreeMap::new();
+            issue.insert(
+                "path".to_string(),
+                Rc::new(Variable::String(path.clone())) as Rcvar,
+            );
+            issue.insert(
+                "issue".to_string(),
+                Rc::new(Variable::String("empty_string".to_string())) as Rcvar,
+            );
+            issues.push(Rc::new(Variable::Object(issue)));
+        }
+
+        for ti in &stats.type_issues {
+            let mut issue = BTreeMap::new();
+            issue.insert(
+                "path".to_string(),
+                Rc::new(Variable::String(ti.path.clone())) as Rcvar,
+            );
+            issue.insert(
+                "issue".to_string(),
+                Rc::new(Variable::String("type_mismatch".to_string())) as Rcvar,
+            );
+            issue.insert(
+                "expected".to_string(),
+                Rc::new(Variable::String(ti.expected.clone())) as Rcvar,
+            );
+            issue.insert(
+                "got".to_string(),
+                Rc::new(Variable::String(ti.got.clone())) as Rcvar,
+            );
+            issues.push(Rc::new(Variable::Object(issue)));
+        }
+
+        let mut result = BTreeMap::new();
+        result.insert(
+            "score".to_string(),
+            Rc::new(Variable::Number(
+                serde_json::Number::from_f64(score).unwrap_or_else(|| serde_json::Number::from(0)),
+            )) as Rcvar,
+        );
+        result.insert(
+            "total_fields".to_string(),
+            Rc::new(Variable::Number((stats.total_fields as i64).into())) as Rcvar,
+        );
+        result.insert(
+            "null_count".to_string(),
+            Rc::new(Variable::Number((stats.null_count as i64).into())) as Rcvar,
+        );
+        result.insert(
+            "empty_string_count".to_string(),
+            Rc::new(Variable::Number((stats.empty_string_count as i64).into())) as Rcvar,
+        );
+        result.insert(
+            "type_inconsistencies".to_string(),
+            Rc::new(Variable::Number((stats.type_issues.len() as i64).into())) as Rcvar,
+        );
+        result.insert("issues".to_string(), Rc::new(Variable::Array(issues)));
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+#[derive(Default)]
+struct QualityStats {
+    total_fields: usize,
+    null_count: usize,
+    empty_string_count: usize,
+    null_paths: Vec<String>,
+    empty_string_paths: Vec<String>,
+    type_issues: Vec<TypeIssue>,
+}
+
+struct TypeIssue {
+    path: String,
+    expected: String,
+    got: String,
+}
+
+fn analyze_quality(value: &Variable, path: String, stats: &mut QualityStats) {
+    match value {
+        Variable::Object(obj) => {
+            for (key, val) in obj.iter() {
+                let field_path = if path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", path, key)
+                };
+                stats.total_fields += 1;
+
+                match &**val {
+                    Variable::Null => {
+                        stats.null_count += 1;
+                        stats.null_paths.push(field_path.clone());
+                    }
+                    Variable::String(s) if s.is_empty() => {
+                        stats.empty_string_count += 1;
+                        stats.empty_string_paths.push(field_path.clone());
+                    }
+                    _ => {}
+                }
+
+                analyze_quality(val, field_path, stats);
+            }
+        }
+        Variable::Array(arr) => {
+            // For arrays of objects, check type consistency
+            if arr.len() > 1 {
+                if let Some(Variable::Object(first_obj)) = arr.first().map(|v| &**v) {
+                    let expected_types: BTreeMap<String, String> = first_obj
+                        .iter()
+                        .map(|(k, v)| (k.clone(), get_type_name(v)))
+                        .collect();
+
+                    for (idx, item) in arr.iter().enumerate().skip(1) {
+                        if let Variable::Object(obj) = &**item {
+                            for (key, val) in obj.iter() {
+                                let actual_type = get_type_name(val);
+                                if let Some(expected) = expected_types.get(key) {
+                                    if &actual_type != expected
+                                        && actual_type != "null"
+                                        && expected != "null"
+                                    {
+                                        stats.type_issues.push(TypeIssue {
+                                            path: format!("{}[{}].{}", path, idx, key),
+                                            expected: expected.clone(),
+                                            got: actual_type,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Analyze each array element
+            for (idx, item) in arr.iter().enumerate() {
+                let item_path = format!("{}[{}]", path, idx);
+                analyze_quality(item, item_path, stats);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2169,5 +2574,136 @@ mod tests {
         let second = arr[1].as_array().unwrap();
         let inner = second[0].as_array().unwrap();
         assert_eq!(inner.len(), 2); // [2, 3]
+    }
+
+    // =========================================================================
+    // completeness tests
+    // =========================================================================
+
+    #[test]
+    fn test_completeness_all_filled() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": "hello", "c": true}"#).unwrap();
+        let expr = runtime.compile("completeness(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let score = result.as_number().unwrap();
+        assert_eq!(score, 100.0);
+    }
+
+    #[test]
+    fn test_completeness_with_nulls() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": null, "c": null}"#).unwrap();
+        let expr = runtime.compile("completeness(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let score = result.as_number().unwrap();
+        // 1 out of 3 fields is non-null = 33.33%
+        assert!((score - 33.33).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_completeness_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": {"c": null, "d": 2}, "e": null}"#).unwrap();
+        let expr = runtime.compile("completeness(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let score = result.as_number().unwrap();
+        // 5 total fields: a(1), b(obj), b.c(null), b.d(2), e(null)
+        // 3 non-null: a, b, b.d
+        // 3/5 = 60%
+        assert!((score - 60.0).abs() < 1.0);
+    }
+
+    // =========================================================================
+    // type_consistency tests
+    // =========================================================================
+
+    #[test]
+    fn test_type_consistency_consistent() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("type_consistency(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.get("consistent").unwrap().as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_type_consistency_inconsistent() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, "two", 3]"#).unwrap();
+        let expr = runtime.compile("type_consistency(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(!obj.get("consistent").unwrap().as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_type_consistency_object_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"[{"name": "alice", "age": 30}, {"name": "bob", "age": "unknown"}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile("type_consistency(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(!obj.get("consistent").unwrap().as_boolean().unwrap());
+        let inconsistencies = obj.get("inconsistencies").unwrap().as_array().unwrap();
+        assert_eq!(inconsistencies.len(), 1);
+    }
+
+    // =========================================================================
+    // data_quality_score tests
+    // =========================================================================
+
+    #[test]
+    fn test_data_quality_score_perfect() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": "hello"}"#).unwrap();
+        let expr = runtime.compile("data_quality_score(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let score = obj.get("score").unwrap().as_number().unwrap();
+        assert_eq!(score, 100.0);
+        assert_eq!(
+            obj.get("null_count").unwrap().as_number().unwrap() as i64,
+            0
+        );
+    }
+
+    #[test]
+    fn test_data_quality_score_with_issues() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1, "b": null, "c": ""}"#).unwrap();
+        let expr = runtime.compile("data_quality_score(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(
+            obj.get("null_count").unwrap().as_number().unwrap() as i64,
+            1
+        );
+        assert_eq!(
+            obj.get("empty_string_count").unwrap().as_number().unwrap() as i64,
+            1
+        );
+        let issues = obj.get("issues").unwrap().as_array().unwrap();
+        assert_eq!(issues.len(), 2);
+    }
+
+    #[test]
+    fn test_data_quality_score_type_mismatch() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"users": [{"age": 30}, {"age": "thirty"}]}"#).unwrap();
+        let expr = runtime.compile("data_quality_score(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(
+            obj.get("type_inconsistencies")
+                .unwrap()
+                .as_number()
+                .unwrap() as i64,
+            1
+        );
     }
 }

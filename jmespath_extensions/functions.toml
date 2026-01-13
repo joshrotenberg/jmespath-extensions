@@ -2709,6 +2709,45 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "completeness"
+category = "object"
+description = "Calculate percentage of non-null fields (0-100)"
+signature = "object -> number"
+examples = [
+    { code = "completeness({a: 1, b: 2, c: 3}) -> 100", description = "All fields filled" },
+    { code = "completeness({a: 1, b: null, c: null}) -> 33.33", description = "One of three filled" },
+    { code = "completeness({a: 1, b: {c: null}}) -> 66.67", description = "Nested null counted" },
+    { code = "completeness({}) -> 100", description = "Empty object is complete" },
+]
+features = ["core"]
+
+[[functions]]
+name = "type_consistency"
+category = "object"
+description = "Check if array elements have consistent types"
+signature = "array -> object"
+examples = [
+    { code = "type_consistency([1, 2, 3]).consistent -> true", description = "Consistent numbers" },
+    { code = "type_consistency([1, 'two', 3]).consistent -> false", description = "Mixed types" },
+    { code = "type_consistency([{a: 1}, {a: 'x'}]).inconsistencies -> [{field: 'a', ...}]", description = "Object field mismatch" },
+    { code = "type_consistency([]).consistent -> true", description = "Empty array is consistent" },
+]
+features = ["core"]
+
+[[functions]]
+name = "data_quality_score"
+category = "object"
+description = "Analyze data quality and return score with detailed issues"
+signature = "any -> object"
+examples = [
+    { code = "data_quality_score({a: 1, b: 'hello'}).score -> 100", description = "Perfect data" },
+    { code = "data_quality_score({a: null, b: ''}).issues -> [{path: 'a', issue: 'null'}, ...]", description = "Issues detected" },
+    { code = "data_quality_score(users).null_count -> 5", description = "Count null fields" },
+    { code = "data_quality_score(data).type_inconsistencies -> 2", description = "Count type mismatches" },
+]
+features = ["core"]
+
 # =============================================================================
 # PATH FUNCTIONS
 # =============================================================================
