@@ -41,7 +41,9 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("deep_equals", Box::new(DeepEqualsFn::new()));
     runtime.register_function("deep_diff", Box::new(DeepDiffFn::new()));
     runtime.register_function("get", Box::new(GetFn::new()));
+    runtime.register_function("get_path", Box::new(GetFn::new())); // alias
     runtime.register_function("has", Box::new(HasFn::new()));
+    runtime.register_function("has_path", Box::new(HasFn::new())); // alias
     runtime.register_function("defaults", Box::new(DefaultsFn::new()));
     runtime.register_function("defaults_deep", Box::new(DefaultsDeepFn::new()));
     runtime.register_function("set_path", Box::new(SetPathFn::new()));
@@ -733,7 +735,7 @@ impl GetFn {
     }
 }
 
-// Navigate to a value using a path string like "a.b.c" or "a[0].b"
+// Navigate to a value using a path string like "a.b.c", "a[0].b", or "a.0.b"
 fn get_at_path(value: &Variable, path: &str) -> Option<Rcvar> {
     if path.is_empty() {
         return Some(Rc::new(value.clone()));
@@ -746,7 +748,7 @@ fn get_at_path(value: &Variable, path: &str) -> Option<Rcvar> {
 
     for part in parts {
         if let Some(idx) = part.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-            // Array index access
+            // Bracket notation array index access: [0]
             if let Ok(index) = idx.parse::<usize>() {
                 if let Some(arr) = current.as_array() {
                     if index < arr.len() {
@@ -754,6 +756,24 @@ fn get_at_path(value: &Variable, path: &str) -> Option<Rcvar> {
                     } else {
                         return None;
                     }
+                } else {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        } else if let Ok(index) = part.parse::<usize>() {
+            // Numeric key - try array index first, then object key
+            if let Some(arr) = current.as_array() {
+                if index < arr.len() {
+                    current = arr[index].clone();
+                } else {
+                    return None;
+                }
+            } else if let Some(obj) = current.as_object() {
+                // Try as object key (for objects with numeric string keys)
+                if let Some(val) = obj.get(&part) {
+                    current = val.clone();
                 } else {
                     return None;
                 }
@@ -1050,7 +1070,8 @@ impl Function for DefaultsDeepFn {
 }
 
 // =============================================================================
-// set_path(object, path, value) -> new object with value set at JSON pointer path
+// set_path(object, path, value) -> new object with value set at path
+// Supports both dot notation ("a.b.c") and JSON pointer ("/a/b/c")
 // =============================================================================
 
 define_function!(
@@ -1073,8 +1094,8 @@ impl Function for SetPathFn {
 
         let value = args[2].clone();
 
-        // Parse JSON pointer path (RFC 6901)
-        let parts = parse_json_pointer(path);
+        // Parse path - auto-detect format
+        let parts = parse_path_for_mutation(path);
         if parts.is_empty() {
             // Empty path means replace the entire value
             return Ok(value);
@@ -1084,6 +1105,65 @@ impl Function for SetPathFn {
         let result = set_at_path(&args[0], &parts, value);
         Ok(result)
     }
+}
+
+/// Parse a path string for mutation operations (set_path, delete_path).
+/// Supports both JSON pointer ("/a/b/c") and dot notation ("a.b.c" or "a[0].b").
+fn parse_path_for_mutation(path: &str) -> Vec<String> {
+    if path.is_empty() {
+        return vec![];
+    }
+
+    // Detect format: JSON pointer starts with /
+    if path.starts_with('/') {
+        parse_json_pointer(path)
+    } else {
+        // Use dot notation parser, converting bracket notation to simple parts
+        parse_path_parts_for_mutation(path)
+    }
+}
+
+/// Parse dot notation path into parts for mutation operations
+fn parse_path_parts_for_mutation(path: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut chars = path.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '.' => {
+                if !current.is_empty() {
+                    parts.push(current.clone());
+                    current.clear();
+                }
+            }
+            '[' => {
+                if !current.is_empty() {
+                    parts.push(current.clone());
+                    current.clear();
+                }
+                // Collect the index (without brackets)
+                let mut index = String::new();
+                while let Some(&next) = chars.peek() {
+                    if next == ']' {
+                        chars.next();
+                        break;
+                    }
+                    index.push(chars.next().unwrap());
+                }
+                parts.push(index);
+            }
+            _ => {
+                current.push(c);
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    parts
 }
 
 fn parse_json_pointer(path: &str) -> Vec<String> {
@@ -1171,7 +1251,8 @@ fn set_at_path(value: &Rcvar, parts: &[String], new_value: Rcvar) -> Rcvar {
 }
 
 // =============================================================================
-// delete_path(object, path) -> new object with value removed at JSON pointer path
+// delete_path(object, path) -> new object with value removed at path
+// Supports both dot notation ("a.b.c") and JSON pointer ("/a/b/c")
 // =============================================================================
 
 define_function!(
@@ -1192,7 +1273,8 @@ impl Function for DeletePathFn {
             )
         })?;
 
-        let parts = parse_json_pointer(path);
+        // Parse path - auto-detect format
+        let parts = parse_path_for_mutation(path);
         if parts.is_empty() {
             // Empty path means delete everything -> return null
             return Ok(Rc::new(Variable::Null));
@@ -3497,6 +3579,140 @@ mod tests {
         // Result should have the new key
         let new_obj = result.as_object().unwrap();
         assert!(new_obj.contains_key("b"));
+    }
+
+    // =========================================================================
+    // Dot notation path tests (for set_path, delete_path, get_path, has_path)
+    // =========================================================================
+
+    #[test]
+    fn test_set_path_dot_notation() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"c": 1}}"#).unwrap();
+        let expr = runtime.compile("set_path(@, `\"a.b\"`, `99`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let nested = obj.get("a").unwrap().as_object().unwrap();
+        assert_eq!(nested.get("b").unwrap().as_number().unwrap() as i64, 99);
+        assert_eq!(nested.get("c").unwrap().as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_set_path_dot_notation_deep() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{}"#).unwrap();
+        let expr = runtime
+            .compile("set_path(@, `\"a.b.c\"`, `\"deep\"`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let a = obj.get("a").unwrap().as_object().unwrap();
+        let b = a.get("b").unwrap().as_object().unwrap();
+        assert_eq!(b.get("c").unwrap().as_string().unwrap(), "deep");
+    }
+
+    #[test]
+    fn test_set_path_dot_notation_array_index() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"items": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("set_path(@, `\"items.1\"`, `99`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let items = obj.get("items").unwrap().as_array().unwrap();
+        assert_eq!(items[1].as_number().unwrap() as i64, 99);
+    }
+
+    #[test]
+    fn test_delete_path_dot_notation() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1, "c": 2}}"#).unwrap();
+        let expr = runtime.compile("delete_path(@, `\"a.b\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let nested = obj.get("a").unwrap().as_object().unwrap();
+        assert!(!nested.contains_key("b"));
+        assert!(nested.contains_key("c"));
+    }
+
+    #[test]
+    fn test_delete_path_dot_notation_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"items": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("delete_path(@, `\"items.1\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let items = obj.get("items").unwrap().as_array().unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].as_number().unwrap() as i64, 1);
+        assert_eq!(items[1].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_get_path_alias() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": {"c": 42}}}"#).unwrap();
+        let expr = runtime.compile("get_path(@, `\"a.b.c\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 42);
+    }
+
+    #[test]
+    fn test_get_path_with_default() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let expr = runtime
+            .compile("get_path(@, `\"a.b.c\"`, `\"default\"`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "default");
+    }
+
+    #[test]
+    fn test_get_path_array_index() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"users": [{"name": "alice"}, {"name": "bob"}]}"#).unwrap();
+        let expr = runtime.compile("get_path(@, `\"users.0.name\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "alice");
+    }
+
+    #[test]
+    fn test_get_path_array_index_out_of_bounds() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"users": [{"name": "alice"}]}"#).unwrap();
+        let expr = runtime
+            .compile("get_path(@, `\"users.5.name\"`, `\"unknown\"`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "unknown");
+    }
+
+    #[test]
+    fn test_has_path_alias() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1}}"#).unwrap();
+        let expr = runtime.compile("has_path(@, `\"a.b\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_has_path_missing() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": 1}}"#).unwrap();
+        let expr = runtime.compile("has_path(@, `\"a.c\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(!result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_has_path_array_index() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"items": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("has_path(@, `\"items.1\"`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap());
     }
 
     // =========================================================================
