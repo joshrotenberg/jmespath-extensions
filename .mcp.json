@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "jpx": {
+      "command": "jpx",
+      "args": ["mcp"]
+    },
+    "jpx-strict": {
+      "command": "jpx",
+      "args": ["mcp", "--strict"]
+    }
+  }
+}
