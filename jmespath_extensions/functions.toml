@@ -2109,6 +2109,45 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "quartiles"
+category = "math"
+description = "Calculate quartiles (Q1, Q2, Q3) and IQR of array"
+signature = "array -> object"
+examples = [
+    { code = "quartiles([1, 2, 3, 4, 5]) -> {min: 1, q1: 2, q2: 3, q3: 4, max: 5, iqr: 2}", description = "Basic quartiles" },
+    { code = "quartiles([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).iqr -> 4.5", description = "Get IQR" },
+    { code = "quartiles(values).q2 == median(values) -> true", description = "Q2 equals median" },
+    { code = "quartiles(scores) -> full distribution stats", description = "Distribution analysis" },
+]
+features = ["core"]
+
+[[functions]]
+name = "outliers_iqr"
+category = "math"
+description = "Find outliers using IQR method (values outside Q1-1.5*IQR to Q3+1.5*IQR)"
+signature = "array, number? -> array"
+examples = [
+    { code = "outliers_iqr([1, 2, 3, 4, 100]) -> [100]", description = "Detect outlier" },
+    { code = "outliers_iqr([1, 2, 3, 4, 5]) -> []", description = "No outliers" },
+    { code = "outliers_iqr(values, `3.0`) -> extreme outliers only", description = "Custom multiplier" },
+    { code = "outliers_iqr(measurements) -> anomalies", description = "Find anomalies" },
+]
+features = ["core"]
+
+[[functions]]
+name = "outliers_zscore"
+category = "math"
+description = "Find outliers using z-score method (values with |z-score| > threshold)"
+signature = "array, number? -> array"
+examples = [
+    { code = "outliers_zscore([1, 2, 3, 4, 100]) -> [100]", description = "Detect outlier" },
+    { code = "outliers_zscore([1, 2, 3, 4, 5]) -> []", description = "No outliers" },
+    { code = "outliers_zscore(values, `3.0`) -> extreme outliers only", description = "Custom threshold" },
+    { code = "outliers_zscore(measurements, `1.5`) -> more sensitive detection", description = "Lower threshold" },
+]
+features = ["core"]
+
 # =============================================================================
 # MULTIMATCH FUNCTIONS
 # =============================================================================
