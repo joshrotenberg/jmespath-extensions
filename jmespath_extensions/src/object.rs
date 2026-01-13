@@ -33,7 +33,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("invert", Box::new(InvertFn::new()));
     runtime.register_function("rename_keys", Box::new(RenameKeysFn::new()));
     runtime.register_function("flatten_keys", Box::new(FlattenKeysFn::new()));
+    runtime.register_function("flatten", Box::new(FlattenKeysFn::new())); // alias
     runtime.register_function("unflatten_keys", Box::new(UnflattenKeysFn::new()));
+    runtime.register_function("unflatten", Box::new(UnflattenKeysFn::new())); // alias
+    runtime.register_function("flatten_array", Box::new(FlattenArrayFn::new()));
     runtime.register_function("deep_merge", Box::new(DeepMergeFn::new()));
     runtime.register_function("deep_equals", Box::new(DeepEqualsFn::new()));
     runtime.register_function("deep_diff", Box::new(DeepDiffFn::new()));
@@ -401,6 +404,87 @@ impl Function for UnflattenKeysFn {
             let parts: Vec<&str> = key.split(&separator).collect();
             insert_nested(&mut result, &parts, value.clone());
         }
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+// =============================================================================
+// flatten_array(any, separator?) -> object
+// Flattens nested objects AND arrays with numeric indices
+// =============================================================================
+
+define_function!(
+    FlattenArrayFn,
+    vec![ArgumentType::Any],
+    Some(ArgumentType::String)
+);
+
+fn flatten_value(
+    value: &Variable,
+    prefix: &str,
+    separator: &str,
+    result: &mut BTreeMap<String, Rcvar>,
+) {
+    match value {
+        Variable::Object(obj) => {
+            if obj.is_empty() {
+                // Empty object is a leaf
+                if !prefix.is_empty() {
+                    result.insert(prefix.to_string(), Rc::new(Variable::Object(obj.clone())));
+                }
+            } else {
+                for (k, v) in obj.iter() {
+                    let new_key = if prefix.is_empty() {
+                        k.clone()
+                    } else {
+                        format!("{}{}{}", prefix, separator, k)
+                    };
+                    flatten_value(v, &new_key, separator, result);
+                }
+            }
+        }
+        Variable::Array(arr) => {
+            if arr.is_empty() {
+                // Empty array is a leaf
+                if !prefix.is_empty() {
+                    result.insert(prefix.to_string(), Rc::new(Variable::Array(arr.clone())));
+                }
+            } else {
+                for (idx, v) in arr.iter().enumerate() {
+                    let new_key = if prefix.is_empty() {
+                        idx.to_string()
+                    } else {
+                        format!("{}{}{}", prefix, separator, idx)
+                    };
+                    flatten_value(v, &new_key, separator, result);
+                }
+            }
+        }
+        _ => {
+            // Leaf value (string, number, bool, null)
+            if !prefix.is_empty() {
+                result.insert(prefix.to_string(), Rc::new(value.clone()));
+            } else {
+                // Top-level primitive - just return it as-is with empty key
+                result.insert(String::new(), Rc::new(value.clone()));
+            }
+        }
+    }
+}
+
+impl Function for FlattenArrayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let default_sep = ".".to_string();
+        let separator = args
+            .get(1)
+            .and_then(|s| s.as_string().map(|s| s.to_string()))
+            .unwrap_or(default_sep);
+
+        let mut result: BTreeMap<String, Rcvar> = BTreeMap::new();
+        flatten_value(&args[0], "", &separator, &mut result);
 
         Ok(Rc::new(Variable::Object(result)))
     }
