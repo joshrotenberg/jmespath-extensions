@@ -219,42 +219,53 @@ pub struct BatchEvaluateResult {
 // Helper functions
 // =============================================================================
 
-/// Parse category string to Category enum
-fn parse_category(name: &str) -> Option<Category> {
-    match name.to_lowercase().as_str() {
-        "standard" => Some(Category::Standard),
-        "string" => Some(Category::String),
-        "array" => Some(Category::Array),
-        "object" => Some(Category::Object),
-        "math" => Some(Category::Math),
-        "type" => Some(Category::Type),
-        "utility" => Some(Category::Utility),
-        "validation" => Some(Category::Validation),
-        "path" => Some(Category::Path),
-        "expression" => Some(Category::Expression),
-        "text" => Some(Category::Text),
-        "hash" => Some(Category::Hash),
-        "encoding" => Some(Category::Encoding),
-        "regex" => Some(Category::Regex),
-        "url" => Some(Category::Url),
-        "uuid" => Some(Category::Uuid),
-        "rand" => Some(Category::Rand),
-        "datetime" => Some(Category::Datetime),
-        "fuzzy" => Some(Category::Fuzzy),
-        "phonetic" => Some(Category::Phonetic),
-        "geo" => Some(Category::Geo),
-        "semver" => Some(Category::Semver),
-        "network" => Some(Category::Network),
-        "ids" => Some(Category::Ids),
-        "duration" => Some(Category::Duration),
-        "color" => Some(Category::Color),
-        "computing" => Some(Category::Computing),
-        "multimatch" => Some(Category::MultiMatch),
-        "jsonpatch" => Some(Category::Jsonpatch),
-        "format" => Some(Category::Format),
-        "language" => Some(Category::Language),
-        _ => None,
+/// Get the string name for a category.
+/// This function uses exhaustive matching to ensure compile errors when new categories are added.
+fn category_to_string(category: Category) -> &'static str {
+    match category {
+        Category::Standard => "standard",
+        Category::String => "string",
+        Category::Array => "array",
+        Category::Object => "object",
+        Category::Math => "math",
+        Category::Type => "type",
+        Category::Utility => "utility",
+        Category::Validation => "validation",
+        Category::Path => "path",
+        Category::Expression => "expression",
+        Category::Text => "text",
+        Category::Hash => "hash",
+        Category::Encoding => "encoding",
+        Category::Regex => "regex",
+        Category::Url => "url",
+        Category::Uuid => "uuid",
+        Category::Rand => "rand",
+        Category::Datetime => "datetime",
+        Category::Fuzzy => "fuzzy",
+        Category::Phonetic => "phonetic",
+        Category::Geo => "geo",
+        Category::Semver => "semver",
+        Category::Network => "network",
+        Category::Ids => "ids",
+        Category::Duration => "duration",
+        Category::Color => "color",
+        Category::Computing => "computing",
+        Category::MultiMatch => "multimatch",
+        Category::Jsonpatch => "jsonpatch",
+        Category::Format => "format",
+        Category::Language => "language",
     }
+}
+
+/// Parse category string to Category enum.
+/// Note: When adding a new category, also add it to `category_to_string` above
+/// which will cause a compile error if missed.
+fn parse_category(name: &str) -> Option<Category> {
+    // Use Category::all() to ensure we check all categories
+    Category::all()
+        .iter()
+        .find(|cat| category_to_string(**cat) == name.to_lowercase())
+        .copied()
 }
 
 /// Create a successful text result

@@ -237,8 +237,68 @@ impl Category {
             Category::Format => true,
             #[cfg(feature = "language")]
             Category::Language => true,
-            #[allow(unreachable_patterns)]
-            _ => false,
+            // Explicit false cases for when features are disabled.
+            // This ensures compile errors if a new category is added without handling it here.
+            #[cfg(not(feature = "string"))]
+            Category::String => false,
+            #[cfg(not(feature = "array"))]
+            Category::Array => false,
+            #[cfg(not(feature = "object"))]
+            Category::Object => false,
+            #[cfg(not(feature = "math"))]
+            Category::Math => false,
+            #[cfg(not(feature = "type"))]
+            Category::Type => false,
+            #[cfg(not(feature = "utility"))]
+            Category::Utility => false,
+            #[cfg(not(feature = "validation"))]
+            Category::Validation => false,
+            #[cfg(not(feature = "path"))]
+            Category::Path => false,
+            #[cfg(not(feature = "expression"))]
+            Category::Expression => false,
+            #[cfg(not(feature = "text"))]
+            Category::Text => false,
+            #[cfg(not(feature = "hash"))]
+            Category::Hash => false,
+            #[cfg(not(feature = "encoding"))]
+            Category::Encoding => false,
+            #[cfg(not(feature = "regex"))]
+            Category::Regex => false,
+            #[cfg(not(feature = "url"))]
+            Category::Url => false,
+            #[cfg(not(feature = "uuid"))]
+            Category::Uuid => false,
+            #[cfg(not(feature = "rand"))]
+            Category::Rand => false,
+            #[cfg(not(feature = "datetime"))]
+            Category::Datetime => false,
+            #[cfg(not(feature = "fuzzy"))]
+            Category::Fuzzy => false,
+            #[cfg(not(feature = "phonetic"))]
+            Category::Phonetic => false,
+            #[cfg(not(feature = "geo"))]
+            Category::Geo => false,
+            #[cfg(not(feature = "semver"))]
+            Category::Semver => false,
+            #[cfg(not(feature = "network"))]
+            Category::Network => false,
+            #[cfg(not(feature = "ids"))]
+            Category::Ids => false,
+            #[cfg(not(feature = "duration"))]
+            Category::Duration => false,
+            #[cfg(not(feature = "color"))]
+            Category::Color => false,
+            #[cfg(not(feature = "computing"))]
+            Category::Computing => false,
+            #[cfg(not(feature = "multi-match"))]
+            Category::MultiMatch => false,
+            #[cfg(not(feature = "jsonpatch"))]
+            Category::Jsonpatch => false,
+            #[cfg(not(feature = "format"))]
+            Category::Format => false,
+            #[cfg(not(feature = "language"))]
+            Category::Language => false,
         }
     }
 }
@@ -544,8 +604,69 @@ impl FunctionRegistry {
             Category::Format => crate::format::register(runtime),
             #[cfg(feature = "language")]
             Category::Language => crate::language::register(runtime),
-            #[allow(unreachable_patterns)]
-            _ => {}
+            // Explicit no-op cases for when features are disabled.
+            // This ensures compile errors if a new category is added without handling it here.
+            Category::Standard => {} // Standard functions are registered via runtime.register_builtin_functions()
+            #[cfg(not(feature = "string"))]
+            Category::String => {}
+            #[cfg(not(feature = "array"))]
+            Category::Array => {}
+            #[cfg(not(feature = "object"))]
+            Category::Object => {}
+            #[cfg(not(feature = "math"))]
+            Category::Math => {}
+            #[cfg(not(feature = "type"))]
+            Category::Type => {}
+            #[cfg(not(feature = "utility"))]
+            Category::Utility => {}
+            #[cfg(not(feature = "validation"))]
+            Category::Validation => {}
+            #[cfg(not(feature = "path"))]
+            Category::Path => {}
+            #[cfg(not(feature = "expression"))]
+            Category::Expression => {}
+            #[cfg(not(feature = "text"))]
+            Category::Text => {}
+            #[cfg(not(feature = "hash"))]
+            Category::Hash => {}
+            #[cfg(not(feature = "encoding"))]
+            Category::Encoding => {}
+            #[cfg(not(feature = "regex"))]
+            Category::Regex => {}
+            #[cfg(not(feature = "url"))]
+            Category::Url => {}
+            #[cfg(not(feature = "uuid"))]
+            Category::Uuid => {}
+            #[cfg(not(feature = "rand"))]
+            Category::Rand => {}
+            #[cfg(not(feature = "datetime"))]
+            Category::Datetime => {}
+            #[cfg(not(feature = "fuzzy"))]
+            Category::Fuzzy => {}
+            #[cfg(not(feature = "phonetic"))]
+            Category::Phonetic => {}
+            #[cfg(not(feature = "geo"))]
+            Category::Geo => {}
+            #[cfg(not(feature = "semver"))]
+            Category::Semver => {}
+            #[cfg(not(feature = "network"))]
+            Category::Network => {}
+            #[cfg(not(feature = "ids"))]
+            Category::Ids => {}
+            #[cfg(not(feature = "duration"))]
+            Category::Duration => {}
+            #[cfg(not(feature = "color"))]
+            Category::Color => {}
+            #[cfg(not(feature = "computing"))]
+            Category::Computing => {}
+            #[cfg(not(feature = "multi-match"))]
+            Category::MultiMatch => {}
+            #[cfg(not(feature = "jsonpatch"))]
+            Category::Jsonpatch => {}
+            #[cfg(not(feature = "format"))]
+            Category::Format => {}
+            #[cfg(not(feature = "language"))]
+            Category::Language => {}
         }
     }
 }
