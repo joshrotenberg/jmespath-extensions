@@ -1850,6 +1850,54 @@ examples = [
 features = ["core"]
 
 [[functions]]
+name = "trend"
+category = "math"
+description = "Detect trend direction in a numeric array (increasing, decreasing, or stable)"
+signature = "array -> string"
+examples = [
+    { code = "trend([1, 2, 3, 4, 5]) -> \"increasing\"", description = "Upward trend" },
+    { code = "trend([5, 4, 3, 2, 1]) -> \"decreasing\"", description = "Downward trend" },
+    { code = "trend([3, 3, 3, 3]) -> \"stable\"", description = "No change" },
+]
+features = ["core"]
+
+[[functions]]
+name = "trend_slope"
+category = "math"
+description = "Calculate the linear regression slope of a numeric array"
+signature = "array -> number"
+examples = [
+    { code = "trend_slope([1, 2, 3, 4, 5]) -> 1.0", description = "Perfect linear increase" },
+    { code = "trend_slope([5, 4, 3, 2, 1]) -> -1.0", description = "Perfect linear decrease" },
+    { code = "trend_slope([1, 3, 2, 4]) -> ~0.7", description = "Noisy upward" },
+]
+features = ["core"]
+
+[[functions]]
+name = "rate_of_change"
+category = "math"
+description = "Calculate percentage change between consecutive values"
+signature = "array -> array"
+examples = [
+    { code = "rate_of_change([100, 110, 121]) -> [10.0, 10.0]", description = "10% growth" },
+    { code = "rate_of_change([100, 50, 25]) -> [-50.0, -50.0]", description = "50% decline" },
+    { code = "rate_of_change([1, 2, 3]) -> [100.0, 50.0]", description = "Varying rate" },
+]
+features = ["core"]
+
+[[functions]]
+name = "cumulative_sum"
+category = "math"
+description = "Calculate running cumulative sum of a numeric array"
+signature = "array -> array"
+examples = [
+    { code = "cumulative_sum([1, 2, 3, 4]) -> [1, 3, 6, 10]", description = "Running total" },
+    { code = "cumulative_sum([10, -5, 3]) -> [10, 5, 8]", description = "With negatives" },
+    { code = "cumulative_sum([100]) -> [100]", description = "Single element" },
+]
+features = ["core"]
+
+[[functions]]
 name = "floor_fn"
 category = "math"
 description = "Round down to nearest integer"
@@ -2840,6 +2888,110 @@ examples = [
     { code = "kebab_keys({userName: \"alice\"}) -> {\"user-name\": \"alice\"}", description = "Camel to kebab" },
     { code = "kebab_keys({user_name: \"bob\"}) -> {\"user-name\": \"bob\"}", description = "Snake to kebab" },
     { code = "kebab_keys({userInfo: {firstName: \"x\"}}) -> {\"user-info\": {\"first-name\": \"x\"}}", description = "Nested" },
+]
+features = ["core"]
+
+[[functions]]
+name = "structural_diff"
+category = "object"
+description = "Compare two values and return their structural differences"
+signature = "any, any -> object"
+examples = [
+    { code = "structural_diff({a: 1}, {a: 2}) -> {changed: [{path: \"a\", from: 1, to: 2}], added: [], removed: []}", description = "Changed value" },
+    { code = "structural_diff({a: 1}, {a: 1, b: 2}) -> {changed: [], added: [{path: \"b\", value: 2}], removed: []}", description = "Added key" },
+    { code = "structural_diff({a: 1, b: 2}, {a: 1}) -> {changed: [], added: [], removed: [{path: \"b\", value: 2}]}", description = "Removed key" },
+]
+features = ["core"]
+
+[[functions]]
+name = "has_same_shape"
+category = "object"
+description = "Check if two values have the same structure (ignoring actual values)"
+signature = "any, any -> boolean"
+examples = [
+    { code = "has_same_shape({a: 1, b: 2}, {a: 99, b: 100}) -> true", description = "Same keys, different values" },
+    { code = "has_same_shape({a: 1}, {a: 1, b: 2}) -> false", description = "Different keys" },
+    { code = "has_same_shape([1, 2], [3, 4]) -> true", description = "Same length arrays" },
+]
+features = ["core"]
+
+[[functions]]
+name = "infer_schema"
+category = "object"
+description = "Infer a JSON Schema-like type description from a value"
+signature = "any -> object"
+examples = [
+    { code = "infer_schema(`42`) -> {type: \"number\"}", description = "Number type" },
+    { code = "infer_schema({name: \"alice\", age: 30}) -> {type: \"object\", properties: {name: {type: \"string\"}, age: {type: \"number\"}}}", description = "Object schema" },
+    { code = "infer_schema([1, 2, 3]) -> {type: \"array\", items: {type: \"number\"}}", description = "Array schema" },
+]
+features = ["core"]
+
+[[functions]]
+name = "chunk_by_size"
+category = "object"
+description = "Split an array into chunks of approximately the specified byte size"
+signature = "array, number -> array"
+examples = [
+    { code = "chunk_by_size([{a:1}, {b:2}, {c:3}], `100`) -> [[{a:1}, {b:2}, {c:3}]]", description = "All fit in one chunk" },
+    { code = "chunk_by_size([{a:1}, {b:2}], `10`) -> [[{a:1}], [{b:2}]]", description = "Split into chunks" },
+]
+features = ["core"]
+
+[[functions]]
+name = "paginate"
+category = "object"
+description = "Get a page of items from an array with metadata"
+signature = "array, number, number -> object"
+examples = [
+    { code = "paginate([1,2,3,4,5], `2`, `1`) -> {items: [1,2], page: 1, page_size: 2, total_items: 5, total_pages: 3, has_next: true, has_prev: false}", description = "First page" },
+    { code = "paginate([1,2,3,4,5], `2`, `3`) -> {items: [5], page: 3, page_size: 2, total_items: 5, total_pages: 3, has_next: false, has_prev: true}", description = "Last page" },
+]
+features = ["core"]
+
+[[functions]]
+name = "estimate_size"
+category = "object"
+description = "Estimate the JSON serialization size in bytes"
+signature = "any -> number"
+examples = [
+    { code = "estimate_size(`\"hello\"`) -> 7", description = "String with quotes" },
+    { code = "estimate_size({a: 1}) -> 7", description = "Simple object" },
+    { code = "estimate_size([1, 2, 3]) -> 7", description = "Simple array" },
+]
+features = ["core"]
+
+[[functions]]
+name = "truncate_to_size"
+category = "object"
+description = "Truncate an array to fit within approximately the specified byte size"
+signature = "array, number -> array"
+examples = [
+    { code = "truncate_to_size([{a:1}, {b:2}, {c:3}], `100`) -> [{a:1}, {b:2}, {c:3}]", description = "All fit" },
+    { code = "truncate_to_size([{a:1}, {b:2}, {c:3}], `15`) -> [{a:1}, {b:2}]", description = "Truncated" },
+]
+features = ["core"]
+
+[[functions]]
+name = "template"
+category = "object"
+description = "Expand a template string with values from an object using {{key}} syntax"
+signature = "object, string -> string"
+examples = [
+    { code = "template({name: \"Alice\"}, `\"Hello, {{name}}!\"`) -> \"Hello, Alice!\"", description = "Simple substitution" },
+    { code = "template({user: {name: \"Bob\"}}, `\"Hi {{user.name}}\"`) -> \"Hi Bob\"", description = "Nested access" },
+    { code = "template({}, `\"Hello {{name|World}}\"`) -> \"Hello World\"", description = "Default value" },
+]
+features = ["core"]
+
+[[functions]]
+name = "template_strict"
+category = "object"
+description = "Expand a template string, returning null if any variable is missing"
+signature = "object, string -> string | null"
+examples = [
+    { code = "template_strict({name: \"Alice\"}, `\"Hello, {{name}}!\"`) -> \"Hello, Alice!\"", description = "All vars present" },
+    { code = "template_strict({}, `\"Hello, {{name}}!\"`) -> null", description = "Missing variable" },
 ]
 features = ["core"]
 
