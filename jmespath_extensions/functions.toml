@@ -2748,6 +2748,41 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "redact"
+category = "object"
+description = "Recursively replace values at specified keys with [REDACTED]"
+signature = "any, array -> any"
+examples = [
+    { code = '''redact({name: "alice", password: "secret"}, ["password"]) -> {name: "alice", password: "[REDACTED]"}''', description = "Redact password" },
+    { code = '''redact({user: {name: "bob", ssn: "123"}}, ["ssn"]) -> {user: {name: "bob", ssn: "[REDACTED]"}}''', description = "Nested redact" },
+    { code = '''redact([{token: "abc"}], ["token"]) -> [{token: "[REDACTED]"}]''', description = "Array of objects" },
+]
+features = ["core"]
+
+[[functions]]
+name = "mask"
+category = "object"
+description = "Mask a string, showing only the last N characters"
+signature = "string, number? -> string"
+examples = [
+    { code = '''mask("4111111111111111") -> "************1111"''', description = "Credit card default" },
+    { code = '''mask("555-123-4567", `3`) -> "*********567"''', description = "Phone with 3 visible" },
+    { code = '''mask("abc") -> "***"''', description = "Short string masked" },
+]
+features = ["core"]
+
+[[functions]]
+name = "redact_keys"
+category = "object"
+description = "Recursively redact keys matching a regex pattern"
+signature = "any, string -> any"
+examples = [
+    { code = '''redact_keys({password: "x", api_key: "y"}, "password|api_key") -> {password: "[REDACTED]", api_key: "[REDACTED]"}''', description = "Multiple patterns" },
+    { code = '''redact_keys({secret_key: "a", secret_token: "b"}, "secret.*") -> {secret_key: "[REDACTED]", secret_token: "[REDACTED]"}''', description = "Wildcard pattern" },
+]
+features = ["core"]
+
 # =============================================================================
 # PATH FUNCTIONS
 # =============================================================================
