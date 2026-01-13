@@ -252,6 +252,7 @@ fn parse_category(name: &str) -> Option<Category> {
         "multimatch" => Some(Category::MultiMatch),
         "jsonpatch" => Some(Category::Jsonpatch),
         "format" => Some(Category::Format),
+        "language" => Some(Category::Language),
         _ => None,
     }
 }
