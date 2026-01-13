@@ -2721,7 +2721,7 @@ impl Function for PaginateFn {
         let per_page = args[2].as_number().unwrap_or(10.0).max(1.0) as usize;
 
         let total = arr.len();
-        let total_pages = (total + per_page - 1) / per_page;
+        let total_pages = total.div_ceil(per_page);
         let start = (page - 1) * per_page;
         let end = (start + per_page).min(total);
 
