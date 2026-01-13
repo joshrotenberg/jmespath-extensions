@@ -2783,6 +2783,66 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "pluck_deep"
+category = "object"
+description = "Find all values for a key anywhere in nested structure"
+signature = "any, string -> array"
+examples = [
+    { code = '''pluck_deep({users: [{id: 1}, {id: 2}], meta: {id: 99}}, "id") -> [1, 2, 99]''', description = "Find all ids" },
+    { code = '''pluck_deep({a: {b: {c: 1}}, d: {c: 2}}, "c") -> [1, 2]''', description = "Nested values" },
+    { code = '''pluck_deep({a: 1}, "x") -> []''', description = "Key not found" },
+]
+features = ["core"]
+
+[[functions]]
+name = "paths_to"
+category = "object"
+description = "Find all dot-notation paths to a key anywhere in structure"
+signature = "any, string -> array"
+examples = [
+    { code = '''paths_to({a: {id: 1}, b: {id: 2}}, "id") -> ["a.id", "b.id"]''', description = "Find paths to id" },
+    { code = '''paths_to({users: [{id: 1}]}, "id") -> ["users.0.id"]''', description = "Array paths" },
+    { code = '''paths_to({a: 1}, "x") -> []''', description = "Key not found" },
+]
+features = ["core"]
+
+[[functions]]
+name = "snake_keys"
+category = "object"
+description = "Recursively convert all keys to snake_case"
+signature = "any -> any"
+examples = [
+    { code = "snake_keys({userName: \"alice\"}) -> {user_name: \"alice\"}", description = "Camel to snake" },
+    { code = "snake_keys({\"user-name\": \"bob\"}) -> {user_name: \"bob\"}", description = "Kebab to snake" },
+    { code = "snake_keys({userInfo: {firstName: \"x\"}}) -> {user_info: {first_name: \"x\"}}", description = "Nested" },
+]
+features = ["core"]
+
+[[functions]]
+name = "camel_keys"
+category = "object"
+description = "Recursively convert all keys to camelCase"
+signature = "any -> any"
+examples = [
+    { code = "camel_keys({user_name: \"alice\"}) -> {userName: \"alice\"}", description = "Snake to camel" },
+    { code = "camel_keys({\"user-name\": \"bob\"}) -> {userName: \"bob\"}", description = "Kebab to camel" },
+    { code = "camel_keys({user_info: {first_name: \"x\"}}) -> {userInfo: {firstName: \"x\"}}", description = "Nested" },
+]
+features = ["core"]
+
+[[functions]]
+name = "kebab_keys"
+category = "object"
+description = "Recursively convert all keys to kebab-case"
+signature = "any -> any"
+examples = [
+    { code = "kebab_keys({userName: \"alice\"}) -> {\"user-name\": \"alice\"}", description = "Camel to kebab" },
+    { code = "kebab_keys({user_name: \"bob\"}) -> {\"user-name\": \"bob\"}", description = "Snake to kebab" },
+    { code = "kebab_keys({userInfo: {firstName: \"x\"}}) -> {\"user-info\": {\"first-name\": \"x\"}}", description = "Nested" },
+]
+features = ["core"]
+
 # =============================================================================
 # PATH FUNCTIONS
 # =============================================================================
