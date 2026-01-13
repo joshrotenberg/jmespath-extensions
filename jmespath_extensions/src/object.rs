@@ -70,6 +70,19 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("snake_keys", Box::new(SnakeKeysFn::new()));
     runtime.register_function("camel_keys", Box::new(CamelKeysFn::new()));
     runtime.register_function("kebab_keys", Box::new(KebabKeysFn::new()));
+    // Structural diff functions
+    runtime.register_function("structural_diff", Box::new(StructuralDiffFn::new()));
+    runtime.register_function("has_same_shape", Box::new(HasSameShapeFn::new()));
+    // Schema inference
+    runtime.register_function("infer_schema", Box::new(InferSchemaFn::new()));
+    // Chunking functions
+    runtime.register_function("chunk_by_size", Box::new(ChunkBySizeFn::new()));
+    runtime.register_function("paginate", Box::new(PaginateFn::new()));
+    runtime.register_function("estimate_size", Box::new(EstimateSizeFn::new()));
+    runtime.register_function("truncate_to_size", Box::new(TruncateToSizeFn::new()));
+    // Template functions
+    runtime.register_function("template", Box::new(TemplateFn::new()));
+    runtime.register_function("template_strict", Box::new(TemplateStrictFn::new()));
 }
 
 // =============================================================================
@@ -2328,6 +2341,655 @@ where
     }
 }
 
+// =============================================================================
+// structural_diff(obj1, obj2) -> object (compare shapes/schemas)
+// =============================================================================
+
+define_function!(
+    StructuralDiffFn,
+    vec![ArgumentType::Any, ArgumentType::Any],
+    None
+);
+
+impl Function for StructuralDiffFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let mut added: Vec<String> = Vec::new();
+        let mut removed: Vec<String> = Vec::new();
+        let mut type_changed: Vec<BTreeMap<String, Rcvar>> = Vec::new();
+        let mut unchanged: Vec<String> = Vec::new();
+
+        compare_structure(
+            &args[0],
+            &args[1],
+            String::new(),
+            &mut added,
+            &mut removed,
+            &mut type_changed,
+            &mut unchanged,
+        );
+
+        let mut result = BTreeMap::new();
+        result.insert(
+            "added".to_string(),
+            Rc::new(Variable::Array(
+                added
+                    .into_iter()
+                    .map(|s| Rc::new(Variable::String(s)) as Rcvar)
+                    .collect(),
+            )) as Rcvar,
+        );
+        result.insert(
+            "removed".to_string(),
+            Rc::new(Variable::Array(
+                removed
+                    .into_iter()
+                    .map(|s| Rc::new(Variable::String(s)) as Rcvar)
+                    .collect(),
+            )) as Rcvar,
+        );
+        result.insert(
+            "type_changed".to_string(),
+            Rc::new(Variable::Array(
+                type_changed
+                    .into_iter()
+                    .map(|m| Rc::new(Variable::Object(m)) as Rcvar)
+                    .collect(),
+            )) as Rcvar,
+        );
+        result.insert(
+            "unchanged".to_string(),
+            Rc::new(Variable::Array(
+                unchanged
+                    .into_iter()
+                    .map(|s| Rc::new(Variable::String(s)) as Rcvar)
+                    .collect(),
+            )) as Rcvar,
+        );
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+fn get_structural_type(value: &Variable) -> &'static str {
+    match value {
+        Variable::Null => "null",
+        Variable::Bool(_) => "boolean",
+        Variable::Number(_) => "number",
+        Variable::String(_) => "string",
+        Variable::Array(_) => "array",
+        Variable::Object(_) => "object",
+        Variable::Expref(_) => "expression",
+    }
+}
+
+fn compare_structure(
+    a: &Variable,
+    b: &Variable,
+    path: String,
+    added: &mut Vec<String>,
+    removed: &mut Vec<String>,
+    type_changed: &mut Vec<BTreeMap<String, Rcvar>>,
+    unchanged: &mut Vec<String>,
+) {
+    let type_a = get_structural_type(a);
+    let type_b = get_structural_type(b);
+
+    if type_a != type_b {
+        let mut change = BTreeMap::new();
+        change.insert(
+            "path".to_string(),
+            Rc::new(Variable::String(if path.is_empty() {
+                "$".to_string()
+            } else {
+                path
+            })) as Rcvar,
+        );
+        change.insert(
+            "from".to_string(),
+            Rc::new(Variable::String(type_a.to_string())) as Rcvar,
+        );
+        change.insert(
+            "to".to_string(),
+            Rc::new(Variable::String(type_b.to_string())) as Rcvar,
+        );
+        type_changed.push(change);
+        return;
+    }
+
+    match (a, b) {
+        (Variable::Object(obj_a), Variable::Object(obj_b)) => {
+            for key in obj_a.keys() {
+                let new_path = if path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", path, key)
+                };
+                if let Some(val_b) = obj_b.get(key) {
+                    compare_structure(
+                        obj_a.get(key).unwrap(),
+                        val_b,
+                        new_path,
+                        added,
+                        removed,
+                        type_changed,
+                        unchanged,
+                    );
+                } else {
+                    removed.push(new_path);
+                }
+            }
+            for key in obj_b.keys() {
+                if !obj_a.contains_key(key) {
+                    let new_path = if path.is_empty() {
+                        key.clone()
+                    } else {
+                        format!("{}.{}", path, key)
+                    };
+                    added.push(new_path);
+                }
+            }
+        }
+        _ => {
+            if !path.is_empty() {
+                unchanged.push(path);
+            }
+        }
+    }
+}
+
+// =============================================================================
+// has_same_shape(obj1, obj2) -> boolean
+// =============================================================================
+
+define_function!(
+    HasSameShapeFn,
+    vec![ArgumentType::Any, ArgumentType::Any],
+    None
+);
+
+impl Function for HasSameShapeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let same = check_same_shape(&args[0], &args[1]);
+        Ok(Rc::new(Variable::Bool(same)))
+    }
+}
+
+fn check_same_shape(a: &Variable, b: &Variable) -> bool {
+    let type_a = get_structural_type(a);
+    let type_b = get_structural_type(b);
+
+    if type_a != type_b {
+        return false;
+    }
+
+    match (a, b) {
+        (Variable::Object(obj_a), Variable::Object(obj_b)) => {
+            if obj_a.keys().collect::<HashSet<_>>() != obj_b.keys().collect::<HashSet<_>>() {
+                return false;
+            }
+            for key in obj_a.keys() {
+                if !check_same_shape(obj_a.get(key).unwrap(), obj_b.get(key).unwrap()) {
+                    return false;
+                }
+            }
+            true
+        }
+        (Variable::Array(arr_a), Variable::Array(arr_b)) => {
+            // Arrays have same shape if both empty or both non-empty with same element types
+            if arr_a.is_empty() && arr_b.is_empty() {
+                return true;
+            }
+            if arr_a.is_empty() || arr_b.is_empty() {
+                return true; // One empty, can't compare element types
+            }
+            // Check first element types match
+            check_same_shape(&arr_a[0], &arr_b[0])
+        }
+        _ => true, // Same primitive type
+    }
+}
+
+// =============================================================================
+// infer_schema(any) -> object (JSON Schema-like type inference)
+// =============================================================================
+
+define_function!(InferSchemaFn, vec![ArgumentType::Any], None);
+
+impl Function for InferSchemaFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let schema = infer_schema_recursive(&args[0]);
+        Ok(Rc::new(schema))
+    }
+}
+
+fn infer_schema_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::Null => {
+            let mut schema = BTreeMap::new();
+            schema.insert(
+                "type".to_string(),
+                Rc::new(Variable::String("null".to_string())) as Rcvar,
+            );
+            Variable::Object(schema)
+        }
+        Variable::Bool(_) => {
+            let mut schema = BTreeMap::new();
+            schema.insert(
+                "type".to_string(),
+                Rc::new(Variable::String("boolean".to_string())) as Rcvar,
+            );
+            Variable::Object(schema)
+        }
+        Variable::Number(_) => {
+            let mut schema = BTreeMap::new();
+            schema.insert(
+                "type".to_string(),
+                Rc::new(Variable::String("number".to_string())) as Rcvar,
+            );
+            Variable::Object(schema)
+        }
+        Variable::String(_) => {
+            let mut schema = BTreeMap::new();
+            schema.insert(
+                "type".to_string(),
+                Rc::new(Variable::String("string".to_string())) as Rcvar,
+            );
+            Variable::Object(schema)
+        }
+        Variable::Array(arr) => {
+            let mut schema = BTreeMap::new();
+            schema.insert(
+                "type".to_string(),
+                Rc::new(Variable::String("array".to_string())) as Rcvar,
+            );
+            if !arr.is_empty() {
+                // Infer items schema from first element (simplified)
+                let items_schema = infer_schema_recursive(&arr[0]);
+                schema.insert("items".to_string(), Rc::new(items_schema) as Rcvar);
+            }
+            Variable::Object(schema)
+        }
+        Variable::Object(obj) => {
+            let mut schema = BTreeMap::new();
+            schema.insert(
+                "type".to_string(),
+                Rc::new(Variable::String("object".to_string())) as Rcvar,
+            );
+
+            let mut properties = BTreeMap::new();
+            for (key, val) in obj.iter() {
+                let prop_schema = infer_schema_recursive(val);
+                properties.insert(key.clone(), Rc::new(prop_schema) as Rcvar);
+            }
+            schema.insert(
+                "properties".to_string(),
+                Rc::new(Variable::Object(properties)) as Rcvar,
+            );
+            Variable::Object(schema)
+        }
+        Variable::Expref(_) => {
+            let mut schema = BTreeMap::new();
+            schema.insert(
+                "type".to_string(),
+                Rc::new(Variable::String("expression".to_string())) as Rcvar,
+            );
+            Variable::Object(schema)
+        }
+    }
+}
+
+// =============================================================================
+// chunk_by_size(array, max_bytes) -> array of arrays
+// =============================================================================
+
+define_function!(
+    ChunkBySizeFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    None
+);
+
+impl Function for ChunkBySizeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array".to_owned()),
+            )
+        })?;
+
+        let max_bytes = args[1].as_number().unwrap_or(4000.0) as usize;
+
+        let mut chunks: Vec<Rcvar> = Vec::new();
+        let mut current_chunk: Vec<Rcvar> = Vec::new();
+        let mut current_size: usize = 2; // Account for []
+
+        for item in arr {
+            let item_size = serde_json::to_string(&**item).map(|s| s.len()).unwrap_or(0);
+
+            if current_size + item_size + 1 > max_bytes && !current_chunk.is_empty() {
+                chunks.push(Rc::new(Variable::Array(current_chunk)) as Rcvar);
+                current_chunk = Vec::new();
+                current_size = 2;
+            }
+
+            current_chunk.push(item.clone());
+            current_size += item_size + 1; // +1 for comma
+        }
+
+        if !current_chunk.is_empty() {
+            chunks.push(Rc::new(Variable::Array(current_chunk)) as Rcvar);
+        }
+
+        Ok(Rc::new(Variable::Array(chunks)))
+    }
+}
+
+// =============================================================================
+// paginate(array, page, per_page) -> object with pagination metadata
+// =============================================================================
+
+define_function!(
+    PaginateFn,
+    vec![
+        ArgumentType::Array,
+        ArgumentType::Number,
+        ArgumentType::Number
+    ],
+    None
+);
+
+impl Function for PaginateFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array".to_owned()),
+            )
+        })?;
+
+        let page = args[1].as_number().unwrap_or(1.0).max(1.0) as usize;
+        let per_page = args[2].as_number().unwrap_or(10.0).max(1.0) as usize;
+
+        let total = arr.len();
+        let total_pages = (total + per_page - 1) / per_page;
+        let start = (page - 1) * per_page;
+        let end = (start + per_page).min(total);
+
+        let data: Vec<Rcvar> = if start < total {
+            arr[start..end].to_vec()
+        } else {
+            vec![]
+        };
+
+        let mut result = BTreeMap::new();
+        result.insert("data".to_string(), Rc::new(Variable::Array(data)) as Rcvar);
+        result.insert(
+            "page".to_string(),
+            Rc::new(Variable::Number((page as i64).into())) as Rcvar,
+        );
+        result.insert(
+            "per_page".to_string(),
+            Rc::new(Variable::Number((per_page as i64).into())) as Rcvar,
+        );
+        result.insert(
+            "total".to_string(),
+            Rc::new(Variable::Number((total as i64).into())) as Rcvar,
+        );
+        result.insert(
+            "total_pages".to_string(),
+            Rc::new(Variable::Number((total_pages as i64).into())) as Rcvar,
+        );
+        result.insert(
+            "has_next".to_string(),
+            Rc::new(Variable::Bool(page < total_pages)) as Rcvar,
+        );
+        result.insert(
+            "has_prev".to_string(),
+            Rc::new(Variable::Bool(page > 1)) as Rcvar,
+        );
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+// =============================================================================
+// estimate_size(any) -> number (JSON serialized byte size)
+// =============================================================================
+
+define_function!(EstimateSizeFn, vec![ArgumentType::Any], None);
+
+impl Function for EstimateSizeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let size = serde_json::to_string(&*args[0])
+            .map(|s| s.len())
+            .unwrap_or(0);
+        Ok(Rc::new(Variable::Number((size as i64).into())))
+    }
+}
+
+// =============================================================================
+// truncate_to_size(any, max_bytes) -> any (truncate to fit within byte limit)
+// =============================================================================
+
+define_function!(
+    TruncateToSizeFn,
+    vec![ArgumentType::Any, ArgumentType::Number],
+    None
+);
+
+impl Function for TruncateToSizeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let max_bytes = args[1].as_number().unwrap_or(1000.0) as usize;
+        let current_size = serde_json::to_string(&*args[0])
+            .map(|s| s.len())
+            .unwrap_or(0);
+
+        if current_size <= max_bytes {
+            return Ok(args[0].clone());
+        }
+
+        // For arrays, truncate elements
+        if let Some(arr) = args[0].as_array() {
+            let mut result: Vec<Rcvar> = Vec::new();
+            let mut size = 2; // []
+
+            for item in arr {
+                let item_size = serde_json::to_string(&**item).map(|s| s.len()).unwrap_or(0);
+                if size + item_size + 1 > max_bytes {
+                    break;
+                }
+                result.push(item.clone());
+                size += item_size + 1;
+            }
+            return Ok(Rc::new(Variable::Array(result)));
+        }
+
+        // For strings, truncate characters
+        if let Some(s) = args[0].as_string() {
+            let target_len = max_bytes.saturating_sub(2); // Account for quotes
+            let truncated: String = s.chars().take(target_len).collect();
+            return Ok(Rc::new(Variable::String(truncated)));
+        }
+
+        // For other types, return as-is (can't easily truncate)
+        Ok(args[0].clone())
+    }
+}
+
+// =============================================================================
+// template(object, template_string) -> string (mustache-style expansion)
+// =============================================================================
+
+define_function!(
+    TemplateFn,
+    vec![ArgumentType::Any, ArgumentType::String],
+    None
+);
+
+impl Function for TemplateFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let template = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected template string".to_owned()),
+            )
+        })?;
+
+        let result = expand_template(&args[0], template, false)
+            .map_err(|e| JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e)))?;
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// template_strict(object, template_string) -> string (error on missing vars)
+// =============================================================================
+
+define_function!(
+    TemplateStrictFn,
+    vec![ArgumentType::Any, ArgumentType::String],
+    None
+);
+
+impl Function for TemplateStrictFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let template = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected template string".to_owned()),
+            )
+        })?;
+
+        let result = expand_template(&args[0], template, true)
+            .map_err(|e| JmespathError::new(ctx.expression, 0, ErrorReason::Parse(e)))?;
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+fn expand_template(data: &Variable, template: &str, strict: bool) -> Result<String, String> {
+    let mut result = String::new();
+    let mut chars = template.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '{' && chars.peek() == Some(&'{') {
+            chars.next(); // consume second {
+
+            // Collect variable name
+            let mut var_name = String::new();
+            let mut fallback: Option<String> = None;
+
+            while let Some(&next) = chars.peek() {
+                if next == '}' {
+                    chars.next();
+                    if chars.peek() == Some(&'}') {
+                        chars.next();
+                        break;
+                    }
+                } else if next == '|' {
+                    chars.next();
+                    // Collect fallback value
+                    let mut fb = String::new();
+                    while let Some(&fc) = chars.peek() {
+                        if fc == '}' {
+                            break;
+                        }
+                        fb.push(chars.next().unwrap());
+                    }
+                    fallback = Some(fb);
+                } else {
+                    var_name.push(chars.next().unwrap());
+                }
+            }
+
+            // Look up variable
+            let value = get_template_value(data, &var_name);
+
+            match value {
+                Some(v) => result.push_str(&variable_to_string(&v)),
+                None => {
+                    if strict {
+                        return Err(format!("missing variable '{}'", var_name));
+                    }
+                    if let Some(fb) = fallback {
+                        result.push_str(&fb);
+                    }
+                }
+            }
+        } else if c == '\\' && chars.peek() == Some(&'{') {
+            // Escape sequence
+            result.push(chars.next().unwrap());
+        } else {
+            result.push(c);
+        }
+    }
+
+    Ok(result)
+}
+
+fn get_template_value(data: &Variable, path: &str) -> Option<Rcvar> {
+    let parts: Vec<&str> = path.trim().split('.').collect();
+    let mut current: Rcvar = Rc::new(data.clone());
+
+    for part in parts {
+        // Check for array index
+        if let Ok(idx) = part.parse::<usize>() {
+            if let Some(arr) = current.as_array() {
+                if idx < arr.len() {
+                    current = arr[idx].clone();
+                    continue;
+                }
+            }
+            return None;
+        }
+
+        // Object key access
+        if let Some(obj) = current.as_object() {
+            if let Some(val) = obj.get(part) {
+                current = val.clone();
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+
+    if current.is_null() {
+        None
+    } else {
+        Some(current)
+    }
+}
+
+fn variable_to_string(value: &Variable) -> String {
+    match value {
+        Variable::String(s) => s.clone(),
+        Variable::Number(n) => n.to_string(),
+        Variable::Bool(b) => b.to_string(),
+        Variable::Null => String::new(),
+        _ => serde_json::to_string(value).unwrap_or_default(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3383,5 +4045,210 @@ mod tests {
         let obj = result.as_object().unwrap();
         assert!(obj.contains_key("user-name"));
         assert_eq!(obj.get("user-name").unwrap().as_string().unwrap(), "bob");
+    }
+
+    // =========================================================================
+    // structural_diff tests
+    // =========================================================================
+
+    #[test]
+    fn test_structural_diff_added() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1}, "b": {"x": 1, "y": 2}}"#).unwrap();
+        let expr = runtime.compile("structural_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let added = obj.get("added").unwrap().as_array().unwrap();
+        assert_eq!(added.len(), 1);
+        assert_eq!(added[0].as_string().unwrap(), "y");
+    }
+
+    #[test]
+    fn test_structural_diff_removed() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1, "y": 2}, "b": {"x": 1}}"#).unwrap();
+        let expr = runtime.compile("structural_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let removed = obj.get("removed").unwrap().as_array().unwrap();
+        assert_eq!(removed.len(), 1);
+        assert_eq!(removed[0].as_string().unwrap(), "y");
+    }
+
+    #[test]
+    fn test_structural_diff_type_changed() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1}, "b": {"x": "string"}}"#).unwrap();
+        let expr = runtime.compile("structural_diff(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let type_changed = obj.get("type_changed").unwrap().as_array().unwrap();
+        assert_eq!(type_changed.len(), 1);
+    }
+
+    #[test]
+    fn test_has_same_shape_true() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1}, "b": {"x": 2}}"#).unwrap();
+        let expr = runtime.compile("has_same_shape(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_has_same_shape_false() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"x": 1}, "b": {"y": 2}}"#).unwrap();
+        let expr = runtime.compile("has_same_shape(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(!result.as_boolean().unwrap());
+    }
+
+    // =========================================================================
+    // infer_schema tests
+    // =========================================================================
+
+    #[test]
+    fn test_infer_schema_object() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"name": "alice", "age": 30}"#).unwrap();
+        let expr = runtime.compile("infer_schema(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let schema = result.as_object().unwrap();
+        assert_eq!(schema.get("type").unwrap().as_string().unwrap(), "object");
+        let props = schema.get("properties").unwrap().as_object().unwrap();
+        assert!(props.contains_key("name"));
+        assert!(props.contains_key("age"));
+    }
+
+    #[test]
+    fn test_infer_schema_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("infer_schema(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let schema = result.as_object().unwrap();
+        assert_eq!(schema.get("type").unwrap().as_string().unwrap(), "array");
+        let items = schema.get("items").unwrap().as_object().unwrap();
+        assert_eq!(items.get("type").unwrap().as_string().unwrap(), "number");
+    }
+
+    // =========================================================================
+    // chunk_by_size tests
+    // =========================================================================
+
+    #[test]
+    fn test_chunk_by_size() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("chunk_by_size(@, `10`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let chunks = result.as_array().unwrap();
+        assert!(chunks.len() > 1); // Should be split into multiple chunks
+    }
+
+    // =========================================================================
+    // paginate tests
+    // =========================================================================
+
+    #[test]
+    fn test_paginate() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"#).unwrap();
+        let expr = runtime.compile("paginate(@, `2`, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+
+        let page_data = obj.get("data").unwrap().as_array().unwrap();
+        assert_eq!(page_data.len(), 3);
+        assert_eq!(page_data[0].as_number().unwrap() as i64, 4); // Page 2 starts at index 3
+
+        assert_eq!(obj.get("page").unwrap().as_number().unwrap() as i64, 2);
+        assert_eq!(obj.get("total").unwrap().as_number().unwrap() as i64, 10);
+        assert_eq!(
+            obj.get("total_pages").unwrap().as_number().unwrap() as i64,
+            4
+        );
+        assert!(obj.get("has_next").unwrap().as_boolean().unwrap());
+        assert!(obj.get("has_prev").unwrap().as_boolean().unwrap());
+    }
+
+    // =========================================================================
+    // estimate_size tests
+    // =========================================================================
+
+    #[test]
+    fn test_estimate_size() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"hello": "world"}"#).unwrap();
+        let expr = runtime.compile("estimate_size(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let size = result.as_number().unwrap() as i64;
+        assert!(size > 0);
+    }
+
+    // =========================================================================
+    // truncate_to_size tests
+    // =========================================================================
+
+    #[test]
+    fn test_truncate_to_size_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 4, 5]"#).unwrap();
+        let expr = runtime.compile("truncate_to_size(@, `5`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert!(arr.len() < 5); // Should be truncated
+    }
+
+    // =========================================================================
+    // template tests
+    // =========================================================================
+
+    #[test]
+    fn test_template_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"name": "alice", "age": 30}"#).unwrap();
+        let expr = runtime
+            .compile(r#"template(@, `"Hello {{name}}, you are {{age}} years old"`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(
+            result.as_string().unwrap(),
+            "Hello alice, you are 30 years old"
+        );
+    }
+
+    #[test]
+    fn test_template_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"user": {"name": "bob"}}"#).unwrap();
+        let expr = runtime
+            .compile(r#"template(@, `"Welcome {{user.name}}!"`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Welcome bob!");
+    }
+
+    #[test]
+    fn test_template_missing_default() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"name": "alice"}"#).unwrap();
+        let expr = runtime
+            .compile(r#"template(@, `"{{name}} - {{title}}"`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "alice - ");
+    }
+
+    #[test]
+    fn test_template_fallback() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{}"#).unwrap();
+        let expr = runtime
+            .compile(r#"template(@, `"Hello {{name|Guest}}"`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "Hello Guest");
     }
 }

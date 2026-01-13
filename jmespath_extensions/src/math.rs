@@ -67,6 +67,11 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("quartiles", Box::new(QuartilesFn::new()));
     runtime.register_function("outliers_iqr", Box::new(OutliersIqrFn::new()));
     runtime.register_function("outliers_zscore", Box::new(OutliersZscoreFn::new()));
+    // Time series functions
+    runtime.register_function("trend", Box::new(TrendFn::new()));
+    runtime.register_function("trend_slope", Box::new(TrendSlopeFn::new()));
+    runtime.register_function("rate_of_change", Box::new(RateOfChangeFn::new()));
+    runtime.register_function("cumulative_sum", Box::new(CumulativeSumFn::new()));
 }
 
 // =============================================================================
@@ -1901,6 +1906,191 @@ impl Function for OutliersZscoreFn {
     }
 }
 
+// =============================================================================
+// trend(array) -> string (detect trend: "increasing", "decreasing", "stable")
+// =============================================================================
+
+define_function!(TrendFn, vec![ArgumentType::Array], None);
+
+impl Function for TrendFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array of numbers".to_owned()),
+            )
+        })?;
+
+        if arr.len() < 2 {
+            return Ok(Rc::new(Variable::String("stable".to_string())));
+        }
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.len() < 2 {
+            return Ok(Rc::new(Variable::String("stable".to_string())));
+        }
+
+        // Calculate linear regression slope
+        let n = values.len() as f64;
+        let sum_x: f64 = (0..values.len()).map(|i| i as f64).sum();
+        let sum_y: f64 = values.iter().sum();
+        let sum_xy: f64 = values.iter().enumerate().map(|(i, y)| i as f64 * y).sum();
+        let sum_x2: f64 = (0..values.len()).map(|i| (i as f64).powi(2)).sum();
+
+        let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x.powi(2));
+
+        // Determine trend based on slope relative to data magnitude
+        let mean: f64 = sum_y / n;
+        let threshold = mean.abs() * 0.01; // 1% of mean as threshold
+
+        let trend = if slope > threshold {
+            "increasing"
+        } else if slope < -threshold {
+            "decreasing"
+        } else {
+            "stable"
+        };
+
+        Ok(Rc::new(Variable::String(trend.to_string())))
+    }
+}
+
+// =============================================================================
+// trend_slope(array) -> number (linear regression slope)
+// =============================================================================
+
+define_function!(TrendSlopeFn, vec![ArgumentType::Array], None);
+
+impl Function for TrendSlopeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array of numbers".to_owned()),
+            )
+        })?;
+
+        if arr.len() < 2 {
+            return Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(0.0).unwrap(),
+            )));
+        }
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.len() < 2 {
+            return Ok(Rc::new(Variable::Number(
+                serde_json::Number::from_f64(0.0).unwrap(),
+            )));
+        }
+
+        // Calculate linear regression slope
+        let n = values.len() as f64;
+        let sum_x: f64 = (0..values.len()).map(|i| i as f64).sum();
+        let sum_y: f64 = values.iter().sum();
+        let sum_xy: f64 = values.iter().enumerate().map(|(i, y)| i as f64 * y).sum();
+        let sum_x2: f64 = (0..values.len()).map(|i| (i as f64).powi(2)).sum();
+
+        let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x.powi(2));
+
+        Ok(Rc::new(Variable::Number(
+            serde_json::Number::from_f64(slope).unwrap_or_else(|| serde_json::Number::from(0)),
+        )))
+    }
+}
+
+// =============================================================================
+// rate_of_change(array) -> array (percentage change between consecutive elements)
+// =============================================================================
+
+define_function!(RateOfChangeFn, vec![ArgumentType::Array], None);
+
+impl Function for RateOfChangeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array of numbers".to_owned()),
+            )
+        })?;
+
+        if arr.len() < 2 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.len() < 2 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let changes: Vec<Rcvar> = values
+            .windows(2)
+            .map(|w| {
+                let prev = w[0];
+                let curr = w[1];
+                let pct_change = if prev != 0.0 {
+                    ((curr - prev) / prev) * 100.0
+                } else {
+                    0.0
+                };
+                Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(pct_change)
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                )) as Rcvar
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(changes)))
+    }
+}
+
+// =============================================================================
+// cumulative_sum(array) -> array (running total)
+// =============================================================================
+
+define_function!(CumulativeSumFn, vec![ArgumentType::Array], None);
+
+impl Function for CumulativeSumFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array of numbers".to_owned()),
+            )
+        })?;
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        let mut running_sum = 0.0;
+        let cumsum: Vec<Rcvar> = values
+            .iter()
+            .map(|v| {
+                running_sum += v;
+                Rc::new(Variable::Number(
+                    serde_json::Number::from_f64(running_sum)
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                )) as Rcvar
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(cumsum)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2206,5 +2396,66 @@ mod tests {
         assert!(arr[2].as_number().unwrap().abs() < 0.001);
         // Last value: (50-30)/14.14 ≈ 1.41
         assert!((arr[4].as_number().unwrap() - 1.414).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_trend_increasing() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("trend(`[1, 2, 3, 5, 8]`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "increasing");
+    }
+
+    #[test]
+    fn test_trend_decreasing() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("trend(`[10, 9, 8, 7, 6]`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "decreasing");
+    }
+
+    #[test]
+    fn test_trend_stable() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("trend(`[5, 5, 5, 5, 5]`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        assert_eq!(result.as_string().unwrap(), "stable");
+    }
+
+    #[test]
+    fn test_trend_slope() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("trend_slope(`[0, 1, 2, 3, 4]`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        // Perfect linear increase with slope 1
+        assert!((result.as_number().unwrap() - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_rate_of_change() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("rate_of_change(`[100, 110, 105]`)")
+            .unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        // 100 -> 110 = 10% increase
+        assert!((arr[0].as_number().unwrap() - 10.0).abs() < 0.01);
+        // 110 -> 105 = -4.545% decrease
+        assert!((arr[1].as_number().unwrap() - (-4.545)).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_cumulative_sum() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("cumulative_sum(`[1, 2, 3, 4]`)").unwrap();
+        let result = expr.search(&Variable::Null).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4);
+        assert_eq!(arr[0].as_number().unwrap(), 1.0);
+        assert_eq!(arr[1].as_number().unwrap(), 3.0);
+        assert_eq!(arr[2].as_number().unwrap(), 6.0);
+        assert_eq!(arr[3].as_number().unwrap(), 10.0);
     }
 }
