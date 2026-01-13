@@ -1,0 +1,3 @@
+["def", "triple", ["n"], ["multiply", "@.n", 3]]
+["def", "cube", ["n"], ["multiply", ["multiply", "@.n", "@.n"], "@.n"]]
+["def", "is-even", ["n"], ["assert-eq", ["mod", "@.n", 2], 0]]

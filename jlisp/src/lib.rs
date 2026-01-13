@@ -22,6 +22,7 @@
 use jmespath::{Rcvar, Variable};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::Path;
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -41,6 +42,12 @@ pub enum JlispError {
         expected: usize,
         got: usize,
     },
+    #[error("IO error: {0}")]
+    IoError(String),
+    #[error("Test failed: {name} - {message}")]
+    TestFailed { name: String, message: String },
+    #[error("Assertion failed: expected {expected}, got {actual}")]
+    AssertionFailed { expected: String, actual: String },
 }
 
 pub type Result<T> = std::result::Result<T, JlispError>;
@@ -56,6 +63,17 @@ enum SpecialForm {
     Lambda,    // Anonymous function (stored as JMESPath expression)
     Do,        // Sequence of expressions
     Jmes,      // Raw JMESPath expression
+    // Module system
+    Load,   // Load a file: ["load", "path/to/file.jlisp"]
+    Module, // Define a module: ["module", "name", [...defs...]]
+    Export, // Export from module: ["export", "fn1", "fn2"]
+    // Testing
+    Test,        // Define a test: ["test", "name", assertion]
+    TestSuite,   // Group tests: ["test-suite", "name", [...tests...]]
+    AssertEq,    // Assert equality: ["assert-eq", expr, expected]
+    AssertTrue,  // Assert truthy: ["assert-true", expr]
+    AssertFalse, // Assert falsy: ["assert-false", expr]
+    RunTests,    // Run all tests: ["run-tests"]
 }
 
 impl SpecialForm {
@@ -69,6 +87,17 @@ impl SpecialForm {
             "lambda" | "fn" => Some(Self::Lambda),
             "do" => Some(Self::Do),
             "jmes" | "$" => Some(Self::Jmes),
+            // Modules
+            "load" | "require" => Some(Self::Load),
+            "module" => Some(Self::Module),
+            "export" => Some(Self::Export),
+            // Testing
+            "test" => Some(Self::Test),
+            "test-suite" => Some(Self::TestSuite),
+            "assert-eq" | "assert=" => Some(Self::AssertEq),
+            "assert-true" | "assert" => Some(Self::AssertTrue),
+            "assert-false" => Some(Self::AssertFalse),
+            "run-tests" => Some(Self::RunTests),
             _ => None,
         }
     }
@@ -81,10 +110,30 @@ struct UserFn {
     body: Value,
 }
 
+/// A test case
+#[derive(Debug, Clone)]
+struct TestCase {
+    name: String,
+    body: Value,
+    suite: Option<String>,
+}
+
+/// Test result
+#[derive(Debug, Clone)]
+pub struct TestResult {
+    pub name: String,
+    pub passed: bool,
+    pub message: Option<String>,
+}
+
 pub struct Jlisp {
     runtime: jmespath::Runtime,
     env: HashMap<String, Value>,
     user_fns: HashMap<String, UserFn>,
+    modules: HashMap<String, Vec<String>>, // module name -> exported function names
+    current_module: Option<String>,
+    tests: Vec<TestCase>,
+    loaded_files: Vec<String>,
 }
 
 impl Default for Jlisp {
@@ -103,7 +152,103 @@ impl Jlisp {
             runtime,
             env: HashMap::new(),
             user_fns: HashMap::new(),
+            modules: HashMap::new(),
+            current_module: None,
+            tests: Vec::new(),
+            loaded_files: Vec::new(),
         }
+    }
+
+    /// Load and evaluate a JLisp file
+    ///
+    /// Supports two formats:
+    /// 1. One JSON expression per line (recommended for .jlisp files)
+    /// 2. A single JSON array containing multiple expressions
+    pub fn load_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Value> {
+        let path_str = path.as_ref().to_string_lossy().to_string();
+
+        // Prevent double-loading
+        if self.loaded_files.contains(&path_str) {
+            return Ok(Value::Null);
+        }
+
+        let content = std::fs::read_to_string(path.as_ref())
+            .map_err(|e| JlispError::IoError(format!("{}: {}", path_str, e)))?;
+
+        self.loaded_files.push(path_str.clone());
+
+        // Try parsing line by line first (each line is a separate expression)
+        let lines: Vec<&str> = content
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !line.trim().starts_with("//"))
+            .collect();
+
+        let exprs: Vec<Value> = if lines.is_empty() {
+            vec![]
+        } else {
+            // Try line-by-line parsing
+            let line_parse: std::result::Result<Vec<Value>, _> = lines
+                .iter()
+                .map(|line| serde_json::from_str(line))
+                .collect();
+
+            match line_parse {
+                Ok(exprs) => exprs,
+                Err(_) => {
+                    // Fall back to parsing the entire content as a single JSON value
+                    // This handles files that are a single array of expressions
+                    let parsed: Value = serde_json::from_str(&content).map_err(|e| {
+                        JlispError::IoError(format!("{}: Parse error: {}", path_str, e))
+                    })?;
+
+                    // If it's an array, treat each element as an expression
+                    match parsed {
+                        Value::Array(arr) => arr,
+                        other => vec![other],
+                    }
+                }
+            }
+        };
+
+        let mut result = Value::Null;
+        for expr in exprs {
+            result = self.eval(&expr)?;
+        }
+        Ok(result)
+    }
+
+    /// Run all registered tests and return results
+    pub fn run_tests(&mut self) -> Vec<TestResult> {
+        let tests = self.tests.clone();
+        let mut results = Vec::new();
+
+        for test in tests {
+            let result = match self.eval(&test.body) {
+                Ok(v) => {
+                    if v.as_bool().unwrap_or(false) || v == Value::Bool(true) {
+                        TestResult {
+                            name: test.name.clone(),
+                            passed: true,
+                            message: None,
+                        }
+                    } else {
+                        TestResult {
+                            name: test.name.clone(),
+                            passed: false,
+                            message: Some(format!("Assertion returned: {}", v)),
+                        }
+                    }
+                }
+                Err(e) => TestResult {
+                    name: test.name.clone(),
+                    passed: false,
+                    message: Some(e.to_string()),
+                },
+            };
+            results.push(result);
+        }
+
+        results
     }
 
     /// Evaluate a JLisp expression
@@ -366,6 +511,255 @@ impl Jlisp {
                 let expr = format!("let {} in {}", binding_strs.join(", "), body);
                 self.eval_jmespath(&expr, ctx)
             }
+
+            // =========== Module System ===========
+            SpecialForm::Load => {
+                // Load a file: ["load", "path/to/file.jlisp"]
+                if args.is_empty() {
+                    return Err(JlispError::ArityError {
+                        name: "load".to_string(),
+                        expected: 1,
+                        got: 0,
+                    });
+                }
+                let path = args[0].as_str().ok_or_else(|| JlispError::TypeError {
+                    expected: "string (file path)".to_string(),
+                    got: format!("{:?}", args[0]),
+                })?;
+                self.load_file(path)
+            }
+
+            SpecialForm::Module => {
+                // Define a module: ["module", "name", [...defs...]]
+                if args.len() < 2 {
+                    return Err(JlispError::ArityError {
+                        name: "module".to_string(),
+                        expected: 2,
+                        got: args.len(),
+                    });
+                }
+                let name = args[0].as_str().ok_or_else(|| JlispError::TypeError {
+                    expected: "string (module name)".to_string(),
+                    got: format!("{:?}", args[0]),
+                })?;
+
+                let old_module = self.current_module.take();
+                self.current_module = Some(name.to_string());
+                self.modules.insert(name.to_string(), Vec::new());
+
+                // Evaluate all definitions in the module
+                let defs = args[1].as_array().ok_or_else(|| JlispError::TypeError {
+                    expected: "array of definitions".to_string(),
+                    got: format!("{:?}", args[1]),
+                })?;
+
+                for def in defs {
+                    self.eval_with_context(def, ctx)?;
+                }
+
+                self.current_module = old_module;
+                Ok(Value::String(format!("module:{}", name)))
+            }
+
+            SpecialForm::Export => {
+                // Export from module: ["export", "fn1", "fn2", ...]
+                let module_name = self.current_module.clone().ok_or_else(|| {
+                    JlispError::InvalidExpression("export must be used inside a module".to_string())
+                })?;
+
+                let exports: Vec<String> = args
+                    .iter()
+                    .map(|a| {
+                        a.as_str()
+                            .map(|s| s.to_string())
+                            .ok_or_else(|| JlispError::TypeError {
+                                expected: "string".to_string(),
+                                got: format!("{:?}", a),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                if let Some(module_exports) = self.modules.get_mut(&module_name) {
+                    module_exports.extend(exports.clone());
+                }
+
+                // Create module-prefixed aliases for exported functions
+                for export in &exports {
+                    if let Some(func) = self.user_fns.get(export).cloned() {
+                        let prefixed_name = format!("{}/{}", module_name, export);
+                        self.user_fns.insert(prefixed_name, func);
+                    }
+                }
+
+                Ok(Value::Array(
+                    exports.into_iter().map(Value::String).collect(),
+                ))
+            }
+
+            // =========== Testing Framework ===========
+            SpecialForm::Test => {
+                // Define a test: ["test", "name", assertion]
+                if args.len() < 2 {
+                    return Err(JlispError::ArityError {
+                        name: "test".to_string(),
+                        expected: 2,
+                        got: args.len(),
+                    });
+                }
+                let name = args[0].as_str().ok_or_else(|| JlispError::TypeError {
+                    expected: "string (test name)".to_string(),
+                    got: format!("{:?}", args[0]),
+                })?;
+
+                self.tests.push(TestCase {
+                    name: name.to_string(),
+                    body: args[1].clone(),
+                    suite: None,
+                });
+
+                Ok(Value::String(format!("test:{}", name)))
+            }
+
+            SpecialForm::TestSuite => {
+                // Group tests: ["test-suite", "name", [...tests...]]
+                if args.len() < 2 {
+                    return Err(JlispError::ArityError {
+                        name: "test-suite".to_string(),
+                        expected: 2,
+                        got: args.len(),
+                    });
+                }
+                let suite_name = args[0].as_str().ok_or_else(|| JlispError::TypeError {
+                    expected: "string (suite name)".to_string(),
+                    got: format!("{:?}", args[0]),
+                })?;
+
+                let tests = args[1].as_array().ok_or_else(|| JlispError::TypeError {
+                    expected: "array of tests".to_string(),
+                    got: format!("{:?}", args[1]),
+                })?;
+
+                // Evaluate each test definition, they'll add themselves to self.tests
+                let start_idx = self.tests.len();
+                for test in tests {
+                    self.eval_with_context(test, ctx)?;
+                }
+
+                // Mark the tests as belonging to this suite
+                for test in &mut self.tests[start_idx..] {
+                    test.suite = Some(suite_name.to_string());
+                }
+
+                Ok(Value::String(format!("suite:{}", suite_name)))
+            }
+
+            SpecialForm::AssertEq => {
+                // Assert equality: ["assert-eq", expr, expected]
+                if args.len() != 2 {
+                    return Err(JlispError::ArityError {
+                        name: "assert-eq".to_string(),
+                        expected: 2,
+                        got: args.len(),
+                    });
+                }
+                let actual = self.eval_with_context(&args[0], ctx)?;
+                let expected = self.eval_with_context(&args[1], ctx)?;
+
+                if actual == expected {
+                    Ok(Value::Bool(true))
+                } else {
+                    Err(JlispError::AssertionFailed {
+                        expected: serde_json::to_string(&expected).unwrap_or_default(),
+                        actual: serde_json::to_string(&actual).unwrap_or_default(),
+                    })
+                }
+            }
+
+            SpecialForm::AssertTrue => {
+                // Assert truthy: ["assert-true", expr]
+                if args.is_empty() {
+                    return Err(JlispError::ArityError {
+                        name: "assert-true".to_string(),
+                        expected: 1,
+                        got: 0,
+                    });
+                }
+                let value = self.eval_with_context(&args[0], ctx)?;
+                let is_truthy = match &value {
+                    Value::Null => false,
+                    Value::Bool(b) => *b,
+                    Value::Array(a) => !a.is_empty(),
+                    Value::Object(o) => !o.is_empty(),
+                    Value::String(s) => !s.is_empty(),
+                    Value::Number(_) => true,
+                };
+
+                if is_truthy {
+                    Ok(Value::Bool(true))
+                } else {
+                    Err(JlispError::AssertionFailed {
+                        expected: "truthy value".to_string(),
+                        actual: serde_json::to_string(&value).unwrap_or_default(),
+                    })
+                }
+            }
+
+            SpecialForm::AssertFalse => {
+                // Assert falsy: ["assert-false", expr]
+                if args.is_empty() {
+                    return Err(JlispError::ArityError {
+                        name: "assert-false".to_string(),
+                        expected: 1,
+                        got: 0,
+                    });
+                }
+                let value = self.eval_with_context(&args[0], ctx)?;
+                let is_falsy = match &value {
+                    Value::Null => true,
+                    Value::Bool(b) => !*b,
+                    Value::Array(a) => a.is_empty(),
+                    Value::Object(o) => o.is_empty(),
+                    Value::String(s) => s.is_empty(),
+                    Value::Number(_) => false,
+                };
+
+                if is_falsy {
+                    Ok(Value::Bool(true))
+                } else {
+                    Err(JlispError::AssertionFailed {
+                        expected: "falsy value".to_string(),
+                        actual: serde_json::to_string(&value).unwrap_or_default(),
+                    })
+                }
+            }
+
+            SpecialForm::RunTests => {
+                // Run all tests: ["run-tests"]
+                let results = self.run_tests();
+                let passed = results.iter().filter(|r| r.passed).count();
+                let failed = results.iter().filter(|r| !r.passed).count();
+
+                let result_array: Vec<Value> = results
+                    .iter()
+                    .map(|r| {
+                        let mut obj = serde_json::Map::new();
+                        obj.insert("name".to_string(), Value::String(r.name.clone()));
+                        obj.insert("passed".to_string(), Value::Bool(r.passed));
+                        if let Some(msg) = &r.message {
+                            obj.insert("message".to_string(), Value::String(msg.clone()));
+                        }
+                        Value::Object(obj)
+                    })
+                    .collect();
+
+                let mut summary = serde_json::Map::new();
+                summary.insert("total".to_string(), Value::Number((passed + failed).into()));
+                summary.insert("passed".to_string(), Value::Number(passed.into()));
+                summary.insert("failed".to_string(), Value::Number(failed.into()));
+                summary.insert("results".to_string(), Value::Array(result_array));
+
+                Ok(Value::Object(summary))
+            }
         }
     }
 
@@ -624,5 +1018,185 @@ mod tests {
             .eval(&json!(["let$", {"doubled": ["multiply", 5, 2]}, "add($doubled, `1`)"]))
             .unwrap();
         assert_eq!(result, json!(11.0));
+    }
+
+    // =========== Module System Tests ===========
+
+    #[test]
+    fn test_module_basic() {
+        let mut jlisp = Jlisp::new();
+
+        // Define a module with functions
+        jlisp
+            .eval(&json!([
+                "module",
+                "math",
+                [
+                    ["def", "double", ["n"], ["multiply", "@.n", 2]],
+                    ["def", "triple", ["n"], ["multiply", "@.n", 3]],
+                    ["export", "double", "triple"]
+                ]
+            ]))
+            .unwrap();
+
+        // Call exported functions with module prefix
+        assert_eq!(jlisp.eval(&json!(["math/double", 5])).unwrap(), json!(10.0));
+        assert_eq!(jlisp.eval(&json!(["math/triple", 4])).unwrap(), json!(12.0));
+    }
+
+    #[test]
+    fn test_module_nested_calls() {
+        let mut jlisp = Jlisp::new();
+
+jlisp
+            .eval(&json!([
+                "module",
+                "utils",
+                [
+                    ["def", "square", ["n"], ["multiply", "@.n", "@.n"]],
+                    ["export", "square"]
+                ]
+            ]))
+            .unwrap();
+
+        // Use module function in another expression
+        let result = jlisp
+            .eval(&json!(["add", ["utils/square", 3], ["utils/square", 4]]))
+            .unwrap();
+        assert_eq!(result, json!(25.0)); // 9 + 16
+    }
+
+    // =========== Testing Framework Tests ===========
+
+    #[test]
+    fn test_assert_eq_pass() {
+        let mut jlisp = Jlisp::new();
+        let result = jlisp.eval(&json!(["assert-eq", ["add", 1, 2], 3.0]));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), json!(true));
+    }
+
+    #[test]
+    fn test_assert_eq_fail() {
+        let mut jlisp = Jlisp::new();
+        let result = jlisp.eval(&json!(["assert-eq", 1, 2]));
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            JlispError::AssertionFailed { .. }
+        ));
+    }
+
+    #[test]
+    fn test_assert_true() {
+        let mut jlisp = Jlisp::new();
+        assert!(jlisp.eval(&json!(["assert-true", true])).is_ok());
+        assert!(jlisp.eval(&json!(["assert-true", 1])).is_ok());
+        assert!(jlisp.eval(&json!(["assert-true", "hello"])).is_ok());
+        assert!(jlisp.eval(&json!(["assert-true", [1, 2]])).is_ok());
+
+        // Falsy values should fail
+        assert!(jlisp.eval(&json!(["assert-true", false])).is_err());
+        assert!(jlisp.eval(&json!(["assert-true", null])).is_err());
+        assert!(jlisp.eval(&json!(["assert-true", ""])).is_err());
+        assert!(jlisp.eval(&json!(["assert-true", []])).is_err());
+    }
+
+    #[test]
+    fn test_assert_false() {
+        let mut jlisp = Jlisp::new();
+        assert!(jlisp.eval(&json!(["assert-false", false])).is_ok());
+        assert!(jlisp.eval(&json!(["assert-false", null])).is_ok());
+        assert!(jlisp.eval(&json!(["assert-false", ""])).is_ok());
+        assert!(jlisp.eval(&json!(["assert-false", []])).is_ok());
+
+        // Truthy values should fail
+        assert!(jlisp.eval(&json!(["assert-false", true])).is_err());
+        assert!(jlisp.eval(&json!(["assert-false", 1])).is_err());
+    }
+
+    #[test]
+    fn test_test_registration() {
+        let mut jlisp = Jlisp::new();
+
+        // Register some tests
+        jlisp
+            .eval(&json!([
+                "test",
+                "add works",
+                ["assert-eq", ["add", 1, 1], 2.0]
+            ]))
+            .unwrap();
+        jlisp
+            .eval(&json!([
+                "test",
+                "multiply works",
+                ["assert-eq", ["multiply", 2, 3], 6.0]
+            ]))
+            .unwrap();
+
+        assert_eq!(jlisp.tests.len(), 2);
+    }
+
+    #[test]
+    fn test_run_tests() {
+        let mut jlisp = Jlisp::new();
+
+        // Register tests (2 pass, 1 fail)
+        jlisp
+            .eval(&json!(["test", "pass1", ["assert-eq", 1, 1]]))
+            .unwrap();
+        jlisp
+            .eval(&json!(["test", "pass2", ["assert-eq", "a", "a"]]))
+            .unwrap();
+        jlisp
+            .eval(&json!(["test", "fail1", ["assert-eq", 1, 2]]))
+            .unwrap();
+
+        let results = jlisp.run_tests();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results.iter().filter(|r| r.passed).count(), 2);
+        assert_eq!(results.iter().filter(|r| !r.passed).count(), 1);
+    }
+
+    #[test]
+    fn test_test_suite() {
+        let mut jlisp = Jlisp::new();
+
+jlisp
+            .eval(&json!([
+                "test-suite",
+                "math",
+                [
+                    ["test", "add", ["assert-eq", ["add", 1, 1], 2.0]],
+                    ["test", "sub", ["assert-eq", ["subtract", 5, 3], 2.0]]
+                ]
+            ]))
+            .unwrap();
+
+        assert_eq!(jlisp.tests.len(), 2);
+        assert!(jlisp
+            .tests
+            .iter()
+            .all(|t| t.suite == Some("math".to_string())));
+    }
+
+    #[test]
+    fn test_run_tests_returns_summary() {
+        let mut jlisp = Jlisp::new();
+
+jlisp
+            .eval(&json!(["test", "t1", ["assert-eq", 1, 1]]))
+            .unwrap();
+        jlisp
+            .eval(&json!(["test", "t2", ["assert-eq", 1, 2]]))
+            .unwrap();
+
+        let result = jlisp.eval(&json!(["run-tests"])).unwrap();
+
+        assert_eq!(result["total"], json!(2));
+        assert_eq!(result["passed"], json!(1));
+        assert_eq!(result["failed"], json!(1));
+        assert!(result["results"].is_array());
     }
 }
