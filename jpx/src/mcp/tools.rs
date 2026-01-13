@@ -1970,4 +1970,219 @@ mod tests {
         let result = mcp_strict.keys(Parameters(keys_params)).await.unwrap();
         assert_eq!(result.is_error, Some(false));
     }
+
+    // =========================================================================
+    // Path function tests (get_path, has_path, set_path, delete_path)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_evaluate_get_path_dot_notation() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{"a": {"b": {"c": 42}}}"#.to_string(),
+            expression: "get_path(@, `\"a.b.c\"`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert_eq!(text_content.text.trim(), "42");
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_get_path_with_default() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{"a": 1}"#.to_string(),
+            expression: "get_path(@, `\"a.b.c\"`, `\"missing\"`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("missing"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_get_path_array_index() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{"users": [{"name": "alice"}, {"name": "bob"}]}"#.to_string(),
+            expression: "get_path(@, `\"users.0.name\"`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("alice"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_has_path_exists() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{"a": {"b": 1}}"#.to_string(),
+            expression: "has_path(@, `\"a.b\"`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert_eq!(text_content.text.trim(), "true");
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_has_path_missing() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{"a": {"b": 1}}"#.to_string(),
+            expression: "has_path(@, `\"a.c\"`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert_eq!(text_content.text.trim(), "false");
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_set_path_dot_notation() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{"a": {}}"#.to_string(),
+            expression: "set_path(@, `\"a.b\"`, `99`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"b\": 99"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_set_path_creates_nested() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{}"#.to_string(),
+            expression: "set_path(@, `\"a.b.c\"`, `\"deep\"`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(text_content.text.contains("\"c\": \"deep\""));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_delete_path_dot_notation() {
+        let mcp = JpxMcp::new(false);
+        let params = EvaluateParams {
+            input: r#"{"a": {"b": 1, "c": 2}}"#.to_string(),
+            expression: "delete_path(@, `\"a.b\"`)".to_string(),
+        };
+        let result = mcp.evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(!text_content.text.contains("\"b\":"));
+                assert!(text_content.text.contains("\"c\": 2"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_evaluate_path_functions() {
+        let mcp = JpxMcp::new(false);
+        let params = BatchEvaluateParams {
+            input: r#"{"user": {"name": "alice", "age": 30}}"#.to_string(),
+            expressions: vec![
+                "get_path(@, `\"user.name\"`)".to_string(),
+                "has_path(@, `\"user.email\"`)".to_string(),
+                "get_path(@, `\"user.email\"`, `\"none\"`)".to_string(),
+            ],
+        };
+        let result = mcp.batch_evaluate(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let batch_result: BatchEvaluateResult =
+                    serde_json::from_str(&text_content.text).unwrap();
+
+                // get_path returns "alice"
+                assert_eq!(
+                    batch_result.results[0].result,
+                    Some(serde_json::json!("alice"))
+                );
+                // has_path returns false (email doesn't exist)
+                assert_eq!(
+                    batch_result.results[1].result,
+                    Some(serde_json::json!(false))
+                );
+                // get_path with default returns "none"
+                assert_eq!(
+                    batch_result.results[2].result,
+                    Some(serde_json::json!("none"))
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
 }

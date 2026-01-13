@@ -301,6 +301,101 @@ mod cli_options {
     }
 }
 
+mod path_functions {
+    use super::*;
+
+    #[test]
+    fn test_get_path_dot_notation() {
+        let result = run_query(r#"{"a": {"b": {"c": 42}}}"#, "get_path(@, `\"a.b.c\"`)");
+        assert_eq!(result, "42");
+    }
+
+    #[test]
+    fn test_get_path_with_default() {
+        let result = run_query(r#"{"a": 1}"#, "get_path(@, `\"a.b.c\"`, `\"missing\"`)");
+        assert_eq!(result, r#""missing""#);
+    }
+
+    #[test]
+    fn test_get_path_array_index() {
+        let result = run_query(
+            r#"{"users": [{"name": "alice"}, {"name": "bob"}]}"#,
+            "get_path(@, `\"users.0.name\"`)",
+        );
+        assert_eq!(result, r#""alice""#);
+    }
+
+    #[test]
+    fn test_has_path_exists() {
+        let result = run_query(r#"{"a": {"b": 1}}"#, "has_path(@, `\"a.b\"`)");
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_has_path_missing() {
+        let result = run_query(r#"{"a": {"b": 1}}"#, "has_path(@, `\"a.c\"`)");
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_has_path_array_index() {
+        let result = run_query(r#"{"items": [1, 2, 3]}"#, "has_path(@, `\"items.1\"`)");
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_set_path_dot_notation() {
+        let result = run_query(r#"{"a": {}}"#, "set_path(@, `\"a.b\"`, `99`)");
+        assert!(result.contains("\"b\": 99"));
+    }
+
+    #[test]
+    fn test_set_path_creates_nested() {
+        let result = run_query(r#"{}"#, "set_path(@, `\"a.b.c\"`, `\"deep\"`)");
+        assert!(result.contains("\"c\": \"deep\""));
+    }
+
+    #[test]
+    fn test_set_path_array_index() {
+        let result = run_query(
+            r#"{"items": [1, 2, 3]}"#,
+            "set_path(@, `\"items.1\"`, `99`)",
+        );
+        assert!(result.contains("99"));
+    }
+
+    #[test]
+    fn test_delete_path_dot_notation() {
+        let result = run_query(r#"{"a": {"b": 1, "c": 2}}"#, "delete_path(@, `\"a.b\"`)");
+        assert!(!result.contains("\"b\":"));
+        assert!(result.contains("\"c\": 2"));
+    }
+
+    #[test]
+    fn test_delete_path_array_index() {
+        let result = run_query(r#"{"items": [1, 2, 3]}"#, "delete_path(@, `\"items.1\"`)");
+        // After deleting index 1 (value 2), should have [1, 3]
+        assert!(result.contains("1"));
+        assert!(result.contains("3"));
+    }
+
+    #[test]
+    fn test_get_alias_works() {
+        // get and get_path should be equivalent
+        let result1 = run_query(r#"{"a": {"b": 1}}"#, "get(@, `\"a.b\"`)");
+        let result2 = run_query(r#"{"a": {"b": 1}}"#, "get_path(@, `\"a.b\"`)");
+        assert_eq!(result1, result2);
+    }
+
+    #[test]
+    fn test_has_alias_works() {
+        // has and has_path should be equivalent
+        let result1 = run_query(r#"{"a": {"b": 1}}"#, "has(@, `\"a.b\"`)");
+        let result2 = run_query(r#"{"a": {"b": 1}}"#, "has_path(@, `\"a.b\"`)");
+        assert_eq!(result1, result2);
+    }
+}
+
 mod error_handling {
     use super::*;
 
