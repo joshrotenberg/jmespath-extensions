@@ -64,6 +64,12 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("redact", Box::new(RedactFn::new()));
     runtime.register_function("mask", Box::new(MaskFn::new()));
     runtime.register_function("redact_keys", Box::new(RedactKeysFn::new()));
+    // Recursive key search and transformation
+    runtime.register_function("pluck_deep", Box::new(PluckDeepFn::new()));
+    runtime.register_function("paths_to", Box::new(PathsToFn::new()));
+    runtime.register_function("snake_keys", Box::new(SnakeKeysFn::new()));
+    runtime.register_function("camel_keys", Box::new(CamelKeysFn::new()));
+    runtime.register_function("kebab_keys", Box::new(KebabKeysFn::new()));
 }
 
 // =============================================================================
@@ -2094,6 +2100,234 @@ fn redact_keys_recursive(value: &Variable, pattern: &regex::Regex) -> Variable {
     }
 }
 
+// =============================================================================
+// pluck_deep(any, key) -> array (find all values for key anywhere in structure)
+// =============================================================================
+
+define_function!(
+    PluckDeepFn,
+    vec![ArgumentType::Any, ArgumentType::String],
+    None
+);
+
+impl Function for PluckDeepFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let key = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected key string".to_owned()),
+            )
+        })?;
+
+        let mut results: Vec<Rcvar> = Vec::new();
+        pluck_deep_recursive(&args[0], key, &mut results);
+        Ok(Rc::new(Variable::Array(results)))
+    }
+}
+
+fn pluck_deep_recursive(value: &Variable, key: &str, results: &mut Vec<Rcvar>) {
+    match value {
+        Variable::Object(obj) => {
+            if let Some(v) = obj.get(key) {
+                results.push(v.clone());
+            }
+            for (_, v) in obj.iter() {
+                pluck_deep_recursive(v, key, results);
+            }
+        }
+        Variable::Array(arr) => {
+            for v in arr {
+                pluck_deep_recursive(v, key, results);
+            }
+        }
+        _ => {}
+    }
+}
+
+// =============================================================================
+// paths_to(any, key) -> array (return all dot-notation paths to matching keys)
+// =============================================================================
+
+define_function!(
+    PathsToFn,
+    vec![ArgumentType::Any, ArgumentType::String],
+    None
+);
+
+impl Function for PathsToFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let key = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected key string".to_owned()),
+            )
+        })?;
+
+        let mut paths: Vec<String> = Vec::new();
+        paths_to_recursive(&args[0], key, String::new(), &mut paths);
+
+        let result: Vec<Rcvar> = paths
+            .into_iter()
+            .map(|p| Rc::new(Variable::String(p)) as Rcvar)
+            .collect();
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+fn paths_to_recursive(value: &Variable, key: &str, current_path: String, paths: &mut Vec<String>) {
+    match value {
+        Variable::Object(obj) => {
+            for (k, v) in obj.iter() {
+                let new_path = if current_path.is_empty() {
+                    k.clone()
+                } else {
+                    format!("{}.{}", current_path, k)
+                };
+                if k == key {
+                    paths.push(new_path.clone());
+                }
+                paths_to_recursive(v, key, new_path, paths);
+            }
+        }
+        Variable::Array(arr) => {
+            for (idx, v) in arr.iter().enumerate() {
+                let new_path = if current_path.is_empty() {
+                    idx.to_string()
+                } else {
+                    format!("{}.{}", current_path, idx)
+                };
+                paths_to_recursive(v, key, new_path, paths);
+            }
+        }
+        _ => {}
+    }
+}
+
+// =============================================================================
+// snake_keys(any) -> any (recursively convert all keys to snake_case)
+// =============================================================================
+
+define_function!(SnakeKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for SnakeKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], to_snake_case)))
+    }
+}
+
+fn to_snake_case(s: &str) -> String {
+    let mut result = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() {
+            if i > 0 {
+                result.push('_');
+            }
+            result.push(c.to_lowercase().next().unwrap());
+        } else if c == '-' || c == ' ' {
+            result.push('_');
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+// =============================================================================
+// camel_keys(any) -> any (recursively convert all keys to camelCase)
+// =============================================================================
+
+define_function!(CamelKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for CamelKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], to_camel_case)))
+    }
+}
+
+fn to_camel_case(s: &str) -> String {
+    let mut result = String::new();
+    let mut capitalize_next = false;
+    for (i, c) in s.chars().enumerate() {
+        if c == '_' || c == '-' || c == ' ' {
+            capitalize_next = true;
+        } else if capitalize_next {
+            result.push(c.to_uppercase().next().unwrap());
+            capitalize_next = false;
+        } else if i == 0 {
+            result.push(c.to_lowercase().next().unwrap());
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+// =============================================================================
+// kebab_keys(any) -> any (recursively convert all keys to kebab-case)
+// =============================================================================
+
+define_function!(KebabKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for KebabKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], to_kebab_case)))
+    }
+}
+
+fn to_kebab_case(s: &str) -> String {
+    let mut result = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() {
+            if i > 0 {
+                result.push('-');
+            }
+            result.push(c.to_lowercase().next().unwrap());
+        } else if c == '_' || c == ' ' {
+            result.push('-');
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+fn transform_keys_recursive<F>(value: &Variable, transform: F) -> Variable
+where
+    F: Fn(&str) -> String + Copy,
+{
+    match value {
+        Variable::Object(obj) => {
+            let transformed: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        transform(k),
+                        Rc::new(transform_keys_recursive(v, transform)),
+                    )
+                })
+                .collect();
+            Variable::Object(transformed)
+        }
+        Variable::Array(arr) => {
+            let transformed: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(transform_keys_recursive(v, transform)))
+                .collect();
+            Variable::Array(transformed)
+        }
+        _ => value.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3003,5 +3237,151 @@ mod tests {
             "[REDACTED]"
         );
         assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "test");
+    }
+
+    // =========================================================================
+    // pluck_deep tests
+    // =========================================================================
+
+    #[test]
+    fn test_pluck_deep_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"users": [{"id": 1}, {"id": 2}], "meta": {"id": 99}}"#)
+            .unwrap();
+        let expr = runtime.compile(r#"pluck_deep(@, `"id"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_pluck_deep_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"b": {"c": 1}}, "d": {"c": 2}}"#).unwrap();
+        let expr = runtime.compile(r#"pluck_deep(@, `"c"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn test_pluck_deep_not_found() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let expr = runtime.compile(r#"pluck_deep(@, `"x"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    // =========================================================================
+    // paths_to tests
+    // =========================================================================
+
+    #[test]
+    fn test_paths_to_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": {"id": 1}, "b": {"id": 2}}"#).unwrap();
+        let expr = runtime.compile(r#"paths_to(@, `"id"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        let paths: Vec<String> = arr
+            .iter()
+            .map(|p| p.as_string().unwrap().to_string())
+            .collect();
+        assert!(paths.contains(&"a.id".to_string()));
+        assert!(paths.contains(&"b.id".to_string()));
+    }
+
+    #[test]
+    fn test_paths_to_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"users": [{"id": 1}]}"#).unwrap();
+        let expr = runtime.compile(r#"paths_to(@, `"id"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_string().unwrap(), "users.0.id");
+    }
+
+    // =========================================================================
+    // snake_keys tests
+    // =========================================================================
+
+    #[test]
+    fn test_snake_keys_camel() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"userName": "alice"}"#).unwrap();
+        let expr = runtime.compile("snake_keys(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("user_name"));
+        assert_eq!(obj.get("user_name").unwrap().as_string().unwrap(), "alice");
+    }
+
+    #[test]
+    fn test_snake_keys_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"userInfo": {"firstName": "bob"}}"#).unwrap();
+        let expr = runtime.compile("snake_keys(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("user_info"));
+        let nested = obj.get("user_info").unwrap().as_object().unwrap();
+        assert!(nested.contains_key("first_name"));
+    }
+
+    // =========================================================================
+    // camel_keys tests
+    // =========================================================================
+
+    #[test]
+    fn test_camel_keys_snake() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"user_name": "alice"}"#).unwrap();
+        let expr = runtime.compile("camel_keys(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("userName"));
+        assert_eq!(obj.get("userName").unwrap().as_string().unwrap(), "alice");
+    }
+
+    #[test]
+    fn test_camel_keys_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"user_info": {"first_name": "bob"}}"#).unwrap();
+        let expr = runtime.compile("camel_keys(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("userInfo"));
+        let nested = obj.get("userInfo").unwrap().as_object().unwrap();
+        assert!(nested.contains_key("firstName"));
+    }
+
+    // =========================================================================
+    // kebab_keys tests
+    // =========================================================================
+
+    #[test]
+    fn test_kebab_keys_camel() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"userName": "alice"}"#).unwrap();
+        let expr = runtime.compile("kebab_keys(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("user-name"));
+        assert_eq!(obj.get("user-name").unwrap().as_string().unwrap(), "alice");
+    }
+
+    #[test]
+    fn test_kebab_keys_snake() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"user_name": "bob"}"#).unwrap();
+        let expr = runtime.compile("kebab_keys(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.contains_key("user-name"));
+        assert_eq!(obj.get("user-name").unwrap().as_string().unwrap(), "bob");
     }
 }
