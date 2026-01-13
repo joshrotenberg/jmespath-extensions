@@ -4317,3 +4317,71 @@ examples = [
     { code = "default(get_env('PORT'), '8080') -> with fallback", description = "With default value" },
 ]
 features = ["env"]
+
+# =============================================================================
+# LANGUAGE DETECTION FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "detect_language"
+category = "language"
+description = "Detect the language of text, returning the native language name"
+signature = "string -> string | null"
+examples = [
+    { code = '''detect_language('This is English text.') -> \"English\"''', description = "Detect English" },
+    { code = '''detect_language('Esto es texto en español.') -> \"Español\"''', description = "Detect Spanish (native name)" },
+    { code = '''detect_language('Ceci est du texte français.') -> \"Français\"''', description = "Detect French (native name)" },
+    { code = "detect_language('') -> null", description = "Empty or undetectable returns null" },
+]
+features = ["core"]
+
+[[functions]]
+name = "detect_language_iso"
+category = "language"
+description = "Detect the language of text, returning the ISO 639-3 code"
+signature = "string -> string | null"
+examples = [
+    { code = '''detect_language_iso('This is English text.') -> \"eng\"''', description = "English ISO code" },
+    { code = '''detect_language_iso('Esto es texto en español.') -> \"spa\"''', description = "Spanish ISO code" },
+    { code = '''detect_language_iso('Dies ist deutscher Text.') -> \"deu\"''', description = "German ISO code" },
+    { code = "detect_language_iso('') -> null", description = "Empty or undetectable returns null" },
+]
+features = ["core"]
+
+[[functions]]
+name = "detect_script"
+category = "language"
+description = "Detect the script (writing system) of text"
+signature = "string -> string | null"
+examples = [
+    { code = '''detect_script('Hello world') -> \"Latin\"''', description = "Latin script" },
+    { code = '''detect_script('Привет мир') -> \"Cyrillic\"''', description = "Cyrillic script" },
+    { code = '''detect_script('مرحبا بالعالم') -> \"Arabic\"''', description = "Arabic script" },
+    { code = '''detect_script('こんにちは') -> \"Hiragana\"''', description = "Japanese Hiragana" },
+]
+features = ["core"]
+
+[[functions]]
+name = "detect_language_confidence"
+category = "language"
+description = "Detect language and return confidence score (0.0-1.0)"
+signature = "string -> number | null"
+examples = [
+    { code = "detect_language_confidence('This is definitely English text.') -> 0.95", description = "High confidence" },
+    { code = "detect_language_confidence('Hi') -> 0.3", description = "Low confidence for short text" },
+    { code = "detect_language_confidence('') -> null", description = "Empty returns null" },
+]
+features = ["core"]
+
+[[functions]]
+name = "detect_language_info"
+category = "language"
+description = "Detect language and return full detection info object"
+signature = "string -> object | null"
+examples = [
+    { code = "detect_language_info('This is a test.') -> {language: 'English', code: 'eng', script: 'Latin', confidence: 0.9, reliable: true}", description = "Full detection info" },
+    { code = "detect_language_info('Bonjour').language -> 'French'", description = "Access language field" },
+    { code = "detect_language_info('Hola').reliable -> true/false", description = "Check reliability" },
+    { code = "detect_language_info('') -> null", description = "Empty returns null" },
+]
+features = ["core"]

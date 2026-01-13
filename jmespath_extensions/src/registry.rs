@@ -94,6 +94,7 @@ pub enum Category {
     MultiMatch,
     Jsonpatch,
     Format,
+    Language,
 }
 
 impl Category {
@@ -130,6 +131,7 @@ impl Category {
             Category::MultiMatch,
             Category::Jsonpatch,
             Category::Format,
+            Category::Language,
         ]
     }
 
@@ -166,6 +168,7 @@ impl Category {
             Category::MultiMatch => "multi-match",
             Category::Jsonpatch => "jsonpatch",
             Category::Format => "format",
+            Category::Language => "language",
         }
     }
 
@@ -232,6 +235,8 @@ impl Category {
             Category::Jsonpatch => true,
             #[cfg(feature = "format")]
             Category::Format => true,
+            #[cfg(feature = "language")]
+            Category::Language => true,
             #[allow(unreachable_patterns)]
             _ => false,
         }
@@ -537,6 +542,8 @@ impl FunctionRegistry {
             Category::Jsonpatch => crate::jsonpatch::register(runtime),
             #[cfg(feature = "format")]
             Category::Format => crate::format::register(runtime),
+            #[cfg(feature = "language")]
+            Category::Language => crate::language::register(runtime),
             #[allow(unreachable_patterns)]
             _ => {}
         }
