@@ -60,6 +60,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("completeness", Box::new(CompletenessFn::new()));
     runtime.register_function("type_consistency", Box::new(TypeConsistencyFn::new()));
     runtime.register_function("data_quality_score", Box::new(DataQualityScoreFn::new()));
+    // Data redaction functions
+    runtime.register_function("redact", Box::new(RedactFn::new()));
+    runtime.register_function("mask", Box::new(MaskFn::new()));
+    runtime.register_function("redact_keys", Box::new(RedactKeysFn::new()));
 }
 
 // =============================================================================
@@ -1931,6 +1935,165 @@ fn analyze_quality(value: &Variable, path: String, stats: &mut QualityStats) {
     }
 }
 
+// =============================================================================
+// redact(any, keys) -> any (replace values at keys with [REDACTED])
+// =============================================================================
+
+define_function!(RedactFn, vec![ArgumentType::Any, ArgumentType::Array], None);
+
+impl Function for RedactFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let keys_arr = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array of keys".to_owned()),
+            )
+        })?;
+
+        let keys: HashSet<String> = keys_arr
+            .iter()
+            .filter_map(|k| k.as_string().map(|s| s.to_string()))
+            .collect();
+
+        Ok(Rc::new(redact_recursive(&args[0], &keys)))
+    }
+}
+
+fn redact_recursive(value: &Variable, keys: &HashSet<String>) -> Variable {
+    match value {
+        Variable::Object(obj) => {
+            let redacted: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| {
+                    if keys.contains(k) {
+                        (
+                            k.clone(),
+                            Rc::new(Variable::String("[REDACTED]".to_string())),
+                        )
+                    } else {
+                        (k.clone(), Rc::new(redact_recursive(v, keys)))
+                    }
+                })
+                .collect();
+            Variable::Object(redacted)
+        }
+        Variable::Array(arr) => {
+            let redacted: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(redact_recursive(v, keys)))
+                .collect();
+            Variable::Array(redacted)
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// mask(string, show_last?) -> string (mask all but last N chars)
+// =============================================================================
+
+define_function!(
+    MaskFn,
+    vec![ArgumentType::String],
+    Some(ArgumentType::Number)
+);
+
+impl Function for MaskFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        let show_last = if args.len() > 1 {
+            args[1].as_number().unwrap_or(4.0) as usize
+        } else {
+            4
+        };
+
+        let len = s.len();
+        let masked = if len <= show_last {
+            "*".repeat(len)
+        } else {
+            let mask_count = len - show_last;
+            format!("{}{}", "*".repeat(mask_count), &s[mask_count..])
+        };
+
+        Ok(Rc::new(Variable::String(masked)))
+    }
+}
+
+// =============================================================================
+// redact_keys(any, pattern) -> any (redact keys matching pattern)
+// =============================================================================
+
+define_function!(
+    RedactKeysFn,
+    vec![ArgumentType::Any, ArgumentType::String],
+    None
+);
+
+impl Function for RedactKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let pattern = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected pattern string".to_owned()),
+            )
+        })?;
+
+        let regex = regex::Regex::new(pattern).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse(format!("Invalid regex pattern: {}", e)),
+            )
+        })?;
+
+        Ok(Rc::new(redact_keys_recursive(&args[0], &regex)))
+    }
+}
+
+fn redact_keys_recursive(value: &Variable, pattern: &regex::Regex) -> Variable {
+    match value {
+        Variable::Object(obj) => {
+            let redacted: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| {
+                    if pattern.is_match(k) {
+                        (
+                            k.clone(),
+                            Rc::new(Variable::String("[REDACTED]".to_string())),
+                        )
+                    } else {
+                        (k.clone(), Rc::new(redact_keys_recursive(v, pattern)))
+                    }
+                })
+                .collect();
+            Variable::Object(redacted)
+        }
+        Variable::Array(arr) => {
+            let redacted: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(redact_keys_recursive(v, pattern)))
+                .collect();
+            Variable::Array(redacted)
+        }
+        _ => value.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2705,5 +2868,140 @@ mod tests {
                 .unwrap() as i64,
             1
         );
+    }
+
+    // =========================================================================
+    // redact tests
+    // =========================================================================
+
+    #[test]
+    fn test_redact_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"{"name": "alice", "password": "secret123", "ssn": "123-45-6789"}"#,
+        )
+        .unwrap();
+        let expr = runtime
+            .compile(r#"redact(@, `["password", "ssn"]`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "alice");
+        assert_eq!(
+            obj.get("password").unwrap().as_string().unwrap(),
+            "[REDACTED]"
+        );
+        assert_eq!(obj.get("ssn").unwrap().as_string().unwrap(), "[REDACTED]");
+    }
+
+    #[test]
+    fn test_redact_nested() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"user": {"name": "bob", "password": "secret"}}"#).unwrap();
+        let expr = runtime.compile(r#"redact(@, `["password"]`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let user = obj.get("user").unwrap().as_object().unwrap();
+        assert_eq!(user.get("name").unwrap().as_string().unwrap(), "bob");
+        assert_eq!(
+            user.get("password").unwrap().as_string().unwrap(),
+            "[REDACTED]"
+        );
+    }
+
+    #[test]
+    fn test_redact_array_of_objects() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"[{"name": "alice", "token": "abc"}, {"name": "bob", "token": "xyz"}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile(r#"redact(@, `["token"]`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        let first = arr[0].as_object().unwrap();
+        assert_eq!(
+            first.get("token").unwrap().as_string().unwrap(),
+            "[REDACTED]"
+        );
+    }
+
+    // =========================================================================
+    // mask tests
+    // =========================================================================
+
+    #[test]
+    fn test_mask_default() {
+        let runtime = setup_runtime();
+        let data = Variable::String("4111111111111111".to_string());
+        let expr = runtime.compile("mask(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "************1111");
+    }
+
+    #[test]
+    fn test_mask_custom_length() {
+        let runtime = setup_runtime();
+        let data = Variable::String("555-123-4567".to_string());
+        let expr = runtime.compile("mask(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "*********567");
+    }
+
+    #[test]
+    fn test_mask_short_string() {
+        let runtime = setup_runtime();
+        let data = Variable::String("abc".to_string());
+        let expr = runtime.compile("mask(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // If string is shorter than show_last, mask everything
+        assert_eq!(result.as_string().unwrap(), "***");
+    }
+
+    // =========================================================================
+    // redact_keys tests
+    // =========================================================================
+
+    #[test]
+    fn test_redact_keys_basic() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"password": "secret", "api_key": "abc123", "name": "test"}"#)
+                .unwrap();
+        let expr = runtime
+            .compile(r#"redact_keys(@, `"password|api_key"`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(
+            obj.get("password").unwrap().as_string().unwrap(),
+            "[REDACTED]"
+        );
+        assert_eq!(
+            obj.get("api_key").unwrap().as_string().unwrap(),
+            "[REDACTED]"
+        );
+        assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "test");
+    }
+
+    #[test]
+    fn test_redact_keys_pattern() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"secret_key": "a", "secret_token": "b", "name": "test"}"#)
+                .unwrap();
+        let expr = runtime.compile(r#"redact_keys(@, `"secret.*"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(
+            obj.get("secret_key").unwrap().as_string().unwrap(),
+            "[REDACTED]"
+        );
+        assert_eq!(
+            obj.get("secret_token").unwrap().as_string().unwrap(),
+            "[REDACTED]"
+        );
+        assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "test");
     }
 }
