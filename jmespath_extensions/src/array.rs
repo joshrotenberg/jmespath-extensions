@@ -41,6 +41,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("first", Box::new(FirstFn::new()));
     runtime.register_function("last", Box::new(LastFn::new()));
     runtime.register_function("group_by", Box::new(GroupByFn::new()));
+    runtime.register_function("index_by", Box::new(IndexByFn::new()));
     runtime.register_function("nth", Box::new(NthFn::new()));
     runtime.register_function("interleave", Box::new(InterleaveFn::new()));
     runtime.register_function("rotate", Box::new(RotateFn::new()));
@@ -633,6 +634,64 @@ impl Function for GroupByFn {
             .into_iter()
             .map(|(k, v)| (k, Rc::new(Variable::Array(v)) as Rcvar))
             .collect();
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+// =============================================================================
+// index_by(array, field_name) -> object (last value wins for duplicates)
+// =============================================================================
+
+define_function!(
+    IndexByFn,
+    vec![ArgumentType::Array, ArgumentType::String],
+    None
+);
+
+impl Function for IndexByFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let field_name = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected field name string".to_owned()),
+            )
+        })?;
+
+        let mut result: std::collections::BTreeMap<String, Rcvar> =
+            std::collections::BTreeMap::new();
+
+        for item in arr {
+            let key = if let Some(obj) = item.as_object() {
+                if let Some(field_value) = obj.get(field_name) {
+                    match &**field_value {
+                        Variable::String(s) => s.clone(),
+                        Variable::Number(n) => n.to_string(),
+                        Variable::Bool(b) => b.to_string(),
+                        Variable::Null => "null".to_string(),
+                        _ => continue,
+                    }
+                } else {
+                    // Skip items without the key field
+                    continue;
+                }
+            } else {
+                continue;
+            };
+            // Last value wins for duplicate keys
+            result.insert(key, item.clone());
+        }
 
         Ok(Rc::new(Variable::Object(result)))
     }
@@ -2442,6 +2501,88 @@ mod tests {
         let obj = result.as_object().unwrap();
         assert_eq!(obj.get("a").unwrap().as_array().unwrap().len(), 2);
         assert_eq!(obj.get("b").unwrap().as_array().unwrap().len(), 1);
+    }
+
+    // =========================================================================
+    // index_by tests
+    // =========================================================================
+
+    #[test]
+    fn test_index_by_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}]"#)
+            .unwrap();
+        let expr = runtime.compile(r#"index_by(@, `"id"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        // Keys are string versions of the id
+        let alice = obj.get("1").unwrap().as_object().unwrap();
+        assert_eq!(alice.get("name").unwrap().as_string().unwrap(), "alice");
+        let bob = obj.get("2").unwrap().as_object().unwrap();
+        assert_eq!(bob.get("name").unwrap().as_string().unwrap(), "bob");
+    }
+
+    #[test]
+    fn test_index_by_string_key() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"[{"code": "US", "name": "United States"}, {"code": "UK", "name": "United Kingdom"}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile(r#"index_by(@, `"code"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        let us = obj.get("US").unwrap().as_object().unwrap();
+        assert_eq!(
+            us.get("name").unwrap().as_string().unwrap(),
+            "United States"
+        );
+    }
+
+    #[test]
+    fn test_index_by_duplicate_keys() {
+        // Last value wins for duplicate keys
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"[{"type": "a", "v": 1}, {"type": "a", "v": 2}, {"type": "a", "v": 3}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile(r#"index_by(@, `"type"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 1);
+        // Last value (v=3) wins
+        let a = obj.get("a").unwrap().as_object().unwrap();
+        assert_eq!(a.get("v").unwrap().as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_index_by_missing_key() {
+        // Items without the key field are skipped
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"[{"id": 1, "name": "alice"}, {"name": "bob"}, {"id": 3, "name": "charlie"}]"#,
+        )
+        .unwrap();
+        let expr = runtime.compile(r#"index_by(@, `"id"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert!(obj.contains_key("1"));
+        assert!(obj.contains_key("3"));
+        assert!(!obj.contains_key("2")); // bob was skipped
+    }
+
+    #[test]
+    fn test_index_by_empty_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile(r#"index_by(@, `"id"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.is_empty());
     }
 
     // =========================================================================

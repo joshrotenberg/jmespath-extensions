@@ -133,6 +133,19 @@ examples = [
 features = ["core"]
 
 [[functions]]
+name = "index_by"
+category = "array"
+description = "Create lookup map from array using key field (last value wins for duplicates)"
+signature = "array, string -> object"
+examples = [
+    { code = '''index_by([{id: 1, name: "alice"}, {id: 2, name: "bob"}], "id") -> {"1": {id: 1, name: "alice"}, "2": {id: 2, name: "bob"}}''', description = "Index by id field" },
+    { code = '''index_by([{code: "US", name: "USA"}], "code") -> {"US": {code: "US", name: "USA"}}''', description = "Index by string key" },
+    { code = '''index_by([{t: "a", v: 1}, {t: "a", v: 2}], "t") -> {"a": {t: "a", v: 2}}''', description = "Last value wins for duplicates" },
+    { code = '''index_by([], "id") -> {}''', description = "Empty array returns empty object" },
+]
+features = ["core"]
+
+[[functions]]
 name = "includes"
 category = "array"
 description = "Check if array contains value"
