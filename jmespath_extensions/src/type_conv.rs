@@ -16,6 +16,7 @@
 //! type_conv::register(&mut runtime);
 //! ```
 
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::common::{ArgumentType, Context, Function, JmespathError, Rcvar, Runtime, Variable};
@@ -36,6 +37,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("is_empty", Box::new(IsEmptyFn::new()));
     runtime.register_function("is_blank", Box::new(IsBlankFn::new()));
     runtime.register_function("is_json", Box::new(IsJsonFn::new()));
+    runtime.register_function("parse_numbers", Box::new(ParseNumbersFn::new()));
+    runtime.register_function("parse_booleans", Box::new(ParseBooleansFn::new()));
+    runtime.register_function("parse_nulls", Box::new(ParseNullsFn::new()));
+    runtime.register_function("auto_parse", Box::new(AutoParseFn::new()));
 }
 
 // =============================================================================
@@ -279,6 +284,190 @@ impl Function for IsJsonFn {
     }
 }
 
+// =============================================================================
+// parse_numbers(any) -> any (recursively convert numeric strings to numbers)
+// =============================================================================
+
+define_function!(ParseNumbersFn, vec![ArgumentType::Any], None);
+
+impl Function for ParseNumbersFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(parse_numbers_recursive(&args[0])))
+    }
+}
+
+fn parse_numbers_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::String(s) => {
+            // Try to parse as number - be conservative, only pure numeric strings
+            let trimmed = s.trim();
+            if let Ok(n) = trimmed.parse::<f64>() {
+                if let Some(num) = serde_json::Number::from_f64(n) {
+                    return Variable::Number(num);
+                }
+            }
+            value.clone()
+        }
+        Variable::Object(obj) => {
+            let parsed: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| (k.clone(), Rc::new(parse_numbers_recursive(v))))
+                .collect();
+            Variable::Object(parsed)
+        }
+        Variable::Array(arr) => {
+            let parsed: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(parse_numbers_recursive(v)))
+                .collect();
+            Variable::Array(parsed)
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// parse_booleans(any) -> any (recursively convert boolean strings to booleans)
+// =============================================================================
+
+define_function!(ParseBooleansFn, vec![ArgumentType::Any], None);
+
+impl Function for ParseBooleansFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(parse_booleans_recursive(&args[0])))
+    }
+}
+
+fn parse_booleans_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::String(s) => {
+            let lower = s.trim().to_lowercase();
+            match lower.as_str() {
+                "true" | "yes" | "on" | "1" => Variable::Bool(true),
+                "false" | "no" | "off" | "0" => Variable::Bool(false),
+                _ => value.clone(),
+            }
+        }
+        Variable::Object(obj) => {
+            let parsed: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| (k.clone(), Rc::new(parse_booleans_recursive(v))))
+                .collect();
+            Variable::Object(parsed)
+        }
+        Variable::Array(arr) => {
+            let parsed: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(parse_booleans_recursive(v)))
+                .collect();
+            Variable::Array(parsed)
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// parse_nulls(any) -> any (recursively convert null-like strings to null)
+// =============================================================================
+
+define_function!(ParseNullsFn, vec![ArgumentType::Any], None);
+
+impl Function for ParseNullsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(parse_nulls_recursive(&args[0])))
+    }
+}
+
+fn parse_nulls_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::String(s) => {
+            let lower = s.trim().to_lowercase();
+            match lower.as_str() {
+                "null" | "none" | "nil" | "undefined" => Variable::Null,
+                _ => value.clone(),
+            }
+        }
+        Variable::Object(obj) => {
+            let parsed: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| (k.clone(), Rc::new(parse_nulls_recursive(v))))
+                .collect();
+            Variable::Object(parsed)
+        }
+        Variable::Array(arr) => {
+            let parsed: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(parse_nulls_recursive(v)))
+                .collect();
+            Variable::Array(parsed)
+        }
+        _ => value.clone(),
+    }
+}
+
+// =============================================================================
+// auto_parse(any) -> any (intelligently parse numbers, booleans, and nulls)
+// =============================================================================
+
+define_function!(AutoParseFn, vec![ArgumentType::Any], None);
+
+impl Function for AutoParseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(auto_parse_recursive(&args[0])))
+    }
+}
+
+fn auto_parse_recursive(value: &Variable) -> Variable {
+    match value {
+        Variable::String(s) => {
+            let trimmed = s.trim();
+            let lower = trimmed.to_lowercase();
+
+            // Try null-like values first
+            if matches!(lower.as_str(), "null" | "none" | "nil" | "undefined") {
+                return Variable::Null;
+            }
+
+            // Try boolean values
+            if matches!(lower.as_str(), "true" | "yes" | "on") {
+                return Variable::Bool(true);
+            }
+            if matches!(lower.as_str(), "false" | "no" | "off") {
+                return Variable::Bool(false);
+            }
+
+            // Try numeric values (but not "0" or "1" which might be intended as booleans in some contexts)
+            // Actually, let's parse all numeric strings as numbers
+            if let Ok(n) = trimmed.parse::<f64>() {
+                if let Some(num) = serde_json::Number::from_f64(n) {
+                    return Variable::Number(num);
+                }
+            }
+
+            value.clone()
+        }
+        Variable::Object(obj) => {
+            let parsed: BTreeMap<String, Rcvar> = obj
+                .iter()
+                .map(|(k, v)| (k.clone(), Rc::new(auto_parse_recursive(v))))
+                .collect();
+            Variable::Object(parsed)
+        }
+        Variable::Array(arr) => {
+            let parsed: Vec<Rcvar> = arr
+                .iter()
+                .map(|v| Rc::new(auto_parse_recursive(v)))
+                .collect();
+            Variable::Array(parsed)
+        }
+        _ => value.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -315,5 +504,133 @@ mod tests {
 
         let result = expr.search(Variable::String("hello".to_string())).unwrap();
         assert!(!result.as_boolean().unwrap());
+    }
+
+    // =========================================================================
+    // parse_numbers tests
+    // =========================================================================
+
+    #[test]
+    fn test_parse_numbers_basic() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"count": "42", "price": "19.99", "name": "test"}"#).unwrap();
+        let expr = runtime.compile("parse_numbers(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("count").unwrap().as_number().unwrap() as i64, 42);
+        assert!((obj.get("price").unwrap().as_number().unwrap() - 19.99).abs() < 0.01);
+        assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "test");
+    }
+
+    #[test]
+    fn test_parse_numbers_nested() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"outer": {"inner": "123"}}"#).unwrap();
+        let expr = runtime.compile("parse_numbers(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        let inner = obj.get("outer").unwrap().as_object().unwrap();
+        assert_eq!(inner.get("inner").unwrap().as_number().unwrap() as i64, 123);
+    }
+
+    #[test]
+    fn test_parse_numbers_non_numeric() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"val": "42abc"}"#).unwrap();
+        let expr = runtime.compile("parse_numbers(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        // Should remain as string since it's not a pure number
+        assert_eq!(obj.get("val").unwrap().as_string().unwrap(), "42abc");
+    }
+
+    // =========================================================================
+    // parse_booleans tests
+    // =========================================================================
+
+    #[test]
+    fn test_parse_booleans_basic() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"active": "true", "verified": "false", "name": "test"}"#)
+                .unwrap();
+        let expr = runtime.compile("parse_booleans(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.get("active").unwrap().as_boolean().unwrap());
+        assert!(!obj.get("verified").unwrap().as_boolean().unwrap());
+        assert_eq!(obj.get("name").unwrap().as_string().unwrap(), "test");
+    }
+
+    #[test]
+    fn test_parse_booleans_variants() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"{"a": "YES", "b": "no", "c": "ON", "d": "off", "e": "1", "f": "0"}"#,
+        )
+        .unwrap();
+        let expr = runtime.compile("parse_booleans(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.get("a").unwrap().as_boolean().unwrap());
+        assert!(!obj.get("b").unwrap().as_boolean().unwrap());
+        assert!(obj.get("c").unwrap().as_boolean().unwrap());
+        assert!(!obj.get("d").unwrap().as_boolean().unwrap());
+        assert!(obj.get("e").unwrap().as_boolean().unwrap());
+        assert!(!obj.get("f").unwrap().as_boolean().unwrap());
+    }
+
+    // =========================================================================
+    // parse_nulls tests
+    // =========================================================================
+
+    #[test]
+    fn test_parse_nulls_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(
+            r#"{"a": "null", "b": "NULL", "c": "None", "d": "nil", "e": "hello"}"#,
+        )
+        .unwrap();
+        let expr = runtime.compile("parse_nulls(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert!(obj.get("a").unwrap().is_null());
+        assert!(obj.get("b").unwrap().is_null());
+        assert!(obj.get("c").unwrap().is_null());
+        assert!(obj.get("d").unwrap().is_null());
+        assert_eq!(obj.get("e").unwrap().as_string().unwrap(), "hello");
+    }
+
+    // =========================================================================
+    // auto_parse tests
+    // =========================================================================
+
+    #[test]
+    fn test_auto_parse_mixed() {
+        let runtime = setup_runtime();
+        let data =
+            Variable::from_json(r#"{"num": "42", "bool": "true", "nil": "null", "str": "hello"}"#)
+                .unwrap();
+        let expr = runtime.compile("auto_parse(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("num").unwrap().as_number().unwrap() as i64, 42);
+        assert!(obj.get("bool").unwrap().as_boolean().unwrap());
+        assert!(obj.get("nil").unwrap().is_null());
+        assert_eq!(obj.get("str").unwrap().as_string().unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_auto_parse_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["42", "true", "null", "hello"]"#).unwrap();
+        let expr = runtime.compile("auto_parse(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr[0].as_number().unwrap() as i64, 42);
+        assert!(arr[1].as_boolean().unwrap());
+        assert!(arr[2].is_null());
+        assert_eq!(arr[3].as_string().unwrap(), "hello");
     }
 }
