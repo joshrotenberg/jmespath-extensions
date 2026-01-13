@@ -1538,6 +1538,7 @@ define_function!(CompletenessFn, vec![ArgumentType::Object], None);
 
 impl Function for CompletenessFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
         let obj = args[0].as_object().ok_or_else(|| {
             JmespathError::new(
                 ctx.expression,
@@ -1598,6 +1599,7 @@ define_function!(TypeConsistencyFn, vec![ArgumentType::Array], None);
 
 impl Function for TypeConsistencyFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
         let arr = args[0].as_array().ok_or_else(|| {
             JmespathError::new(
                 ctx.expression,
@@ -1750,7 +1752,8 @@ fn get_type_name(value: &Variable) -> String {
 define_function!(DataQualityScoreFn, vec![ArgumentType::Any], None);
 
 impl Function for DataQualityScoreFn {
-    fn evaluate(&self, args: &[Rcvar], _ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
         let value = &args[0];
 
         let mut stats = QualityStats::default();
