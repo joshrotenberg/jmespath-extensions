@@ -2389,6 +2389,31 @@ examples = [
 features = ["core"]
 
 [[functions]]
+name = "flatten"
+category = "object"
+description = "Alias for flatten_keys - flatten nested object with dot notation keys"
+signature = "object -> object"
+examples = [
+    { code = '''flatten({a: {b: 1}}) -> {\"a.b\": 1}''', description = "Simple nested" },
+    { code = '''flatten({a: {b: {c: 1}}}) -> {\"a.b.c\": 1}''', description = "Deep nested" },
+    { code = '''flatten({a: 1, b: 2}) -> {\"a\": 1, \"b\": 2}''', description = "Flat object" },
+]
+features = ["core"]
+
+[[functions]]
+name = "flatten_array"
+category = "object"
+description = "Flatten nested objects and arrays with dot notation keys (arrays use numeric indices)"
+signature = "any, string? -> object"
+examples = [
+    { code = '''flatten_array({a: [1, 2]}) -> {\"a.0\": 1, \"a.1\": 2}''', description = "Array with indices" },
+    { code = '''flatten_array({a: {b: [1, 2]}}) -> {\"a.b.0\": 1, \"a.b.1\": 2}''', description = "Nested object with array" },
+    { code = '''flatten_array([{a: 1}, {b: 2}]) -> {\"0.a\": 1, \"1.b\": 2}''', description = "Array of objects" },
+    { code = '''flatten_array({a: {b: 1}}, '/') -> {\"a/b\": 1}''', description = "Custom separator" },
+]
+features = ["core"]
+
+[[functions]]
 name = "flatten_keys"
 category = "object"
 description = "Flatten nested object with dot notation keys"
@@ -2556,6 +2581,31 @@ examples = [
     { code = "set_path({a: 1}, '/a', `2`) -> {a: 2}", description = "Update existing" },
     { code = "set_path({a: {}}, '/a/b', `1`) -> {a: {b: 1}}", description = "Set nested path" },
     { code = "set_path([1, 2], '/1', `5`) -> [1, 5]", description = "Update array element" },
+]
+features = ["core"]
+
+[[functions]]
+name = "unflatten"
+category = "object"
+description = "Alias for unflatten_keys - restore nested object from dot notation keys"
+signature = "object -> object"
+examples = [
+    { code = '''unflatten({\"a.b\": 1}) -> {a: {b: 1}}''', description = "Simple nested" },
+    { code = '''unflatten({\"a.b.c\": 1}) -> {a: {b: {c: 1}}}''', description = "Deep nested" },
+    { code = '''unflatten({\"a\": 1, \"b\": 2}) -> {a: 1, b: 2}''', description = "Flat keys" },
+]
+features = ["core"]
+
+[[functions]]
+name = "unflatten_keys"
+category = "object"
+description = "Restore nested object from dot notation keys"
+signature = "object -> object"
+examples = [
+    { code = '''unflatten_keys({\"a.b\": 1}) -> {a: {b: 1}}''', description = "Simple nested" },
+    { code = '''unflatten_keys({\"a.b.c\": 1}) -> {a: {b: {c: 1}}}''', description = "Deep nested" },
+    { code = '''unflatten_keys({\"a\": 1, \"b\": 2}) -> {a: 1, b: 2}''', description = "Flat keys" },
+    { code = '''unflatten_keys({\"x.y\": 1, \"z\": 2}) -> {x: {y: 1}, z: 2}''', description = "Mixed nesting" },
 ]
 features = ["core"]
 
