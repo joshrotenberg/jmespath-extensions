@@ -64,6 +64,9 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("ewma", Box::new(EwmaFn::new()));
     runtime.register_function("covariance", Box::new(CovarianceFn::new()));
     runtime.register_function("standardize", Box::new(StandardizeFn::new()));
+    runtime.register_function("quartiles", Box::new(QuartilesFn::new()));
+    runtime.register_function("outliers_iqr", Box::new(OutliersIqrFn::new()));
+    runtime.register_function("outliers_zscore", Box::new(OutliersZscoreFn::new()));
 }
 
 // =============================================================================
@@ -1681,6 +1684,220 @@ impl Function for StandardizeFn {
             .collect();
 
         Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// quartiles(array) -> object {q1, q2, q3, min, max, iqr}
+// =============================================================================
+
+define_function!(QuartilesFn, vec![ArgumentType::Array], None);
+
+impl Function for QuartilesFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let mut values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Null));
+        }
+
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        let n = values.len();
+        let min = values[0];
+        let max = values[n - 1];
+
+        let q1 = percentile_value(&values, 25.0);
+        let q2 = percentile_value(&values, 50.0);
+        let q3 = percentile_value(&values, 75.0);
+        let iqr = q3 - q1;
+
+        let mut result = std::collections::BTreeMap::new();
+        result.insert(
+            "min".to_string(),
+            Rc::new(Variable::Number(
+                serde_json::Number::from_f64(min).unwrap_or_else(|| serde_json::Number::from(0)),
+            )) as Rcvar,
+        );
+        result.insert(
+            "q1".to_string(),
+            Rc::new(Variable::Number(
+                serde_json::Number::from_f64(q1).unwrap_or_else(|| serde_json::Number::from(0)),
+            )) as Rcvar,
+        );
+        result.insert(
+            "q2".to_string(),
+            Rc::new(Variable::Number(
+                serde_json::Number::from_f64(q2).unwrap_or_else(|| serde_json::Number::from(0)),
+            )) as Rcvar,
+        );
+        result.insert(
+            "q3".to_string(),
+            Rc::new(Variable::Number(
+                serde_json::Number::from_f64(q3).unwrap_or_else(|| serde_json::Number::from(0)),
+            )) as Rcvar,
+        );
+        result.insert(
+            "max".to_string(),
+            Rc::new(Variable::Number(
+                serde_json::Number::from_f64(max).unwrap_or_else(|| serde_json::Number::from(0)),
+            )) as Rcvar,
+        );
+        result.insert(
+            "iqr".to_string(),
+            Rc::new(Variable::Number(
+                serde_json::Number::from_f64(iqr).unwrap_or_else(|| serde_json::Number::from(0)),
+            )) as Rcvar,
+        );
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+fn percentile_value(sorted_values: &[f64], p: f64) -> f64 {
+    let n = sorted_values.len();
+    if n == 1 {
+        return sorted_values[0];
+    }
+
+    let k = (p / 100.0) * (n - 1) as f64;
+    let f = k.floor() as usize;
+    let c = k.ceil() as usize;
+
+    if f == c {
+        sorted_values[f]
+    } else {
+        let d = k - f as f64;
+        sorted_values[f] * (1.0 - d) + sorted_values[c] * d
+    }
+}
+
+// =============================================================================
+// outliers_iqr(array, multiplier?) -> array (elements outside multiplier*IQR)
+// =============================================================================
+
+define_function!(
+    OutliersIqrFn,
+    vec![ArgumentType::Array],
+    Some(ArgumentType::Number)
+);
+
+impl Function for OutliersIqrFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let multiplier = if args.len() > 1 {
+            args[1].as_number().unwrap_or(1.5)
+        } else {
+            1.5
+        };
+
+        let mut values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        let q1 = percentile_value(&values, 25.0);
+        let q3 = percentile_value(&values, 75.0);
+        let iqr = q3 - q1;
+
+        let lower_bound = q1 - multiplier * iqr;
+        let upper_bound = q3 + multiplier * iqr;
+
+        let outliers: Vec<Rcvar> = arr
+            .iter()
+            .filter(|v| {
+                if let Some(n) = v.as_number() {
+                    n < lower_bound || n > upper_bound
+                } else {
+                    false
+                }
+            })
+            .cloned()
+            .collect();
+
+        Ok(Rc::new(Variable::Array(outliers)))
+    }
+}
+
+// =============================================================================
+// outliers_zscore(array, threshold?) -> array (elements with |z-score| > threshold)
+// =============================================================================
+
+define_function!(
+    OutliersZscoreFn,
+    vec![ArgumentType::Array],
+    Some(ArgumentType::Number)
+);
+
+impl Function for OutliersZscoreFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let threshold = if args.len() > 1 {
+            args[1].as_number().unwrap_or(2.0)
+        } else {
+            2.0
+        };
+
+        let values: Vec<f64> = arr.iter().filter_map(|v| v.as_number()).collect();
+
+        if values.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let n = values.len() as f64;
+        let mean: f64 = values.iter().sum::<f64>() / n;
+        let variance: f64 = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
+        let stddev = variance.sqrt();
+
+        if stddev.abs() < f64::EPSILON {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let outliers: Vec<Rcvar> = arr
+            .iter()
+            .filter(|v| {
+                if let Some(n) = v.as_number() {
+                    let z = (n - mean) / stddev;
+                    z.abs() > threshold
+                } else {
+                    false
+                }
+            })
+            .cloned()
+            .collect();
+
+        Ok(Rc::new(Variable::Array(outliers)))
     }
 }
 
