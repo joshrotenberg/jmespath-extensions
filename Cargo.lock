@@ -997,10 +997,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "jlisp"
+version = "0.1.0"
+dependencies = [
+ "jmespath",
+ "jmespath_extensions",
+ "serde_json",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "jmespath"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f40cd1816d6f52b8c97bfd9bfca82af01653ecbf53a5d341968cc4cfeb65c0c"
+source = "git+https://github.com/joshrotenberg/jmespath.rs?branch=feat%2Fjep-011-let-expression#206c60380e2a9011dce04ac7369600a33d4e7a31"
 dependencies = [
  "serde",
  "serde_json",

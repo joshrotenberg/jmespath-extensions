@@ -1,5 +1,5 @@
 [workspace]
-members = ["jmespath_extensions", "jpx"]
+members = ["jmespath_extensions", "jpx", "jlisp"]
 resolver = "2"
 
 [workspace.package]
@@ -10,8 +10,8 @@ repository = "https://github.com/joshrotenberg/jmespath-extensions"
 homepage = "https://github.com/joshrotenberg/jmespath-extensions"
 
 [workspace.dependencies]
-# Core dependencies
-jmespath = "0.4"
+# Core dependencies - using fork with JEP-011 let expressions
+jmespath = { git = "https://github.com/joshrotenberg/jmespath.rs", branch = "feat/jep-011-let-expression" }
 serde = "1.0"
 serde_json = "1.0"
 

@@ -1,0 +1,15 @@
+[package]
+name = "jlisp"
+version = "0.1.0"
+edition = "2021"
+description = "A Lisp where all data is JSON and all functions are JMESPath"
+
+[[bin]]
+name = "jlisp"
+path = "src/main.rs"
+
+[dependencies]
+jmespath_extensions.workspace = true
+jmespath.workspace = true
+serde_json.workspace = true
+thiserror = "2"
