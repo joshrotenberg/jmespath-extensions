@@ -2243,7 +2243,7 @@ fn run_benchmark(
 
     let total: f64 = timings.iter().sum();
     let mean = total / timings.len() as f64;
-    let median = if timings.len().is_multiple_of(2) {
+    let median = if timings.len() % 2 == 0 {
         (timings[timings.len() / 2 - 1] + timings[timings.len() / 2]) / 2.0
     } else {
         timings[timings.len() / 2]
