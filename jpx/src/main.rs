@@ -9,7 +9,7 @@ use colored::Colorize;
 use jmespath::ast::Ast;
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
-use jmespath_extensions::registry::{Category, FunctionRegistry};
+use jmespath_extensions::registry::{Category, FunctionInfo, FunctionRegistry};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -213,6 +213,10 @@ struct Args {
     #[arg(long, value_name = "QUERY")]
     search: Option<String>,
 
+    /// Find functions similar to the specified function
+    #[arg(long, value_name = "FUNCTION")]
+    similar: Option<String>,
+
     /// Generate JSON Patch (RFC 6902) from two files: --diff SOURCE TARGET
     #[arg(long, num_args = 2, value_names = ["SOURCE", "TARGET"])]
     diff: Option<Vec<String>>,
@@ -306,6 +310,11 @@ fn main() -> Result<()> {
 
     if let Some(query) = &args.search {
         search_functions(&registry, query);
+        return Ok(());
+    }
+
+    if let Some(func_name) = &args.similar {
+        find_similar_functions(&registry, func_name)?;
         return Ok(());
     }
 
@@ -858,6 +867,236 @@ fn describe_function(registry: &FunctionRegistry, func_name: &str) -> Result<()>
     println!("  {}", func.example.yellow());
 
     Ok(())
+}
+
+/// Find functions similar to the specified function
+fn find_similar_functions(registry: &FunctionRegistry, func_name: &str) -> Result<()> {
+    let target = registry.get_function(func_name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unknown function '{}'. Use --list-functions to see available functions.",
+            func_name
+        )
+    })?;
+
+    println!("Functions similar to '{}':\n", target.name.cyan().bold());
+
+    // Parse the target signature to extract input/output types
+    let target_sig = parse_signature(target.signature);
+
+    // 1. Same category (excluding the target itself)
+    let same_category: Vec<_> = registry
+        .functions_in_category(target.category)
+        .filter(|f| f.name != target.name)
+        .collect();
+
+    if !same_category.is_empty() {
+        println!(
+            "  {} {} ({}):",
+            "▸".dimmed(),
+            "Same category".bold(),
+            target.category.name().green()
+        );
+        for func in same_category.iter().take(8) {
+            println!(
+                "    {} - {}",
+                func.name.cyan(),
+                truncate_str(func.description, 50)
+            );
+        }
+        if same_category.len() > 8 {
+            println!(
+                "    {} and {} more...",
+                "...".dimmed(),
+                (same_category.len() - 8).to_string().yellow()
+            );
+        }
+        println!();
+    }
+
+    // 2. Similar signature (same input -> output pattern)
+    let similar_sig: Vec<_> = registry
+        .functions()
+        .filter(|f| {
+            f.name != target.name
+                && f.category != target.category
+                && signatures_match(&parse_signature(f.signature), &target_sig)
+        })
+        .collect();
+
+    if !similar_sig.is_empty() {
+        println!(
+            "  {} {} ({}):",
+            "▸".dimmed(),
+            "Similar signature".bold(),
+            target.signature.white()
+        );
+        for func in similar_sig.iter().take(8) {
+            println!(
+                "    {} [{}] - {}",
+                func.name.cyan(),
+                func.category.name().green(),
+                truncate_str(func.description, 45)
+            );
+        }
+        if similar_sig.len() > 8 {
+            println!(
+                "    {} and {} more...",
+                "...".dimmed(),
+                (similar_sig.len() - 8).to_string().yellow()
+            );
+        }
+        println!();
+    }
+
+    // 3. Related by description keywords
+    let keywords = extract_keywords(target.description);
+    let mut related: Vec<(&FunctionInfo, usize)> = registry
+        .functions()
+        .filter(|f| f.name != target.name && f.category != target.category)
+        .filter_map(|f| {
+            let score = keywords
+                .iter()
+                .filter(|kw| f.description.to_lowercase().contains(&kw.to_lowercase()))
+                .count();
+            if score > 0 { Some((f, score)) } else { None }
+        })
+        .collect();
+
+    related.sort_by(|a, b| b.1.cmp(&a.1));
+
+    if !related.is_empty() {
+        println!("  {} {}:", "▸".dimmed(), "Related concepts".bold());
+        for (func, _score) in related.iter().take(6) {
+            println!(
+                "    {} [{}] - {}",
+                func.name.cyan(),
+                func.category.name().green(),
+                truncate_str(func.description, 45)
+            );
+        }
+        if related.len() > 6 {
+            println!(
+                "    {} and {} more...",
+                "...".dimmed(),
+                (related.len() - 6).to_string().yellow()
+            );
+        }
+        println!();
+    }
+
+    println!(
+        "Use {} for details on a specific function",
+        "--describe <function>".cyan()
+    );
+
+    Ok(())
+}
+
+/// Parse a signature string into input types and output type
+fn parse_signature(sig: &str) -> (Vec<String>, String) {
+    let parts: Vec<&str> = sig.split("->").collect();
+    if parts.len() != 2 {
+        return (vec![], String::new());
+    }
+
+    let inputs: Vec<String> = parts[0]
+        .split(',')
+        .map(|s| normalize_type(s.trim()))
+        .collect();
+    let output = normalize_type(parts[1].trim());
+
+    (inputs, output)
+}
+
+/// Normalize type names for comparison
+fn normalize_type(t: &str) -> String {
+    // Remove optional markers and variadic indicators
+    let t = t.trim_end_matches('?').trim_end_matches("...");
+    // Simplify to base type
+    match t {
+        "number" | "integer" => "number".to_string(),
+        "string" | "str" => "string".to_string(),
+        "array" | "list" => "array".to_string(),
+        "object" | "hash" | "map" => "object".to_string(),
+        "boolean" | "bool" => "boolean".to_string(),
+        "any" | "expression" | "expref" => "any".to_string(),
+        _ => t.to_lowercase(),
+    }
+}
+
+/// Check if two signatures are similar enough
+fn signatures_match(a: &(Vec<String>, String), b: &(Vec<String>, String)) -> bool {
+    // Must have same output type
+    if a.1 != b.1 || a.1.is_empty() {
+        return false;
+    }
+
+    // Input types should be similar (same count and compatible types)
+    if a.0.len() != b.0.len() {
+        return false;
+    }
+
+    // At least first input type should match
+    if !a.0.is_empty() && !b.0.is_empty() && a.0[0] == b.0[0] {
+        return true;
+    }
+
+    false
+}
+
+/// Extract meaningful keywords from a description
+fn extract_keywords(description: &str) -> Vec<String> {
+    let stopwords = [
+        "a",
+        "an",
+        "the",
+        "to",
+        "of",
+        "in",
+        "for",
+        "is",
+        "are",
+        "and",
+        "or",
+        "with",
+        "from",
+        "by",
+        "on",
+        "at",
+        "as",
+        "if",
+        "be",
+        "this",
+        "that",
+        "it",
+        "its",
+        "can",
+        "will",
+        "into",
+        "using",
+        "returns",
+        "return",
+        "value",
+        "values",
+        "given",
+        "specified",
+    ];
+
+    description
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.len() > 3 && !stopwords.contains(w))
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Truncate a string to max length with ellipsis
+fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len - 3])
+    }
 }
 
 /// Describe a Variable value for verbose output

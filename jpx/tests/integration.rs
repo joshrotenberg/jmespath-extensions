@@ -1481,3 +1481,63 @@ mod error_handling {
         assert!(!output.status.success());
     }
 }
+
+mod cli_similar {
+    use super::*;
+
+    fn run_similar(func_name: &str) -> (String, String) {
+        let output = jpx_cmd()
+            .arg("--similar")
+            .arg(func_name)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx")
+            .wait_with_output()
+            .expect("Failed to wait on jpx");
+
+        (
+            String::from_utf8_lossy(&output.stdout).to_string(),
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        )
+    }
+
+    #[test]
+    fn test_similar_basic() {
+        let (stdout, _) = run_similar("upper");
+        assert!(stdout.contains("Functions similar to"));
+        assert!(stdout.contains("Same category"));
+        assert!(stdout.contains("string"));
+    }
+
+    #[test]
+    fn test_similar_shows_signature_matches() {
+        let (stdout, _) = run_similar("upper");
+        // upper has signature string -> string, should find similar signatures
+        assert!(stdout.contains("Similar signature"));
+    }
+
+    #[test]
+    fn test_similar_shows_related_concepts() {
+        let (stdout, _) = run_similar("sort_by");
+        // sort_by should match related sorting/ordering functions
+        assert!(stdout.contains("Related concepts") || stdout.contains("Same category"));
+    }
+
+    #[test]
+    fn test_similar_unknown_function() {
+        let output = jpx_cmd()
+            .arg("--similar")
+            .arg("not_a_real_function")
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx")
+            .wait_with_output()
+            .expect("Failed to wait on jpx");
+
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("Unknown function"));
+    }
+}
