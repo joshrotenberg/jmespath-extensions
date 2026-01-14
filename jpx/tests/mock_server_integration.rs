@@ -137,7 +137,7 @@ mod search_quality {
             "Stop word 'be' should be filtered"
         );
 
-        // Content words SHOULD be in the index
+        // Content words SHOULD be in the index (stemmed forms)
         assert!(
             top_terms.contains(&"tool"),
             "Content word 'tool' should be indexed"
@@ -154,9 +154,10 @@ mod search_quality {
             top_terms.contains(&"manage"),
             "Content word 'manage' should be indexed"
         );
+        // Note: "resources" is stemmed to "resource"
         assert!(
-            top_terms.contains(&"resources"),
-            "Content word 'resources' should be indexed"
+            top_terms.contains(&"resource"),
+            "Content word 'resource' (stemmed from 'resources') should be indexed"
         );
     }
 
@@ -203,6 +204,162 @@ mod search_quality {
                 "Matches should not include 'of'"
             );
         }
+    }
+
+    #[test]
+    fn test_plural_singular_matching() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register tools with plural forms
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "list_databases", "description": "List all databases" },
+                    { "name": "get_database", "description": "Get a single database" },
+                    { "name": "list_acls", "description": "List all ACLs" },
+                    { "name": "create_acl", "description": "Create an ACL" },
+                    { "name": "list_shards", "description": "List cluster shards" },
+                    { "name": "get_shard", "description": "Get a single shard" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Singular query should find plural tools
+        let results = registry.query("database", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_databases"),
+            "Singular 'database' should match 'list_databases'"
+        );
+        assert!(
+            tool_names.contains(&"get_database"),
+            "Singular 'database' should match 'get_database'"
+        );
+
+        // Plural query should also find singular tools
+        let results = registry.query("databases", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_databases"),
+            "Plural 'databases' should match 'list_databases'"
+        );
+        assert!(
+            tool_names.contains(&"get_database"),
+            "Plural 'databases' should match 'get_database'"
+        );
+
+        // Test ACL/ACLs
+        let results = registry.query("acl", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_acls"),
+            "Singular 'acl' should match 'list_acls'"
+        );
+        assert!(
+            tool_names.contains(&"create_acl"),
+            "Singular 'acl' should match 'create_acl'"
+        );
+
+        // Test shard/shards
+        let results = registry.query("shard", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_shards"),
+            "Singular 'shard' should match 'list_shards'"
+        );
+        assert!(
+            tool_names.contains(&"get_shard"),
+            "Singular 'shard' should match 'get_shard'"
+        );
+    }
+
+    #[test]
+    fn test_stemming_ies_to_y() {
+        let mut registry = DiscoveryRegistry::new();
+
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "list_queries", "description": "List all queries" },
+                    { "name": "run_query", "description": "Run a single query" },
+                    { "name": "list_entries", "description": "List all entries" },
+                    { "name": "get_entry", "description": "Get a single entry" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // "query" should match "queries"
+        let results = registry.query("query", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_queries"),
+            "Singular 'query' should match 'list_queries'"
+        );
+        assert!(
+            tool_names.contains(&"run_query"),
+            "Singular 'query' should match 'run_query'"
+        );
+
+        // "entry" should match "entries"
+        let results = registry.query("entry", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_entries"),
+            "Singular 'entry' should match 'list_entries'"
+        );
+        assert!(
+            tool_names.contains(&"get_entry"),
+            "Singular 'entry' should match 'get_entry'"
+        );
+    }
+
+    #[test]
+    fn test_stemming_es_sibilants() {
+        let mut registry = DiscoveryRegistry::new();
+
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "list_caches", "description": "List all caches" },
+                    { "name": "clear_cache", "description": "Clear a cache" },
+                    { "name": "list_boxes", "description": "List all boxes" },
+                    { "name": "open_box", "description": "Open a box" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // "cache" should match "caches"
+        let results = registry.query("cache", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_caches"),
+            "Singular 'cache' should match 'list_caches'"
+        );
+        assert!(
+            tool_names.contains(&"clear_cache"),
+            "Singular 'cache' should match 'clear_cache'"
+        );
+
+        // "box" should match "boxes"
+        let results = registry.query("box", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_boxes"),
+            "Singular 'box' should match 'list_boxes'"
+        );
+        assert!(
+            tool_names.contains(&"open_box"),
+            "Singular 'box' should match 'open_box'"
+        );
     }
 }
 
