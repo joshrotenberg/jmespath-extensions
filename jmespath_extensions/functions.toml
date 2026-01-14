@@ -5056,3 +5056,45 @@ examples = [
     { code = "detect_language_info('') -> null", description = "Empty returns null" },
 ]
 features = ["core"]
+
+# =============================================================================
+# DISCOVERY FUNCTIONS
+# =============================================================================
+
+[[functions]]
+name = "fuzzy_search"
+category = "discovery"
+description = "Search an array of objects by multiple fields, returning matches sorted by relevance score"
+signature = "array, string|object, string -> array"
+examples = [
+    { code = "fuzzy_search(tools, 'name,description', 'user') -> [{item: {...}, score: 100, match_type: 'exact', matched_field: 'name'}, ...]", description = "Search with comma-separated fields" },
+    { code = '''fuzzy_search(tools, `{"name": 10, "description": 5}`, 'cache') -> weighted search''', description = "Search with weighted fields" },
+    { code = "fuzzy_search(tools, 'name,tags', 'redis')[0].item.name -> top match name", description = "Access top match" },
+]
+features = ["discovery"]
+
+[[functions]]
+name = "fuzzy_match"
+category = "discovery"
+description = "Check if a single string value matches a query, returning match details"
+signature = "string, string -> object"
+examples = [
+    { code = "fuzzy_match('get_user', 'get_user') -> {matches: true, score: 1000, match_type: 'exact'}", description = "Exact match" },
+    { code = "fuzzy_match('get_user_info', 'get') -> {matches: true, score: 800, match_type: 'prefix'}", description = "Prefix match" },
+    { code = "fuzzy_match('hello_world', 'world') -> {matches: true, score: 600, match_type: 'contains'}", description = "Contains match" },
+    { code = "fuzzy_match('hello', 'xyz') -> {matches: false, score: 0, match_type: 'none', similarity: 0.3}", description = "No match with similarity" },
+]
+features = ["discovery"]
+
+[[functions]]
+name = "fuzzy_score"
+category = "discovery"
+description = "Get the numeric match score between a value and query (higher is better match)"
+signature = "string, string -> number"
+examples = [
+    { code = "fuzzy_score('hello', 'hello') -> 1000", description = "Exact match score (highest)" },
+    { code = "fuzzy_score('hello_world', 'hello') -> 800", description = "Prefix match score" },
+    { code = "fuzzy_score('say_hello', 'hello') -> 600", description = "Contains match score" },
+    { code = "fuzzy_score('hello', 'goodbye') -> 0", description = "No match score" },
+]
+features = ["discovery"]

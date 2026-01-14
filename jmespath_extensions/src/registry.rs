@@ -95,6 +95,7 @@ pub enum Category {
     Jsonpatch,
     Format,
     Language,
+    Discovery,
 }
 
 impl Category {
@@ -132,6 +133,7 @@ impl Category {
             Category::Jsonpatch,
             Category::Format,
             Category::Language,
+            Category::Discovery,
         ]
     }
 
@@ -169,6 +171,7 @@ impl Category {
             Category::Jsonpatch => "jsonpatch",
             Category::Format => "format",
             Category::Language => "language",
+            Category::Discovery => "discovery",
         }
     }
 
@@ -237,6 +240,8 @@ impl Category {
             Category::Format => true,
             #[cfg(feature = "language")]
             Category::Language => true,
+            #[cfg(feature = "discovery")]
+            Category::Discovery => true,
             // Explicit false cases for when features are disabled.
             // This ensures compile errors if a new category is added without handling it here.
             #[cfg(not(feature = "string"))]
@@ -299,6 +304,8 @@ impl Category {
             Category::Format => false,
             #[cfg(not(feature = "language"))]
             Category::Language => false,
+            #[cfg(not(feature = "discovery"))]
+            Category::Discovery => false,
         }
     }
 }
@@ -320,6 +327,9 @@ pub enum Feature {
     /// Environment variable access (opt-in for security)
     #[allow(non_camel_case_types)]
     env,
+    /// Discovery/search functions for tool discovery
+    #[allow(non_camel_case_types)]
+    discovery,
 }
 
 impl Feature {
@@ -332,6 +342,7 @@ impl Feature {
             Feature::Jep,
             Feature::format,
             Feature::env,
+            Feature::discovery,
         ]
     }
 
@@ -344,6 +355,7 @@ impl Feature {
             Feature::Jep => "jep",
             Feature::format => "format",
             Feature::env => "env",
+            Feature::discovery => "discovery",
         }
     }
 }
@@ -604,6 +616,8 @@ impl FunctionRegistry {
             Category::Format => crate::format::register(runtime),
             #[cfg(feature = "language")]
             Category::Language => crate::language::register(runtime),
+            #[cfg(feature = "discovery")]
+            Category::Discovery => crate::discovery::register(runtime),
             // Explicit no-op cases for when features are disabled.
             // This ensures compile errors if a new category is added without handling it here.
             Category::Standard => {} // Standard functions are registered via runtime.register_builtin_functions()
@@ -667,6 +681,8 @@ impl FunctionRegistry {
             Category::Format => {}
             #[cfg(not(feature = "language"))]
             Category::Language => {}
+            #[cfg(not(feature = "discovery"))]
+            Category::Discovery => {}
         }
     }
 }

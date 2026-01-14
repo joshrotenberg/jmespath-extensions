@@ -45,7 +45,7 @@ whatlang = { workspace = true, optional = true }
 
 [features]
 default = ["full"]
-full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch", "multi-match", "format", "language"]
+full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch", "multi-match", "format", "language", "discovery"]
 core = ["string", "array", "object", "math", "type", "utility", "validation", "path", "expression"]
 string = []
 array = []
@@ -77,6 +77,7 @@ jsonpatch = ["dep:json-patch"]
 multi-match = ["dep:aho-corasick"]
 format = ["dep:csv"]
 language = ["dep:whatlang"]
+discovery = ["dep:strsim"]
 # env feature is opt-in (not in full) as it can expose sensitive environment data
 env = []
 
