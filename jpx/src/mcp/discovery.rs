@@ -376,7 +376,7 @@ impl DiscoveryRegistry {
     pub fn list_categories(&self) -> HashMap<String, CategorySummary> {
         let mut categories: HashMap<String, CategorySummary> = HashMap::new();
 
-        for (_, (server, tool)) in &self.tools {
+        for (server, tool) in self.tools.values() {
             if let Some(cat) = &tool.category {
                 let entry = categories.entry(cat.clone()).or_insert(CategorySummary {
                     name: cat.clone(),
@@ -388,10 +388,12 @@ impl DiscoveryRegistry {
                 if !entry.servers.contains(server) {
                     entry.servers.push(server.clone());
                 }
-                if let Some(subcat) = &tool.subcategory {
-                    if !entry.subcategories.contains(subcat) {
-                        entry.subcategories.push(subcat.clone());
-                    }
+                if let Some(subcat) = tool
+                    .subcategory
+                    .as_ref()
+                    .filter(|s| !entry.subcategories.contains(s))
+                {
+                    entry.subcategories.push(subcat.clone());
                 }
             }
         }

@@ -245,14 +245,17 @@ impl Bm25Index {
 
     /// Get document ID from a document
     fn get_doc_id(&self, doc: &serde_json::Value, index: usize) -> String {
-        if let Some(id_field) = &self.options.id_field {
-            if let Some(id) = doc.get(id_field) {
-                return match id {
-                    serde_json::Value::String(s) => s.clone(),
-                    serde_json::Value::Number(n) => n.to_string(),
-                    _ => format!("{}", index),
-                };
-            }
+        if let Some(id) = self
+            .options
+            .id_field
+            .as_ref()
+            .and_then(|id_field| doc.get(id_field))
+        {
+            return match id {
+                serde_json::Value::String(s) => s.clone(),
+                serde_json::Value::Number(n) => n.to_string(),
+                _ => format!("{}", index),
+            };
         }
         format!("{}", index)
     }
@@ -421,14 +424,16 @@ impl Bm25Index {
         let mut matches: HashMap<String, Vec<String>> = HashMap::new();
 
         for term in query_terms {
-            if let Some(term_info) = self.terms.get(term) {
-                if term_info.postings.contains_key(doc_id) {
-                    // For now, just note which field matched (if we have field info)
-                    matches
-                        .entry("_matched".to_string())
-                        .or_default()
-                        .push(term.clone());
-                }
+            if self
+                .terms
+                .get(term)
+                .is_some_and(|term_info| term_info.postings.contains_key(doc_id))
+            {
+                // For now, just note which field matched (if we have field info)
+                matches
+                    .entry("_matched".to_string())
+                    .or_default()
+                    .push(term.clone());
             }
         }
 
