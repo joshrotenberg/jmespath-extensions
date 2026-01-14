@@ -171,29 +171,65 @@ Claude: [Uses jpx.keys with input and recursive=true]
 ## Usage
 
 ```bash
-jpx [OPTIONS] [EXPRESSION]
+jpx [OPTIONS] [EXPRESSIONS]...
 
 Arguments:
-  [EXPRESSION]  JMESPath expression to evaluate
+  [EXPRESSIONS]...  JMESPath expression(s) to evaluate (multiple are chained as a pipeline)
 
 Options:
   -e, --expression <EXPR>     Expression(s) to evaluate (can be chained)
   -Q, --query-file <FILE>     Read JMESPath expression from file
   -f, --file <FILE>           Input file (reads from stdin if not provided)
-  -r, --raw                   Output raw strings without quotes
-  -c, --compact               Compact output (no pretty printing)
+  -o, --output <FILE>         Output file (writes to stdout if not provided)
   -n, --null-input            Don't read input, use null as input value
   -s, --slurp                 Read all inputs into an array
       --stream, --each        Process input line by line (NDJSON/JSON Lines)
+
+Output Formats:
+  -r, --raw                   Output raw strings without quotes
+  -c, --compact               Compact output (no pretty printing)
+  -y, --yaml                  Output as YAML
+      --toml                  Output as TOML
+      --csv                   Output as CSV (for arrays of objects)
+      --tsv                   Output as TSV (for arrays of objects)
+  -l, --lines                 Output one JSON value per line (for arrays)
+  -t, --table                 Output as a formatted table (for arrays of objects)
+      --table-style <STYLE>   Table style: unicode, ascii, markdown, plain
       --color <MODE>          Colorize output (auto, always, never)
-  -o, --output <FILE>         Output file (writes to stdout if not provided)
-  -q, --quiet                 Suppress errors and warnings
-  -v, --verbose               Show expression details and timing
-      --strict                Strict mode - only standard JMESPath (no extensions)
-      --completions <SHELL>   Generate shell completions (bash, zsh, fish, powershell)
+
+JSON Patch Operations:
+      --diff <SRC> <TGT>      Generate JSON Patch (RFC 6902) from two files
+      --patch <FILE>          Apply JSON Patch (RFC 6902) to input
+      --merge <FILE>          Apply JSON Merge Patch (RFC 7396) to input
+
+Data Analysis:
+      --stats                 Show statistics about the input data
+      --paths                 List all paths in the input JSON
+      --types                 Show types alongside paths (use with --paths)
+      --values                Show values alongside paths (use with --paths)
+
+Function Discovery:
       --list-functions        List all available extension functions
       --list-category <NAME>  List functions in a specific category
       --describe <FUNCTION>   Show detailed info for a specific function
+      --search <QUERY>        Search functions by name, description, or category
+      --similar <FUNCTION>    Find functions similar to the specified function
+
+Debugging:
+      --explain               Show how an expression is parsed (AST)
+      --debug                 Show diagnostic information
+      --bench [N]             Benchmark expression performance
+      --warmup <N>            Warmup iterations before benchmarking
+
+Modes:
+  -q, --quiet                 Suppress errors and warnings
+  -v, --verbose               Show expression details and timing
+      --strict                Strict mode - only standard JMESPath (no extensions)
+      --repl                  Start interactive REPL mode
+      --demo <NAME>           Load a demo dataset (use with --repl)
+
+Other:
+      --completions <SHELL>   Generate shell completions (bash, zsh, fish, powershell, elvish)
   -h, --help                  Print help
   -V, --version               Print version
 ```
