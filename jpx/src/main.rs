@@ -90,6 +90,9 @@ enum Commands {
     "  echo '[1, 2, 3]' | jpx 'sum(@)'\n",
     "  echo '{\"ts\": \"2024-01-15\"}' | jpx 'format_date(ts, \"%B %d, %Y\")'\n",
     "  jpx -n 'now()'\n",
+    "\n",
+    "Pipeline (multiple expressions chained):\n",
+    "  cat data.json | jpx 'items[*].name' 'sort(@)' 'first(@)'\n",
     "  cat data.json | jpx -e 'items[*].name' -e 'sort(@)'\n",
     "\nVersion: ", env!("CARGO_PKG_VERSION"),
     "\nDocumentation: https://docs.rs/jmespath_extensions"
@@ -103,12 +106,12 @@ struct Args {
     #[arg(short = 'e', long = "expression", conflicts_with = "query_file")]
     expressions: Vec<String>,
 
-    /// JMESPath expression as positional argument
+    /// JMESPath expression(s) as positional arguments (multiple are chained as a pipeline)
     #[arg(conflicts_with_all = ["query_file", "expressions"])]
-    expression: Option<String>,
+    positional_expressions: Vec<String>,
 
     /// Read JMESPath expression from file
-    #[arg(short = 'Q', long = "query-file", conflicts_with_all = ["expression", "expressions"])]
+    #[arg(short = 'Q', long = "query-file", conflicts_with_all = ["positional_expressions", "expressions"])]
     query_file: Option<String>,
 
     /// Input file (reads from stdin if not provided)
@@ -263,7 +266,7 @@ fn main() -> Result<()> {
         return apply_merge(&args.file, merge_file, args.compact, &args.color);
     }
 
-    // Get expressions from positional arg, -e flags, or file
+    // Get expressions from positional args, -e flags, or file
     let expressions: Vec<String> = if let Some(query_path) = &args.query_file {
         vec![
             std::fs::read_to_string(query_path)
@@ -273,8 +276,8 @@ fn main() -> Result<()> {
         ]
     } else if !args.expressions.is_empty() {
         std::mem::take(&mut args.expressions)
-    } else if let Some(expr) = args.expression.take() {
-        vec![expr]
+    } else if !args.positional_expressions.is_empty() {
+        std::mem::take(&mut args.positional_expressions)
     } else {
         return Err(anyhow::anyhow!(
             "Expression required. Use --help for usage."
