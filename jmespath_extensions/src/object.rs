@@ -20,7 +20,8 @@ use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
 use crate::common::{
-    ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
+    ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Signature,
+    Variable,
 };
 use crate::define_function;
 
@@ -28,6 +29,7 @@ use crate::define_function;
 pub fn register(runtime: &mut Runtime) {
     runtime.register_function("items", Box::new(EntriesFn::new()));
     runtime.register_function("from_items", Box::new(FromEntriesFn::new()));
+    runtime.register_function("with_entries", Box::new(WithEntriesFn::new()));
     runtime.register_function("pick", Box::new(PickFn::new()));
     runtime.register_function("omit", Box::new(OmitFn::new()));
     runtime.register_function("invert", Box::new(InvertFn::new()));
@@ -145,6 +147,111 @@ impl Function for FromEntriesFn {
                     // Key must be a string
                     if let Some(key_str) = pair[0].as_string() {
                         result.insert(key_str.to_string(), pair[1].clone());
+                    }
+                }
+            }
+        }
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+// =============================================================================
+// with_entries(object, expr) -> object (transform entries, jq parity)
+// =============================================================================
+
+// Transform object entries using an expression.
+// Equivalent to: from_items(map(expr, items(object)))
+//
+// The expression receives each entry as a [key, value] pair and should return
+// a [key, value] pair (or null to remove the entry).
+//
+// # Arguments
+// * `object` - The object to transform
+// * `expr` - A JMESPath expression string that transforms [key, value] pairs
+//
+// # Returns
+// A new object with transformed entries.
+//
+// # Example
+// with_entries({a: 1, b: 2}, '[upper(@[`0`]), @[`1`] * `2`]') -> {A: 2, B: 4}
+
+pub struct WithEntriesFn {
+    signature: Signature,
+}
+
+impl Default for WithEntriesFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WithEntriesFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::Object, ArgumentType::String], None),
+        }
+    }
+}
+
+impl Function for WithEntriesFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let obj = args[0].as_object().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected object argument".to_owned()),
+            )
+        })?;
+
+        let expr_str = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected expression string".to_owned()),
+            )
+        })?;
+
+        // Compile the expression
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in with_entries: {}", e)),
+            )
+        })?;
+
+        let mut result = BTreeMap::new();
+
+        // Apply expression to each [key, value] entry
+        for (key, value) in obj.iter() {
+            // Create [key, value] pair
+            let entry = Rc::new(Variable::Array(vec![
+                Rc::new(Variable::String(key.clone())) as Rcvar,
+                value.clone(),
+            ]));
+
+            // Apply transformation
+            let transformed = compiled.search(entry).map_err(|e| {
+                JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse(format!("Expression error in with_entries: {}", e)),
+                )
+            })?;
+
+            // Skip null results (allows filtering entries)
+            if transformed.is_null() {
+                continue;
+            }
+
+            // Result should be a [key, value] pair
+            if let Some(pair) = transformed.as_array() {
+                if pair.len() >= 2 {
+                    if let Some(new_key) = pair[0].as_string() {
+                        result.insert(new_key.to_string(), pair[1].clone());
                     }
                 }
             }
@@ -3154,6 +3261,70 @@ mod tests {
         assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 1);
         assert_eq!(obj.get("b").unwrap().as_string().unwrap(), "hello");
         assert!(obj.get("c").unwrap().as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_with_entries_identity() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("with_entries(@, '[@[0], @[1]]')").unwrap();
+        let data = Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 1);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_with_entries_transform_keys() {
+        // Test that we can transform keys by prepending a prefix
+        // Using join to concatenate strings (built-in)
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile(r#"with_entries(@, '[join(`""`, [`"prefix_"`, @[0]]), @[1]]')"#)
+            .unwrap();
+        let data = Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert!(obj.contains_key("prefix_a"));
+        assert!(obj.contains_key("prefix_b"));
+    }
+
+    #[test]
+    fn test_with_entries_swap_key_value() {
+        // Test swapping keys and values (for string values)
+        let runtime = setup_runtime();
+        let expr = runtime.compile("with_entries(@, '[@[1], @[0]]')").unwrap();
+        let data = Variable::from_json(r#"{"a": "x", "b": "y"}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert_eq!(obj.get("x").unwrap().as_string().unwrap(), "a");
+        assert_eq!(obj.get("y").unwrap().as_string().unwrap(), "b");
+    }
+
+    #[test]
+    fn test_with_entries_filter_null() {
+        // Test that returning null from the expression skips entries
+        // This tests the filtering behavior of with_entries
+        let runtime = setup_runtime();
+        // Return null for all entries - result should be empty object
+        let expr = runtime.compile(r#"with_entries(@, '`null`')"#).unwrap();
+        let data = Variable::from_json(r#"{"a": 1, "b": 2}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 0);
+    }
+
+    #[test]
+    fn test_with_entries_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("with_entries(@, '[@[0], @[1]]')").unwrap();
+        let data = Variable::from_json(r#"{}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 0);
     }
 
     #[test]

@@ -1124,20 +1124,21 @@ impl Function for ModeFn {
 }
 
 // =============================================================================
-// cartesian(arr1, arr2) -> array (cartesian product)
+// cartesian(arr1, arr2) -> array (cartesian product of 2 arrays)
+// cartesian(array_of_arrays) -> array (cartesian product of N arrays, jq parity)
 // =============================================================================
 
 define_function!(
     CartesianFn,
-    vec![ArgumentType::Array, ArgumentType::Array],
-    None
+    vec![ArgumentType::Array],
+    Some(ArgumentType::Array)
 );
 
 impl Function for CartesianFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
 
-        let arr1 = args[0].as_array().ok_or_else(|| {
+        let first = args[0].as_array().ok_or_else(|| {
             JmespathError::new(
                 ctx.expression,
                 0,
@@ -1145,24 +1146,99 @@ impl Function for CartesianFn {
             )
         })?;
 
-        let arr2 = args[1].as_array().ok_or_else(|| {
-            JmespathError::new(
-                ctx.expression,
-                0,
-                ErrorReason::Parse("Expected array argument".to_owned()),
-            )
-        })?;
+        // Two modes:
+        // 1. cartesian(arr1, arr2) - two separate arrays (original behavior)
+        // 2. cartesian(array_of_arrays) - single array containing arrays (jq-style)
 
-        let mut result = Vec::with_capacity(arr1.len() * arr2.len());
+        if args.len() == 2 {
+            // Original two-argument mode
+            let arr2 = args[1].as_array().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Expected array argument".to_owned()),
+                )
+            })?;
 
-        for a in arr1 {
-            for b in arr2 {
-                result.push(Rc::new(Variable::Array(vec![a.clone(), b.clone()])) as Rcvar);
+            let mut result = Vec::with_capacity(first.len() * arr2.len());
+            for a in first {
+                for b in arr2 {
+                    result.push(Rc::new(Variable::Array(vec![a.clone(), b.clone()])) as Rcvar);
+                }
+            }
+            Ok(Rc::new(Variable::Array(result)))
+        } else {
+            // Single argument mode - check if it's an array of arrays
+            // If all elements are arrays, do N-way cartesian product
+            let arrays: Vec<&Vec<Rcvar>> =
+                first.iter().filter_map(|item| item.as_array()).collect();
+
+            if arrays.len() != first.len() || arrays.is_empty() {
+                // Not all elements are arrays, or empty - return empty
+                return Ok(Rc::new(Variable::Array(vec![])));
+            }
+
+            // N-way cartesian product
+            let result = cartesian_product_n(&arrays);
+            Ok(Rc::new(Variable::Array(result)))
+        }
+    }
+}
+
+/// Compute N-way cartesian product of arrays
+fn cartesian_product_n(arrays: &[&Vec<Rcvar>]) -> Vec<Rcvar> {
+    if arrays.is_empty() {
+        return vec![];
+    }
+
+    if arrays.len() == 1 {
+        // Single array - each element becomes a 1-element tuple
+        return arrays[0]
+            .iter()
+            .map(|item| Rc::new(Variable::Array(vec![item.clone()])) as Rcvar)
+            .collect();
+    }
+
+    // Calculate total size for pre-allocation
+    let total_size: usize = arrays.iter().map(|a| a.len()).product();
+    if total_size == 0 {
+        return vec![];
+    }
+
+    let mut result = Vec::with_capacity(total_size);
+
+    // Iterative cartesian product using indices
+    let mut indices = vec![0usize; arrays.len()];
+
+    loop {
+        // Build current combination
+        let combo: Vec<Rcvar> = indices
+            .iter()
+            .enumerate()
+            .map(|(arr_idx, &elem_idx)| arrays[arr_idx][elem_idx].clone())
+            .collect();
+        result.push(Rc::new(Variable::Array(combo)) as Rcvar);
+
+        // Increment indices (like counting in mixed radix)
+        let mut carry = true;
+        for i in (0..arrays.len()).rev() {
+            if carry {
+                indices[i] += 1;
+                if indices[i] >= arrays[i].len() {
+                    indices[i] = 0;
+                } else {
+                    carry = false;
+                }
             }
         }
 
-        Ok(Rc::new(Variable::Array(result)))
+        // If we carried all the way through, we're done
+        if carry {
+            break;
+        }
     }
+
+    result
 }
 
 // =============================================================================
@@ -3002,6 +3078,46 @@ mod tests {
         let runtime = setup_runtime();
         let data = Variable::from_json(r#"{"a": [], "b": [1, 2]}"#).unwrap();
         let expr = runtime.compile("cartesian(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_cartesian_n_way_two_arrays() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2], ["a", "b"]]"#).unwrap();
+        let expr = runtime.compile("cartesian(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4); // [1,a], [1,b], [2,a], [2,b]
+    }
+
+    #[test]
+    fn test_cartesian_n_way_three_arrays() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2], ["a", "b"], [true, false]]"#).unwrap();
+        let expr = runtime.compile("cartesian(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 8); // 2 * 2 * 2 = 8 combinations
+    }
+
+    #[test]
+    fn test_cartesian_n_way_single_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[[1, 2, 3]]"#).unwrap();
+        let expr = runtime.compile("cartesian(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3); // [1], [2], [3]
+    }
+
+    #[test]
+    fn test_cartesian_n_way_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("cartesian(@)").unwrap();
         let result = expr.search(&data).unwrap();
         let arr = result.as_array().unwrap();
         assert_eq!(arr.len(), 0);
