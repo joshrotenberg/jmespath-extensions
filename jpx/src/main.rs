@@ -176,6 +176,18 @@ struct Args {
     #[arg(long, value_name = "QUERY")]
     search: Option<String>,
 
+    /// Generate JSON Patch (RFC 6902) from two files: --diff SOURCE TARGET
+    #[arg(long, num_args = 2, value_names = ["SOURCE", "TARGET"])]
+    diff: Option<Vec<String>>,
+
+    /// Apply JSON Patch (RFC 6902): --patch FILE (reads patch from stdin, or use -f for document)
+    #[arg(long, value_name = "PATCH_FILE")]
+    patch: Option<String>,
+
+    /// Apply JSON Merge Patch (RFC 7396): --merge FILE (reads merge patch from stdin, or use -f for document)
+    #[arg(long, value_name = "MERGE_FILE")]
+    merge: Option<String>,
+
     /// Explain how an expression is parsed (show AST)
     #[arg(long)]
     explain: bool,
@@ -234,6 +246,21 @@ fn main() -> Result<()> {
     if let Some(query) = &args.search {
         search_functions(&registry, query);
         return Ok(());
+    }
+
+    // Handle --diff: generate JSON Patch from two files
+    if let Some(files) = &args.diff {
+        return diff_files(&files[0], &files[1], args.compact, &args.color);
+    }
+
+    // Handle --patch: apply JSON Patch to document
+    if let Some(patch_file) = &args.patch {
+        return apply_patch(&args.file, patch_file, args.compact, &args.color);
+    }
+
+    // Handle --merge: apply JSON Merge Patch to document
+    if let Some(merge_file) = &args.merge {
+        return apply_merge(&args.file, merge_file, args.compact, &args.color);
     }
 
     // Get expressions from positional arg, -e flags, or file
@@ -885,4 +912,135 @@ fn print_ast(node: &Ast, indent: usize) {
             print_ast(ast, indent + 1);
         }
     }
+}
+
+// =============================================================================
+// JSON Patch / Merge operations
+// =============================================================================
+
+/// Read JSON from a file or stdin
+fn read_json_from(path: Option<&str>) -> Result<serde_json::Value> {
+    let content = if let Some(p) = path {
+        std::fs::read_to_string(p).with_context(|| format!("Failed to read file: {}", p))?
+    } else {
+        let mut buf = String::new();
+        io::stdin()
+            .read_to_string(&mut buf)
+            .context("Failed to read from stdin")?;
+        buf
+    };
+    serde_json::from_str(&content).context("Failed to parse JSON")
+}
+
+/// Output JSON with optional coloring
+fn output_json(value: &serde_json::Value, compact: bool, color_mode: &ColorMode) -> Result<()> {
+    let use_color = match color_mode {
+        ColorMode::Always => true,
+        ColorMode::Never => false,
+        ColorMode::Auto => atty::is(atty::Stream::Stdout),
+    };
+
+    if compact {
+        println!("{}", serde_json::to_string(value)?);
+    } else if use_color {
+        use colored_json::{ColoredFormatter, PrettyFormatter};
+        let formatter = ColoredFormatter::new(PrettyFormatter::new());
+        println!("{}", formatter.to_colored_json_auto(value)?);
+    } else {
+        println!("{}", serde_json::to_string_pretty(value)?);
+    }
+    Ok(())
+}
+
+/// Generate JSON Patch (RFC 6902) from two files
+fn diff_files(
+    source_path: &str,
+    target_path: &str,
+    compact: bool,
+    color_mode: &ColorMode,
+) -> Result<()> {
+    let source: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(source_path)
+            .with_context(|| format!("Failed to read source file: {}", source_path))?,
+    )
+    .context("Failed to parse source JSON")?;
+
+    let target: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(target_path)
+            .with_context(|| format!("Failed to read target file: {}", target_path))?,
+    )
+    .context("Failed to parse target JSON")?;
+
+    let patch = json_patch::diff(&source, &target);
+
+    if patch.0.is_empty() {
+        eprintln!("{} No differences found", "✓".green());
+        println!("[]");
+        return Ok(());
+    }
+
+    eprintln!(
+        "{} Generated {} patch operation(s)",
+        "✓".green(),
+        patch.0.len().to_string().yellow()
+    );
+
+    let patch_value = serde_json::to_value(&patch)?;
+    output_json(&patch_value, compact, color_mode)
+}
+
+/// Apply JSON Patch (RFC 6902) to a document
+fn apply_patch(
+    doc_path: &Option<String>,
+    patch_path: &str,
+    compact: bool,
+    color_mode: &ColorMode,
+) -> Result<()> {
+    // Read the document (from -f or stdin)
+    let mut doc = read_json_from(doc_path.as_deref())?;
+
+    // Read the patch from file
+    let patch_content = std::fs::read_to_string(patch_path)
+        .with_context(|| format!("Failed to read patch file: {}", patch_path))?;
+    let patch_value: serde_json::Value =
+        serde_json::from_str(&patch_content).context("Failed to parse patch JSON")?;
+
+    // Convert to json_patch::Patch
+    let patch: json_patch::Patch =
+        serde_json::from_value(patch_value).context("Invalid JSON Patch format")?;
+
+    // Apply the patch
+    json_patch::patch(&mut doc, &patch).context("Failed to apply patch")?;
+
+    eprintln!(
+        "{} Applied {} patch operation(s)",
+        "✓".green(),
+        patch.0.len().to_string().yellow()
+    );
+
+    output_json(&doc, compact, color_mode)
+}
+
+/// Apply JSON Merge Patch (RFC 7396) to a document
+fn apply_merge(
+    doc_path: &Option<String>,
+    merge_path: &str,
+    compact: bool,
+    color_mode: &ColorMode,
+) -> Result<()> {
+    // Read the document (from -f or stdin)
+    let mut doc = read_json_from(doc_path.as_deref())?;
+
+    // Read the merge patch from file
+    let merge_content = std::fs::read_to_string(merge_path)
+        .with_context(|| format!("Failed to read merge patch file: {}", merge_path))?;
+    let merge_patch: serde_json::Value =
+        serde_json::from_str(&merge_content).context("Failed to parse merge patch JSON")?;
+
+    // Apply the merge patch
+    json_patch::merge(&mut doc, &merge_patch);
+
+    eprintln!("{} Applied merge patch", "✓".green());
+
+    output_json(&doc, compact, color_mode)
 }
