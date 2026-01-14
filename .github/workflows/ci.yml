@@ -151,14 +151,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install maturin
-        run: pip install maturin pytest
+      - name: Create venv and install dependencies
+        working-directory: jmespath-extensions-py
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install maturin pytest
       - name: Build and install
         working-directory: jmespath-extensions-py
-        run: maturin develop
+        run: |
+          source .venv/bin/activate
+          maturin develop
       - name: Run tests
         working-directory: jmespath-extensions-py
-        run: pytest tests/ -v
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -v
 
   python-wheels:
     name: Python Wheels (${{ matrix.os }})
