@@ -125,9 +125,9 @@ jobs:
           toolchain: "1.85"
       - uses: Swatinem/rust-cache@v2
       - name: Check MSRV
-        # Edition 2024 requires 1.85, but let chains require nightly/1.92+
-        # For now, just verify edition 2024 parses correctly
-        run: cargo check --no-default-features
+        # Edition 2024 requires 1.85
+        # Exclude mock-mcp-server (requires 1.88+ due to rmcp deps)
+        run: cargo check --no-default-features --workspace --exclude mock-mcp-server
 
   bench:
     name: Benchmarks
