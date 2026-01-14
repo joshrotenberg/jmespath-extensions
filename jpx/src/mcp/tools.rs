@@ -376,6 +376,7 @@ fn category_to_string(category: Category) -> &'static str {
         Category::Jsonpatch => "jsonpatch",
         Category::Format => "format",
         Category::Language => "language",
+        Category::Discovery => "discovery",
     }
 }
 
