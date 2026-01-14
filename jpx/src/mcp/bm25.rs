@@ -675,9 +675,9 @@ mod tests {
     #[test]
     fn test_similar() {
         let docs = vec![
-            json!({"name": "create_cluster", "description": "Create a new cluster"}),
-            json!({"name": "delete_cluster", "description": "Delete a cluster"}),
-            json!({"name": "create_backup", "description": "Create a backup"}),
+            json!({"name": "create_cluster", "description": "Create a new kubernetes cluster"}),
+            json!({"name": "delete_cluster", "description": "Delete an existing kubernetes cluster"}),
+            json!({"name": "upload_file", "description": "Upload a file to storage"}),
         ];
 
         let options = IndexOptions {
@@ -689,7 +689,7 @@ mod tests {
         let index = Bm25Index::build(&docs, options);
         let similar = index.similar("create_cluster", 10);
 
-        // delete_cluster should be most similar (shares "cluster")
+        // delete_cluster should be most similar (shares "cluster" and "kubernetes")
         assert!(!similar.is_empty());
         assert_eq!(similar[0].id, "delete_cluster");
     }

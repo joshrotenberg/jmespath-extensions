@@ -217,6 +217,7 @@ fn default_true() -> bool {
 pub struct GetDiscoverySchemaParams {
     /// Schema version (optional, defaults to latest)
     #[serde(default)]
+    #[allow(dead_code)]
     pub version: Option<String>,
 }
 
