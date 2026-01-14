@@ -3899,6 +3899,19 @@ examples = [
 features = ["core"]
 
 [[functions]]
+name = "shell_escape"
+category = "string"
+description = "Escape a string for safe use in shell commands (POSIX sh compatible, jq parity)"
+signature = "string -> string"
+examples = [
+    { code = '''shell_escape('hello') -> \"hello\"''', description = "Simple string unchanged" },
+    { code = '''shell_escape('hello world') -> \"'hello world'\"''', description = "Spaces get quoted" },
+    { code = '''shell_escape('$PATH') -> \"'$PATH'\"''', description = "Variables are escaped" },
+    { code = '''shell_escape('it'\\''s') -> \"'it'\\\\''s'\"''', description = "Single quotes escaped" },
+]
+features = ["core"]
+
+[[functions]]
 name = "inside"
 category = "string"
 description = "Check if search string is contained in string"

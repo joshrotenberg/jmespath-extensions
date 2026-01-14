@@ -76,6 +76,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("reverse_string", Box::new(ReverseStringFn::new()));
     runtime.register_function("explode", Box::new(ExplodeFn::new()));
     runtime.register_function("implode", Box::new(ImplodeFn::new()));
+    runtime.register_function("shell_escape", Box::new(ShellEscapeFn::new()));
 }
 
 // =============================================================================
@@ -2236,6 +2237,58 @@ impl Function for ImplodeFn {
     }
 }
 
+// =============================================================================
+// shell_escape(string) -> string
+// Escape a string for safe use in shell commands (POSIX sh compatible)
+// =============================================================================
+
+define_function!(ShellEscapeFn, vec![ArgumentType::String], None);
+
+impl Function for ShellEscapeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        // Use single quotes for shell escaping (POSIX compatible)
+        // If the string contains single quotes, we need to handle them specially:
+        // 'it'\''s' becomes: 'it' + \' + 's' (end quote, escaped quote, start quote)
+        let escaped = if s.is_empty() {
+            "''".to_string()
+        } else if s
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.' || c == '/')
+        {
+            // Safe characters that don't need quoting
+            s.to_string()
+        } else if !s.contains('\'') {
+            // No single quotes, just wrap in single quotes
+            format!("'{}'", s)
+        } else {
+            // Contains single quotes - use the '\'' technique
+            let mut result = String::with_capacity(s.len() + 10);
+            result.push('\'');
+            for c in s.chars() {
+                if c == '\'' {
+                    result.push_str("'\\''");
+                } else {
+                    result.push(c);
+                }
+            }
+            result.push('\'');
+            result
+        };
+
+        Ok(Rc::new(Variable::String(escaped)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3032,5 +3085,75 @@ mod tests {
         let data = Variable::String("Hello, 世界!".to_string());
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "Hello, 世界!");
+    }
+
+    // =========================================================================
+    // shell_escape tests
+    // =========================================================================
+
+    #[test]
+    fn test_shell_escape_simple() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("hello".to_string());
+        let result = expr.search(&data).unwrap();
+        // Simple alphanumeric doesn't need quoting
+        assert_eq!(result.as_string().unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_shell_escape_with_spaces() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("hello world".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "'hello world'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_special_chars() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("$PATH; rm -rf /".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "'$PATH; rm -rf /'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_single_quote() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("it's".to_string());
+        let result = expr.search(&data).unwrap();
+        // Single quotes are escaped as '\''
+        assert_eq!(result.as_string().unwrap(), "'it'\\''s'");
+    }
+
+    #[test]
+    fn test_shell_escape_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "''");
+    }
+
+    #[test]
+    fn test_shell_escape_path() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("/usr/local/bin".to_string());
+        let result = expr.search(&data).unwrap();
+        // Paths with only safe chars don't need quoting
+        assert_eq!(result.as_string().unwrap(), "/usr/local/bin");
+    }
+
+    #[test]
+    fn test_shell_escape_backticks() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("shell_escape(@)").unwrap();
+        let data = Variable::String("`whoami`".to_string());
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "'`whoami`'");
     }
 }
