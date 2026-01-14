@@ -32,11 +32,11 @@
 //! ```
 
 use rmcp::{
-    handler::server::router::tool::ToolRouter, handler::server::wrapper::Parameters, model::*,
-    schemars, tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler,
+    ErrorData as McpError, ServerHandler, handler::server::router::tool::ToolRouter,
+    handler::server::wrapper::Parameters, model::*, schemars, tool, tool_handler, tool_router,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 /// Configuration for the mock server
@@ -393,7 +393,7 @@ impl MockMcpServer {
 
     /// Run the mock server on stdio
     pub async fn run(config: ServerConfig) -> anyhow::Result<()> {
-        use rmcp::{transport::stdio, ServiceExt};
+        use rmcp::{ServiceExt, transport::stdio};
         use tracing::info;
 
         info!("Starting mock MCP server: {}", config.name);
