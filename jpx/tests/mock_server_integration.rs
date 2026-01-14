@@ -361,6 +361,152 @@ mod search_quality {
             "Singular 'box' should match 'open_box'"
         );
     }
+
+    #[test]
+    fn test_parameter_names_indexed() {
+        let mut registry = DiscoveryRegistry::new();
+
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    {
+                        "name": "create_database",
+                        "description": "Create a new database",
+                        "params": [
+                            { "name": "database_id", "type": "string", "required": true },
+                            { "name": "region", "type": "string" }
+                        ]
+                    },
+                    {
+                        "name": "create_subscription",
+                        "description": "Create a new subscription",
+                        "params": [
+                            { "name": "subscription_id", "type": "string", "required": true },
+                            { "name": "plan_type", "type": "string" }
+                        ]
+                    },
+                    {
+                        "name": "list_items",
+                        "description": "List items",
+                        "params": []
+                    }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Search by parameter name "database_id"
+        let results = registry.query("database_id", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"create_database"),
+            "Param search 'database_id' should find create_database"
+        );
+        assert!(
+            !tool_names.contains(&"create_subscription"),
+            "Param search 'database_id' should NOT find create_subscription"
+        );
+
+        // Search by parameter name "subscription_id"
+        let results = registry.query("subscription_id", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"create_subscription"),
+            "Param search 'subscription_id' should find create_subscription"
+        );
+
+        // Search by common parameter "region"
+        let results = registry.query("region", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"create_database"),
+            "Param search 'region' should find create_database"
+        );
+    }
+
+    #[test]
+    fn test_tags_indexed_for_semantic_search() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register tools with semantic tags that aren't in the description
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    {
+                        "name": "acl_create",
+                        "description": "Create a new ACL entry",
+                        "tags": ["security", "permissions", "rbac", "auth"]
+                    },
+                    {
+                        "name": "acl_delete",
+                        "description": "Delete an ACL entry",
+                        "tags": ["security", "permissions", "destructive"]
+                    },
+                    {
+                        "name": "backup_create",
+                        "description": "Create a backup",
+                        "tags": ["data-protection", "disaster-recovery"]
+                    },
+                    {
+                        "name": "user_list",
+                        "description": "List all users",
+                        "tags": ["read-only", "users"]
+                    }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Search by tag "security" - should find ACL tools even though
+        // "security" isn't in their descriptions
+        let results = registry.query("security", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"acl_create"),
+            "Tag search 'security' should find acl_create"
+        );
+        assert!(
+            tool_names.contains(&"acl_delete"),
+            "Tag search 'security' should find acl_delete"
+        );
+        assert!(
+            !tool_names.contains(&"backup_create"),
+            "Tag search 'security' should NOT find backup_create"
+        );
+
+        // Search by tag "permissions"
+        let results = registry.query("permissions", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"acl_create"),
+            "Tag search 'permissions' should find acl_create"
+        );
+
+        // Search by hyphenated tag "disaster-recovery"
+        // Note: BM25 tokenizes on hyphens, so search for component words
+        let results = registry.query("disaster recovery", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"backup_create"),
+            "Tag search 'disaster recovery' should find backup_create"
+        );
+
+        // Search by tag "destructive" - should find tools marked as such
+        let results = registry.query("destructive", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"acl_delete"),
+            "Tag search 'destructive' should find acl_delete"
+        );
+        assert!(
+            !tool_names.contains(&"acl_create"),
+            "Tag search 'destructive' should NOT find acl_create"
+        );
+    }
 }
 
 #[cfg(feature = "mcp")]

@@ -319,7 +319,7 @@ impl Bm25Index {
         text.split(|c: char| !c.is_alphanumeric() && c != '_')
             .filter(|s| !s.is_empty())
             .filter(|s| !self.options.stopwords.contains(&s.to_string()))
-            .map(|s| stem_simple(s))
+            .map(stem_simple)
             .collect()
     }
 }
