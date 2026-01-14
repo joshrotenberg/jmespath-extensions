@@ -1541,3 +1541,184 @@ mod cli_similar {
         assert!(stderr.contains("Unknown function"));
     }
 }
+
+mod cli_stream {
+    use super::*;
+
+    fn run_stream(input: &str, query: &str) -> String {
+        let mut child = jpx_cmd()
+            .arg("--stream")
+            .arg(query)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    fn run_stream_raw(input: &str, query: &str) -> String {
+        let mut child = jpx_cmd()
+            .arg("--stream")
+            .arg("-r")
+            .arg(query)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn test_stream_basic() {
+        let input = r#"{"id":1}
+{"id":2}
+{"id":3}"#;
+        let result = run_stream(input, "id");
+        assert_eq!(result, "1\n2\n3");
+    }
+
+    #[test]
+    fn test_stream_with_raw_output() {
+        let input = r#"{"name":"alice"}
+{"name":"bob"}
+{"name":"charlie"}"#;
+        let result = run_stream_raw(input, "name");
+        assert_eq!(result, "alice\nbob\ncharlie");
+    }
+
+    #[test]
+    fn test_stream_skips_empty_lines() {
+        let input = r#"{"id":1}
+
+{"id":2}
+
+{"id":3}"#;
+        let result = run_stream(input, "id");
+        assert_eq!(result, "1\n2\n3");
+    }
+
+    #[test]
+    fn test_stream_skips_null_results() {
+        let input = r#"{"id":1,"name":"alice"}
+{"id":2}
+{"id":3,"name":"charlie"}"#;
+        let result = run_stream(input, "name");
+        // Second line has no "name" field, result is null, should be skipped
+        assert_eq!(result, "\"alice\"\n\"charlie\"");
+    }
+
+    #[test]
+    fn test_stream_with_nested_fields() {
+        let input = r#"{"user":{"name":"alice"}}
+{"user":{"name":"bob"}}"#;
+        let result = run_stream_raw(input, "user.name");
+        assert_eq!(result, "alice\nbob");
+    }
+
+    #[test]
+    fn test_stream_with_array_access() {
+        let input = r#"{"items":[1,2,3]}
+{"items":[4,5,6]}"#;
+        let result = run_stream(input, "items[0]");
+        assert_eq!(result, "1\n4");
+    }
+
+    #[test]
+    fn test_stream_with_expression_function() {
+        let input = r#"{"name":"alice"}
+{"name":"bob"}"#;
+        let result = run_stream_raw(input, "upper(name)");
+        assert_eq!(result, "ALICE\nBOB");
+    }
+
+    #[test]
+    fn test_stream_alias_each() {
+        let input = r#"{"id":1}
+{"id":2}"#;
+        let mut child = jpx_cmd()
+            .arg("--each") // Use alias instead of --stream
+            .arg("id")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        assert_eq!(result, "1\n2");
+    }
+
+    #[test]
+    fn test_stream_conflicts_with_slurp() {
+        let output = jpx_cmd()
+            .arg("--stream")
+            .arg("--slurp")
+            .arg("@")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx")
+            .wait_with_output()
+            .expect("Failed to wait on jpx");
+
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("cannot be used with"));
+    }
+
+    #[test]
+    fn test_stream_verbose_shows_line_count() {
+        let input = r#"{"id":1}
+{"id":2}
+{"id":3}"#;
+        let mut child = jpx_cmd()
+            .arg("--stream")
+            .arg("-v")
+            .arg("id")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("Processed 3 lines"));
+    }
+}
