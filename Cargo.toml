@@ -1,5 +1,5 @@
 [workspace]
-members = ["jmespath_extensions", "jpx", "jmespath-extensions-py", "xtask"]
+members = ["jmespath_extensions", "jpx", "jmespath-extensions-py", "xtask", "mock-mcp-server"]
 resolver = "2"
 
 [workspace.package]

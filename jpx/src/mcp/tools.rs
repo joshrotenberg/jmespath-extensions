@@ -1211,10 +1211,7 @@ impl JpxMcp {
     #[tool(
         description = "List all MCP servers that have registered their tools for discovery. Returns server names, versions, descriptions, and tool counts."
     )]
-    async fn list_discovery_servers(
-        &self,
-        Parameters(()): Parameters<()>,
-    ) -> Result<CallToolResult, McpError> {
+    async fn list_discovery_servers(&self) -> Result<CallToolResult, McpError> {
         let servers = {
             let registry = discovery_registry()
                 .read()
@@ -1229,10 +1226,7 @@ impl JpxMcp {
     #[tool(
         description = "List all tool categories from registered MCP servers. Returns category names with tool counts and which servers provide tools in each category."
     )]
-    async fn list_discovery_categories(
-        &self,
-        Parameters(()): Parameters<()>,
-    ) -> Result<CallToolResult, McpError> {
+    async fn list_discovery_categories(&self) -> Result<CallToolResult, McpError> {
         let categories = {
             let registry = discovery_registry()
                 .read()
@@ -1247,10 +1241,7 @@ impl JpxMcp {
     #[tool(
         description = "Get statistics about the discovery index including document count, term count, average document length, and top indexed terms. Useful for understanding what's been indexed."
     )]
-    async fn inspect_discovery_index(
-        &self,
-        Parameters(()): Parameters<()>,
-    ) -> Result<CallToolResult, McpError> {
+    async fn inspect_discovery_index(&self) -> Result<CallToolResult, McpError> {
         let stats = {
             let registry = discovery_registry()
                 .read()
