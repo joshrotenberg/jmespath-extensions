@@ -153,6 +153,51 @@ pub struct EvaluateFileParams {
     pub expression: String,
 }
 
+/// Parameters for the search tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SearchParams {
+    /// Search query to match against function names, descriptions, categories, or signatures
+    pub query: String,
+    /// Maximum number of results to return (default: 20)
+    #[serde(default = "default_search_limit")]
+    pub limit: usize,
+}
+
+fn default_search_limit() -> usize {
+    20
+}
+
+/// Parameters for the similar tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SimilarParams {
+    /// Function name to find similar functions for
+    pub function: String,
+}
+
+/// Parameters for the stats tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct StatsParams {
+    /// JSON input to analyze
+    pub input: String,
+}
+
+/// Parameters for the paths tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PathsParams {
+    /// JSON input to extract paths from
+    pub input: String,
+    /// Include type information for each path (default: true)
+    #[serde(default = "default_true")]
+    pub include_types: bool,
+    /// Include values for leaf paths (default: false)
+    #[serde(default)]
+    pub include_values: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 // =============================================================================
 // Response types
 // =============================================================================
@@ -168,7 +213,7 @@ pub struct FunctionDetail {
     pub is_standard: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jep: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub aliases: Vec<String>,
 }
 
@@ -213,6 +258,83 @@ pub struct BatchExpressionResult {
 pub struct BatchEvaluateResult {
     /// Results for each expression in order
     pub results: Vec<BatchExpressionResult>,
+}
+
+/// Search result with match information
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResult {
+    /// Function details
+    pub function: FunctionDetail,
+    /// How the function matched the query
+    pub match_type: String,
+    /// Relevance score (higher = better match)
+    pub score: i32,
+}
+
+/// Similar functions result
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SimilarResult {
+    /// Functions in the same category
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub same_category: Vec<FunctionDetail>,
+    /// Functions with similar signatures
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub similar_signature: Vec<FunctionDetail>,
+    /// Functions with related concepts (based on description keywords)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub related_concepts: Vec<FunctionDetail>,
+}
+
+/// Statistics about JSON data
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StatsResult {
+    /// Type of the root value
+    pub root_type: String,
+    /// Estimated size in bytes
+    pub size_bytes: usize,
+    /// Human-readable size
+    pub size_human: String,
+    /// Nesting depth
+    pub depth: usize,
+    /// For arrays: number of items
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub length: Option<usize>,
+    /// For objects: number of keys
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_count: Option<usize>,
+    /// For arrays of objects: field analysis
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fields: Option<Vec<FieldAnalysis>>,
+    /// Type distribution for arrays
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_distribution: Option<std::collections::HashMap<String, usize>>,
+}
+
+/// Field analysis for arrays of objects
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FieldAnalysis {
+    /// Field name
+    pub name: String,
+    /// Predominant type
+    pub field_type: String,
+    /// Count of null values
+    pub null_count: usize,
+    /// Number of unique values (for low-cardinality fields)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unique_count: Option<usize>,
+}
+
+/// Path information in JSON structure
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PathInfo {
+    /// The path in dot notation
+    pub path: String,
+    /// The type at this path
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_type: Option<String>,
+    /// The value at this path (for leaf nodes)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<Value>,
 }
 
 // =============================================================================
@@ -728,6 +850,509 @@ impl JpxMcp {
 
         json_result(&result_json)
     }
+
+    /// Search for functions by name, description, category, or signature
+    #[tool(
+        description = "Search for JMESPath functions using fuzzy matching. Searches function names, descriptions, categories, signatures, and aliases. Returns ranked results with match type and relevance score. Essential for discovering functions when you're not sure of the exact name."
+    )]
+    async fn search(
+        &self,
+        Parameters(params): Parameters<SearchParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let reg = registry();
+        let query_lower = params.query.to_lowercase();
+        let mut results: Vec<SearchResult> = Vec::new();
+
+        for func in reg.functions() {
+            let name_lower = func.name.to_lowercase();
+            let desc_lower = func.description.to_lowercase();
+            let sig_lower = func.signature.to_lowercase();
+            let cat_lower = func.category.name().to_lowercase();
+
+            // Scoring: higher = better match
+            let (score, match_type) = if name_lower == query_lower {
+                (1000, "exact_name")
+            } else if name_lower.starts_with(&query_lower) {
+                (800, "name_prefix")
+            } else if name_lower.contains(&query_lower) {
+                (600, "name_contains")
+            } else if func
+                .aliases
+                .iter()
+                .any(|a| a.to_lowercase().contains(&query_lower))
+            {
+                (500, "alias_match")
+            } else if cat_lower.contains(&query_lower) {
+                (400, "category_match")
+            } else if desc_lower.contains(&query_lower) {
+                // Boost if query appears early in description
+                let pos = desc_lower.find(&query_lower).unwrap_or(100);
+                (300 - pos.min(100) as i32, "description_match")
+            } else if sig_lower.contains(&query_lower) {
+                (100, "signature_match")
+            } else {
+                continue; // No match
+            };
+
+            results.push(SearchResult {
+                function: FunctionDetail::from(func),
+                match_type: match_type.to_string(),
+                score,
+            });
+        }
+
+        // Sort by score descending
+        results.sort_by(|a, b| b.score.cmp(&a.score));
+
+        // Limit results
+        results.truncate(params.limit);
+
+        if results.is_empty() {
+            Ok(error_result(format!(
+                "No functions found matching '{}'. Try broader search terms like 'string', 'array', 'date', 'hash', etc.",
+                params.query
+            )))
+        } else {
+            json_result(&results)
+        }
+    }
+
+    /// Find functions similar to a specified function
+    #[tool(
+        description = "Find functions similar to a specified function. Returns functions in the same category, functions with similar signatures (same input/output types), and functions with related concepts based on description keywords. Useful for discovering alternative approaches."
+    )]
+    async fn similar(
+        &self,
+        Parameters(params): Parameters<SimilarParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let reg = registry();
+
+        let target = match reg.get_function(&params.function) {
+            Some(f) => f,
+            None => {
+                return Ok(error_result(format!(
+                    "Unknown function '{}'. Use the 'search' tool to find functions.",
+                    params.function
+                )));
+            }
+        };
+
+        // Parse target signature
+        let target_sig = parse_signature_parts(target.signature);
+
+        // 1. Same category (excluding target)
+        let same_category: Vec<FunctionDetail> = reg
+            .functions_in_category(target.category)
+            .filter(|f| f.name != target.name)
+            .take(10)
+            .map(FunctionDetail::from)
+            .collect();
+
+        // 2. Similar signature (different category, same input->output pattern)
+        let similar_signature: Vec<FunctionDetail> = reg
+            .functions()
+            .filter(|f| {
+                f.name != target.name
+                    && f.category != target.category
+                    && signatures_similar(&parse_signature_parts(f.signature), &target_sig)
+            })
+            .take(10)
+            .map(FunctionDetail::from)
+            .collect();
+
+        // 3. Related concepts (shared keywords in description)
+        let keywords = extract_description_keywords(target.description);
+        let mut related: Vec<(FunctionDetail, usize)> = reg
+            .functions()
+            .filter(|f| f.name != target.name && f.category != target.category)
+            .filter_map(|f| {
+                let score = keywords
+                    .iter()
+                    .filter(|kw| f.description.to_lowercase().contains(&kw.to_lowercase()))
+                    .count();
+                if score > 0 {
+                    Some((FunctionDetail::from(f), score))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        related.sort_by(|a, b| b.1.cmp(&a.1));
+        let related_concepts: Vec<FunctionDetail> =
+            related.into_iter().take(8).map(|(f, _)| f).collect();
+
+        json_result(&SimilarResult {
+            same_category,
+            similar_signature,
+            related_concepts,
+        })
+    }
+
+    /// Get statistics about JSON data structure
+    #[tool(
+        description = "Analyze JSON data and return statistics including type, size, depth, field analysis for arrays of objects, and type distribution. Useful for understanding data structure before writing queries."
+    )]
+    async fn stats(
+        &self,
+        Parameters(params): Parameters<StatsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value: Value = serde_json::from_str(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON: {}", e), None))?;
+
+        let size_bytes = serde_json::to_string(&value).map(|s| s.len()).unwrap_or(0);
+
+        let mut result = StatsResult {
+            root_type: get_json_type_name(&value),
+            size_bytes,
+            size_human: format_size_human(size_bytes),
+            depth: calculate_json_depth(&value),
+            length: None,
+            key_count: None,
+            fields: None,
+            type_distribution: None,
+        };
+
+        match &value {
+            Value::Array(arr) => {
+                result.length = Some(arr.len());
+
+                // Type distribution
+                let mut type_counts = std::collections::HashMap::new();
+                for item in arr {
+                    let type_name = get_json_type_name(item);
+                    *type_counts.entry(type_name).or_insert(0usize) += 1;
+                }
+                result.type_distribution = Some(type_counts.clone());
+
+                // If all objects, analyze fields
+                if type_counts.len() == 1 && type_counts.contains_key("object") {
+                    result.fields = Some(analyze_array_fields(arr));
+                }
+            }
+            Value::Object(obj) => {
+                result.key_count = Some(obj.len());
+            }
+            _ => {}
+        }
+
+        json_result(&result)
+    }
+
+    /// List all paths in JSON data
+    #[tool(
+        description = "Extract all paths from JSON data in dot notation (e.g., 'users.0.name'). Optionally includes type information and values. Essential for understanding complex JSON structure before writing JMESPath queries."
+    )]
+    async fn paths(
+        &self,
+        Parameters(params): Parameters<PathsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value: Value = serde_json::from_str(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON: {}", e), None))?;
+
+        let mut paths: Vec<PathInfo> = Vec::new();
+        collect_all_paths(
+            &value,
+            String::new(),
+            &mut paths,
+            params.include_types,
+            params.include_values,
+        );
+
+        json_result(&paths)
+    }
+}
+
+// =============================================================================
+// Helper functions for new tools
+// =============================================================================
+
+/// Parse signature into (input_types, output_type)
+fn parse_signature_parts(sig: &str) -> (Vec<String>, String) {
+    let parts: Vec<&str> = sig.split("->").collect();
+    if parts.len() != 2 {
+        return (vec![], String::new());
+    }
+
+    let inputs: Vec<String> = parts[0]
+        .split(',')
+        .map(|s| normalize_type_name(s.trim()))
+        .collect();
+    let output = normalize_type_name(parts[1].trim());
+
+    (inputs, output)
+}
+
+/// Normalize type names for comparison
+fn normalize_type_name(t: &str) -> String {
+    let t = t.trim_end_matches('?').trim_end_matches("...");
+    match t.to_lowercase().as_str() {
+        "number" | "integer" => "number".to_string(),
+        "string" | "str" => "string".to_string(),
+        "array" | "list" => "array".to_string(),
+        "object" | "hash" | "map" => "object".to_string(),
+        "boolean" | "bool" => "boolean".to_string(),
+        "any" | "expression" | "expref" => "any".to_string(),
+        _ => t.to_lowercase(),
+    }
+}
+
+/// Check if two signatures are similar
+fn signatures_similar(a: &(Vec<String>, String), b: &(Vec<String>, String)) -> bool {
+    // Must have same output type
+    if a.1 != b.1 || a.1.is_empty() {
+        return false;
+    }
+    // Same number of inputs
+    if a.0.len() != b.0.len() {
+        return false;
+    }
+    // First input type should match
+    if !a.0.is_empty() && !b.0.is_empty() && a.0[0] == b.0[0] {
+        return true;
+    }
+    false
+}
+
+/// Extract keywords from description
+fn extract_description_keywords(description: &str) -> Vec<String> {
+    let stopwords = [
+        "a",
+        "an",
+        "the",
+        "to",
+        "of",
+        "in",
+        "for",
+        "is",
+        "are",
+        "and",
+        "or",
+        "with",
+        "from",
+        "by",
+        "on",
+        "at",
+        "as",
+        "if",
+        "be",
+        "this",
+        "that",
+        "it",
+        "its",
+        "can",
+        "will",
+        "into",
+        "using",
+        "returns",
+        "return",
+        "value",
+        "values",
+        "given",
+        "specified",
+    ];
+
+    description
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.len() > 3 && !stopwords.contains(w))
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Get JSON type name
+fn get_json_type_name(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Bool(_) => "boolean".to_string(),
+        Value::Number(n) => {
+            if n.is_i64() {
+                "integer".to_string()
+            } else {
+                "number".to_string()
+            }
+        }
+        Value::String(_) => "string".to_string(),
+        Value::Array(_) => "array".to_string(),
+        Value::Object(_) => "object".to_string(),
+    }
+}
+
+/// Format size in human-readable form
+fn format_size_human(bytes: usize) -> String {
+    const KB: usize = 1024;
+    const MB: usize = 1024 * KB;
+
+    if bytes >= MB {
+        format!("{:.2} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.2} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} bytes", bytes)
+    }
+}
+
+/// Calculate JSON nesting depth
+fn calculate_json_depth(value: &Value) -> usize {
+    match value {
+        Value::Array(arr) => 1 + arr.iter().map(calculate_json_depth).max().unwrap_or(0),
+        Value::Object(obj) => 1 + obj.values().map(calculate_json_depth).max().unwrap_or(0),
+        _ => 1,
+    }
+}
+
+/// Analyze fields in an array of objects
+fn analyze_array_fields(arr: &[Value]) -> Vec<FieldAnalysis> {
+    use std::collections::{HashMap, HashSet};
+
+    let mut all_keys: Vec<String> = Vec::new();
+    let mut seen_keys: HashSet<String> = HashSet::new();
+
+    // Collect all unique keys from first 100 objects
+    for item in arr.iter().take(100) {
+        if let Value::Object(obj) = item {
+            for key in obj.keys() {
+                if seen_keys.insert(key.clone()) {
+                    all_keys.push(key.clone());
+                }
+            }
+        }
+    }
+
+    // Analyze each key
+    let mut results: Vec<FieldAnalysis> = Vec::new();
+
+    for key in all_keys.iter().take(20) {
+        let mut type_counts: HashMap<String, usize> = HashMap::new();
+        let mut null_count = 0;
+        let mut unique_values: HashSet<String> = HashSet::new();
+
+        for item in arr {
+            if let Value::Object(obj) = item {
+                match obj.get(key) {
+                    Some(Value::Null) | None => {
+                        null_count += 1;
+                    }
+                    Some(v) => {
+                        let type_name = get_json_type_name(v);
+                        *type_counts.entry(type_name).or_insert(0) += 1;
+
+                        if unique_values.len() < 100 {
+                            if let Some(s) = v.as_str() {
+                                unique_values.insert(s.to_string());
+                            } else if let Some(n) = v.as_i64() {
+                                unique_values.insert(n.to_string());
+                            } else if let Some(b) = v.as_bool() {
+                                unique_values.insert(b.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let field_type = type_counts
+            .iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(t, _)| t.clone())
+            .unwrap_or_else(|| "null".to_string());
+
+        results.push(FieldAnalysis {
+            name: key.clone(),
+            field_type,
+            null_count,
+            unique_count: if unique_values.len() <= 50 {
+                Some(unique_values.len())
+            } else {
+                None
+            },
+        });
+    }
+
+    results
+}
+
+/// Recursively collect all paths from JSON
+fn collect_all_paths(
+    value: &Value,
+    current_path: String,
+    paths: &mut Vec<PathInfo>,
+    include_types: bool,
+    include_values: bool,
+) {
+    let display_path = if current_path.is_empty() {
+        ".".to_string()
+    } else {
+        current_path.clone()
+    };
+
+    match value {
+        Value::Object(obj) => {
+            paths.push(PathInfo {
+                path: display_path,
+                path_type: if include_types {
+                    Some(format!("object{{{}}}", obj.len()))
+                } else {
+                    None
+                },
+                value: None,
+            });
+
+            for (key, val) in obj {
+                let new_path = if current_path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", current_path, key)
+                };
+                collect_all_paths(val, new_path, paths, include_types, include_values);
+            }
+        }
+        Value::Array(arr) => {
+            paths.push(PathInfo {
+                path: display_path,
+                path_type: if include_types {
+                    Some(format!("array[{}]", arr.len()))
+                } else {
+                    None
+                },
+                value: None,
+            });
+
+            for (i, val) in arr.iter().enumerate() {
+                let new_path = if current_path.is_empty() {
+                    format!("[{}]", i)
+                } else {
+                    format!("{}[{}]", current_path, i)
+                };
+                collect_all_paths(val, new_path, paths, include_types, include_values);
+            }
+        }
+        _ => {
+            let value_preview = if include_values {
+                Some(truncate_value(value))
+            } else {
+                None
+            };
+
+            paths.push(PathInfo {
+                path: display_path,
+                path_type: if include_types {
+                    Some(get_json_type_name(value))
+                } else {
+                    None
+                },
+                value: value_preview,
+            });
+        }
+    }
+}
+
+/// Truncate a JSON value for preview
+fn truncate_value(value: &Value) -> Value {
+    match value {
+        Value::String(s) if s.len() > 50 => Value::String(format!("{}...", &s[..47])),
+        _ => value.clone(),
+    }
 }
 
 /// Recursively collect keys from a JSON value using dot notation
@@ -763,12 +1388,15 @@ impl ServerHandler for JpxMcp {
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "JMESPath query tool with 320+ extended functions. Use 'evaluate' to run queries, \
-                 'evaluate_file' to query JSON files directly, 'batch_evaluate' for multiple expressions, \
-                 'format' to pretty-print JSON, 'diff' to generate RFC 6902 JSON Patches, \
-                 'patch' to apply RFC 6902 patches, 'merge' to apply RFC 7396 JSON Merge Patches, \
-                 'keys' to extract object keys (optionally recursive), 'functions' to discover functions, \
-                 'describe' for function details, 'categories' to list categories, and 'validate' to check syntax."
+                "JMESPath query tool with 320+ extended functions. \
+                 \n\nDISCOVERY: Use 'search' to find functions by keyword (fuzzy matching), 'similar' to find related functions, \
+                 'functions' to list all functions (optionally by category), 'describe' for function details, 'categories' to list categories. \
+                 \n\nDATA ANALYSIS: Use 'stats' to analyze JSON structure before querying, 'paths' to list all paths in dot notation, \
+                 'keys' to extract object keys (optionally recursive). \
+                 \n\nQUERYING: Use 'evaluate' to run JMESPath queries, 'evaluate_file' to query JSON files directly, \
+                 'batch_evaluate' for multiple expressions against the same input, 'validate' to check expression syntax. \
+                 \n\nJSON UTILITIES: Use 'format' to pretty-print JSON, 'diff' to generate RFC 6902 JSON Patches, \
+                 'patch' to apply RFC 6902 patches, 'merge' to apply RFC 7396 JSON Merge Patches."
                     .to_string(),
             ),
         }
@@ -2184,5 +2812,239 @@ mod tests {
         } else {
             panic!("Expected content");
         }
+    }
+
+    // =========================================================================
+    // Search tool tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_search_exact_match() {
+        let mcp = JpxMcp::new(false);
+        let params = SearchParams {
+            query: "upper".to_string(),
+            limit: 10,
+        };
+        let result = mcp.search(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let results: Vec<SearchResult> = serde_json::from_str(&text_content.text).unwrap();
+                assert!(!results.is_empty());
+                // First result should be exact match
+                assert_eq!(results[0].function.name, "upper");
+                assert_eq!(results[0].match_type, "exact_name");
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_search_category_match() {
+        let mcp = JpxMcp::new(false);
+        let params = SearchParams {
+            query: "hash".to_string(),
+            limit: 20,
+        };
+        let result = mcp.search(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let results: Vec<SearchResult> = serde_json::from_str(&text_content.text).unwrap();
+                assert!(!results.is_empty());
+                // Should find hash-related functions
+                assert!(results.iter().any(|r| r.function.name.contains("md5")
+                    || r.function.name.contains("sha")
+                    || r.function.category == "Hash"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_search_no_results() {
+        let mcp = JpxMcp::new(false);
+        let params = SearchParams {
+            query: "xyznonexistent123".to_string(),
+            limit: 10,
+        };
+        let result = mcp.search(Parameters(params)).await.unwrap();
+        // Should return error result (not Err)
+        assert_eq!(result.is_error, Some(true));
+    }
+
+    // =========================================================================
+    // Similar tool tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_similar_finds_related() {
+        let mcp = JpxMcp::new(false);
+        let params = SimilarParams {
+            function: "upper".to_string(),
+        };
+        let result = mcp.similar(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let similar: SimilarResult = serde_json::from_str(&text_content.text).unwrap();
+                // Should find same-category functions (other string functions)
+                assert!(!similar.same_category.is_empty());
+                // lower should be in same category
+                assert!(
+                    similar
+                        .same_category
+                        .iter()
+                        .any(|f| f.name == "lower" || f.name == "capitalize")
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_similar_unknown_function() {
+        let mcp = JpxMcp::new(false);
+        let params = SimilarParams {
+            function: "nonexistent_function".to_string(),
+        };
+        let result = mcp.similar(Parameters(params)).await.unwrap();
+        // Should return error result
+        assert_eq!(result.is_error, Some(true));
+    }
+
+    // =========================================================================
+    // Stats tool tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_stats_array_of_objects() {
+        let mcp = JpxMcp::new(false);
+        let params = StatsParams {
+            input: r#"[{"name":"alice","age":30},{"name":"bob","age":25}]"#.to_string(),
+        };
+        let result = mcp.stats(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let stats: StatsResult = serde_json::from_str(&text_content.text).unwrap();
+                assert_eq!(stats.root_type, "array");
+                assert_eq!(stats.length, Some(2));
+                assert!(stats.fields.is_some());
+                let fields = stats.fields.unwrap();
+                assert!(fields.iter().any(|f| f.name == "name"));
+                assert!(fields.iter().any(|f| f.name == "age"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_stats_object() {
+        let mcp = JpxMcp::new(false);
+        let params = StatsParams {
+            input: r#"{"a":1,"b":{"c":2}}"#.to_string(),
+        };
+        let result = mcp.stats(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let stats: StatsResult = serde_json::from_str(&text_content.text).unwrap();
+                assert_eq!(stats.root_type, "object");
+                assert_eq!(stats.key_count, Some(2));
+                assert_eq!(stats.depth, 3); // root -> b -> c
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    // =========================================================================
+    // Paths tool tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_paths_basic() {
+        let mcp = JpxMcp::new(false);
+        let params = PathsParams {
+            input: r#"{"user":{"name":"alice"}}"#.to_string(),
+            include_types: true,
+            include_values: false,
+        };
+        let result = mcp.paths(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let paths: Vec<PathInfo> = serde_json::from_str(&text_content.text).unwrap();
+                // Should have paths: ., user, user.name
+                assert!(paths.iter().any(|p| p.path == "."));
+                assert!(paths.iter().any(|p| p.path == "user"));
+                assert!(paths.iter().any(|p| p.path == "user.name"));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_paths_with_array() {
+        let mcp = JpxMcp::new(false);
+        let params = PathsParams {
+            input: r#"{"items":[1,2]}"#.to_string(),
+            include_types: true,
+            include_values: true,
+        };
+        let result = mcp.paths(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let paths: Vec<PathInfo> = serde_json::from_str(&text_content.text).unwrap();
+                // Should have array index paths
+                assert!(paths.iter().any(|p| p.path == "items[0]"));
+                assert!(paths.iter().any(|p| p.path == "items[1]"));
+                // Values should be included
+                let item0 = paths.iter().find(|p| p.path == "items[0]").unwrap();
+                assert_eq!(item0.value, Some(serde_json::json!(1)));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_paths_invalid_json() {
+        let mcp = JpxMcp::new(false);
+        let params = PathsParams {
+            input: r#"{"invalid"}"#.to_string(),
+            include_types: true,
+            include_values: false,
+        };
+        let result = mcp.paths(Parameters(params)).await;
+        assert!(result.is_err());
     }
 }
