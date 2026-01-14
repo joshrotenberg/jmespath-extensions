@@ -165,6 +165,7 @@
 //! | `computing` | none | [Computing utilities](computing/index.html) |
 //! | `jsonpatch` | json-patch | [JSON Patch functions](jsonpatch/index.html) |
 //! | `multi-match` | aho-corasick | [Multi-pattern matching](multi_match/index.html) |
+//! | `discovery` | strsim | [Discovery/search functions](discovery/index.html) |
 //!
 //! ### Using Specific Features
 //!
@@ -350,6 +351,9 @@ pub mod format;
 #[cfg(feature = "language")]
 pub mod language;
 
+#[cfg(feature = "discovery")]
+pub mod discovery;
+
 /// Register all available extension functions with a JMESPath runtime.
 ///
 /// This function registers all functions enabled by the current feature flags.
@@ -468,6 +472,9 @@ pub fn register_all(runtime: &mut Runtime) {
 
     #[cfg(feature = "language")]
     language::register(runtime);
+
+    #[cfg(feature = "discovery")]
+    discovery::register(runtime);
 }
 
 #[cfg(test)]
