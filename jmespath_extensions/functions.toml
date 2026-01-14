@@ -291,6 +291,42 @@ examples = [
 jep = "JEP-013"
 features = ["core", "jep"]
 
+[[functions]]
+name = "indices_array"
+category = "array"
+description = "Find all indices where a value appears in an array (jq parity)"
+signature = "array, any -> array"
+examples = [
+    { code = "indices_array([1, 2, 3, 2, 4, 2], `2`) -> [1, 3, 5]", description = "Find all occurrences" },
+    { code = "indices_array(['a', 'b', 'a', 'c'], `'a'`) -> [0, 2]", description = "String values" },
+    { code = "indices_array([1, 2, 3], `5`) -> []", description = "Not found returns empty" },
+]
+features = ["core"]
+
+[[functions]]
+name = "inside_array"
+category = "array"
+description = "Check if all elements of first array are contained in second array (inverse of contains, jq parity)"
+signature = "array, array -> boolean"
+examples = [
+    { code = "inside_array([1, 2], [1, 2, 3, 4]) -> true", description = "Subset check" },
+    { code = "inside_array([1, 5], [1, 2, 3, 4]) -> false", description = "Not a subset" },
+    { code = "inside_array([], [1, 2, 3]) -> true", description = "Empty is subset of any" },
+]
+features = ["core"]
+
+[[functions]]
+name = "bsearch"
+category = "array"
+description = "Binary search in a sorted array, returns index or negative insertion point (jq parity)"
+signature = "array, any -> number"
+examples = [
+    { code = "bsearch([1, 3, 5, 7, 9], `5`) -> 2", description = "Found at index 2" },
+    { code = "bsearch([1, 3, 5, 7, 9], `4`) -> -3", description = "Not found, would insert at index 2" },
+    { code = "bsearch([1, 3, 5, 7, 9], `0`) -> -1", description = "Not found, would insert at index 0" },
+]
+features = ["core"]
+
 # =============================================================================
 # COLOR FUNCTIONS
 # =============================================================================
