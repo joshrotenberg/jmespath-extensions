@@ -68,7 +68,7 @@ fn gen_docs() {
         let filename = category_filename(category);
         let filepath = docs_dir.join(&filename);
         let content = generate_category_page(category, funcs);
-        fs::write(&filepath, content).expect(&format!("Failed to write {}", filename));
+        fs::write(&filepath, content).unwrap_or_else(|_| panic!("Failed to write {}", filename));
         println!("  Generated {} ({} functions)", filename, funcs.len());
     }
 
