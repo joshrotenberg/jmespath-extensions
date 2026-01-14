@@ -202,6 +202,10 @@ struct Args {
     /// Load a demo dataset (use with --repl)
     #[arg(long, value_name = "NAME")]
     demo: Option<String>,
+
+    /// Show statistics about the input data
+    #[arg(long)]
+    stats: bool,
 }
 
 fn main() -> Result<()> {
@@ -264,6 +268,11 @@ fn main() -> Result<()> {
     // Handle --merge: apply JSON Merge Patch to document
     if let Some(merge_file) = &args.merge {
         return apply_merge(&args.file, merge_file, args.compact, &args.color);
+    }
+
+    // Handle --stats: show data statistics
+    if args.stats {
+        return show_stats(&args.file, &args.color);
     }
 
     // Get expressions from positional args, -e flags, or file
@@ -1046,4 +1055,345 @@ fn apply_merge(
     eprintln!("{} Applied merge patch", "✓".green());
 
     output_json(&doc, compact, color_mode)
+}
+
+// =============================================================================
+// Data Statistics
+// =============================================================================
+
+/// Show statistics about JSON data
+fn show_stats(file_path: &Option<String>, color_mode: &ColorMode) -> Result<()> {
+    let data = read_json_from(file_path.as_deref())?;
+
+    let use_color = match color_mode {
+        ColorMode::Always => true,
+        ColorMode::Never => false,
+        ColorMode::Auto => atty::is(atty::Stream::Stdout),
+    };
+
+    // Helper for colored output
+    let label = |s: &str| -> String {
+        if use_color {
+            s.dimmed().to_string()
+        } else {
+            s.to_string()
+        }
+    };
+
+    let heading = |s: &str| -> String {
+        if use_color {
+            s.green().bold().to_string()
+        } else {
+            s.to_string()
+        }
+    };
+
+    let highlight = |s: &str| -> String {
+        if use_color {
+            s.cyan().to_string()
+        } else {
+            s.to_string()
+        }
+    };
+
+    let number = |n: usize| -> String {
+        let s = format_with_commas(n);
+        if use_color { s.yellow().to_string() } else { s }
+    };
+
+    println!();
+    println!("{}", heading("DATA STATISTICS"));
+    println!("{}", "═".repeat(50));
+    println!();
+
+    // Basic type info
+    let type_name = get_type_name(&data);
+    println!("{}  {}", label("Type:"), highlight(&type_name));
+
+    // Size estimation
+    let size_bytes = estimate_json_size(&data);
+    println!("{}  {}", label("Size:"), format_bytes_human(size_bytes));
+
+    // Depth
+    let depth = calculate_depth(&data);
+    println!("{} {} levels", label("Depth:"), number(depth));
+
+    println!();
+
+    match &data {
+        serde_json::Value::Array(arr) => {
+            println!("{} {}", label("Length:"), number(arr.len()));
+
+            if !arr.is_empty() {
+                // Analyze item types
+                let type_counts = count_types(arr);
+                println!();
+                println!("{}", heading("Item Types"));
+                println!("{}", "─".repeat(30));
+                for (type_name, count) in &type_counts {
+                    let pct = (*count as f64 / arr.len() as f64) * 100.0;
+                    println!(
+                        "  {:12} {} ({:.1}%)",
+                        highlight(type_name),
+                        number(*count),
+                        pct
+                    );
+                }
+
+                // If all objects, analyze keys
+                if type_counts.len() == 1 && type_counts.contains_key("object") {
+                    let key_stats = analyze_object_keys(arr);
+                    if !key_stats.is_empty() {
+                        println!();
+                        println!("{}", heading("Field Analysis"));
+                        println!("{}", "─".repeat(50));
+                        for (key, stats) in &key_stats {
+                            println!("  {}", highlight(key));
+                            println!("    {} {}", label("Type:"), stats.type_name);
+                            if stats.null_count > 0 {
+                                println!(
+                                    "    {} {} ({:.1}%)",
+                                    label("Nulls:"),
+                                    number(stats.null_count),
+                                    (stats.null_count as f64 / arr.len() as f64) * 100.0
+                                );
+                            }
+                            if stats.unique_count > 0 {
+                                if stats.unique_count <= 10 && !stats.sample_values.is_empty() {
+                                    println!(
+                                        "    {} {} unique: {}",
+                                        label("Values:"),
+                                        number(stats.unique_count),
+                                        stats.sample_values.join(", ")
+                                    );
+                                } else {
+                                    println!(
+                                        "    {} {} unique",
+                                        label("Values:"),
+                                        number(stats.unique_count)
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Show sample
+                println!();
+                println!("{}", heading("Sample (first item)"));
+                println!("{}", "─".repeat(30));
+                let sample = &arr[0];
+                let sample_str = serde_json::to_string_pretty(sample)?;
+                // Truncate if too long
+                let lines: Vec<&str> = sample_str.lines().take(8).collect();
+                for line in &lines {
+                    println!("  {}", line);
+                }
+                if sample_str.lines().count() > 8 {
+                    println!("  {}", "...".dimmed());
+                }
+            }
+        }
+        serde_json::Value::Object(obj) => {
+            println!("{}  {}", label("Keys:"), number(obj.len()));
+
+            if !obj.is_empty() {
+                println!();
+                println!("{}", heading("Fields"));
+                println!("{}", "─".repeat(50));
+                for (key, value) in obj.iter().take(20) {
+                    let type_name = get_type_name(value);
+                    let preview = get_value_preview(value);
+                    println!("  {:20} {} {}", highlight(key), label(&type_name), preview);
+                }
+                if obj.len() > 20 {
+                    println!("  {} and {} more...", "...".dimmed(), obj.len() - 20);
+                }
+            }
+        }
+        serde_json::Value::String(s) => {
+            println!("{} {} chars", label("Length:"), number(s.len()));
+            if s.len() <= 100 {
+                println!("{} \"{}\"", label("Value:"), s);
+            } else {
+                println!("{} \"{}...\"", label("Preview:"), &s[..100]);
+            }
+        }
+        serde_json::Value::Number(n) => {
+            println!("{} {}", label("Value:"), n);
+        }
+        serde_json::Value::Bool(b) => {
+            println!("{} {}", label("Value:"), b);
+        }
+        serde_json::Value::Null => {
+            println!("{}", label("(null value)"));
+        }
+    }
+
+    println!();
+    Ok(())
+}
+
+fn format_with_commas(n: usize) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.insert(0, ',');
+        }
+        result.insert(0, c);
+    }
+    result
+}
+
+fn format_bytes_human(bytes: usize) -> String {
+    const KB: usize = 1024;
+    const MB: usize = 1024 * KB;
+    const GB: usize = 1024 * MB;
+
+    if bytes >= GB {
+        format!("{:.2} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.2} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.2} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} bytes", bytes)
+    }
+}
+
+fn estimate_json_size(value: &serde_json::Value) -> usize {
+    // Rough estimation based on JSON serialization
+    serde_json::to_string(value).map(|s| s.len()).unwrap_or(0)
+}
+
+fn get_type_name(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Null => "null".to_string(),
+        serde_json::Value::Bool(_) => "boolean".to_string(),
+        serde_json::Value::Number(n) => {
+            if n.is_i64() {
+                "integer".to_string()
+            } else {
+                "number".to_string()
+            }
+        }
+        serde_json::Value::String(_) => "string".to_string(),
+        serde_json::Value::Array(_) => "array".to_string(),
+        serde_json::Value::Object(_) => "object".to_string(),
+    }
+}
+
+fn calculate_depth(value: &serde_json::Value) -> usize {
+    match value {
+        serde_json::Value::Array(arr) => 1 + arr.iter().map(calculate_depth).max().unwrap_or(0),
+        serde_json::Value::Object(obj) => 1 + obj.values().map(calculate_depth).max().unwrap_or(0),
+        _ => 1,
+    }
+}
+
+fn count_types(arr: &[serde_json::Value]) -> std::collections::HashMap<String, usize> {
+    let mut counts = std::collections::HashMap::new();
+    for item in arr {
+        let type_name = get_type_name(item);
+        *counts.entry(type_name).or_insert(0) += 1;
+    }
+    counts
+}
+
+struct FieldStats {
+    type_name: String,
+    null_count: usize,
+    unique_count: usize,
+    sample_values: Vec<String>,
+}
+
+fn analyze_object_keys(arr: &[serde_json::Value]) -> Vec<(String, FieldStats)> {
+    use std::collections::{HashMap, HashSet};
+
+    // Collect all keys from first few objects
+    let mut all_keys: Vec<String> = Vec::new();
+    let mut seen_keys: HashSet<String> = HashSet::new();
+
+    for item in arr.iter().take(100) {
+        if let serde_json::Value::Object(obj) = item {
+            for key in obj.keys() {
+                if seen_keys.insert(key.clone()) {
+                    all_keys.push(key.clone());
+                }
+            }
+        }
+    }
+
+    // Analyze each key
+    let mut results: Vec<(String, FieldStats)> = Vec::new();
+
+    for key in all_keys.iter().take(10) {
+        let mut type_counts: HashMap<String, usize> = HashMap::new();
+        let mut null_count = 0;
+        let mut unique_values: HashSet<String> = HashSet::new();
+
+        for item in arr {
+            if let serde_json::Value::Object(obj) = item {
+                match obj.get(key) {
+                    Some(serde_json::Value::Null) | None => {
+                        null_count += 1;
+                    }
+                    Some(v) => {
+                        let type_name = get_type_name(v);
+                        *type_counts.entry(type_name).or_insert(0) += 1;
+
+                        // Track unique values for small cardinality fields
+                        if unique_values.len() < 100 {
+                            let val_str = match v {
+                                serde_json::Value::String(s) => s.clone(),
+                                serde_json::Value::Number(n) => n.to_string(),
+                                serde_json::Value::Bool(b) => b.to_string(),
+                                _ => continue,
+                            };
+                            unique_values.insert(val_str);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Determine dominant type
+        let type_name = type_counts
+            .iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(t, _)| t.clone())
+            .unwrap_or_else(|| "null".to_string());
+
+        let sample_values: Vec<String> = unique_values.iter().take(5).cloned().collect();
+
+        results.push((
+            key.clone(),
+            FieldStats {
+                type_name,
+                null_count,
+                unique_count: unique_values.len(),
+                sample_values,
+            },
+        ));
+    }
+
+    results
+}
+
+fn get_value_preview(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => {
+            if s.len() <= 30 {
+                format!("\"{}\"", s)
+            } else {
+                format!("\"{}...\"", &s[..27])
+            }
+        }
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Null => "null".to_string(),
+        serde_json::Value::Array(arr) => format!("[{} items]", arr.len()),
+        serde_json::Value::Object(obj) => format!("{{{} keys}}", obj.len()),
+    }
 }
