@@ -39,6 +39,7 @@ json-patch.workspace = true
 serde_yaml = "0.9"
 toml = "0.8"
 csv = "1.3"
+tabled = "0.17"
 
 # MCP server (optional)
 rmcp = { workspace = true, optional = true }
