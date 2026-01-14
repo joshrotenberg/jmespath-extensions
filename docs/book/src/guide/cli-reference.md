@@ -50,6 +50,13 @@ See [Output Formats](./output-formats.md) for detailed examples.
 | `-v, --verbose` | Show expression details and timing |
 | `-q, --quiet` | Suppress errors and warnings |
 
+### Benchmarking
+
+| Option | Description |
+|--------|-------------|
+| `--bench [N]` | Benchmark expression performance (default: 100 iterations) |
+| `--warmup <N>` | Number of warmup iterations before benchmarking (default: 5) |
+
 ### Function Discovery
 
 | Option | Description |
@@ -107,6 +114,12 @@ jpx --describe median
 
 # Strict mode (standard JMESPath only)
 jpx --strict 'length(items)' -f data.json
+
+# Benchmark expression performance
+jpx --bench 'users[?active]' -f data.json
+
+# Benchmark with custom iterations and warmup
+jpx --bench 500 --warmup 10 'sort_by(items, &price)' -f data.json
 ```
 
 ## Exit Codes

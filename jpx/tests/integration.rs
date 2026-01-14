@@ -1013,6 +1013,70 @@ mod validation_functions {
     }
 }
 
+mod cli_bench {
+    use super::*;
+
+    fn run_with_flags(json: &str, flags: &[&str]) -> (String, String) {
+        let mut cmd = jpx_cmd();
+        for flag in flags {
+            cmd.arg(flag);
+        }
+        let mut child = cmd
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(json.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        (
+            String::from_utf8_lossy(&output.stdout).to_string(),
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        )
+    }
+
+    #[test]
+    fn test_bench_basic() {
+        let (stdout, _) = run_with_flags(
+            r#"[{"name": "alice"}, {"name": "bob"}]"#,
+            &["--bench=10", "--warmup=2", "[*].name"],
+        );
+        assert!(stdout.contains("BENCHMARK"));
+        assert!(stdout.contains("Expression:"));
+        assert!(stdout.contains("Mean:"));
+        assert!(stdout.contains("Median:"));
+        assert!(stdout.contains("Throughput:"));
+    }
+
+    #[test]
+    fn test_bench_shows_iterations() {
+        let (stdout, _) = run_with_flags(r#"{"value": 42}"#, &["--bench=25", "value"]);
+        assert!(stdout.contains("25"));
+        assert!(stdout.contains("Iterations:"));
+    }
+
+    #[test]
+    fn test_bench_shows_distribution() {
+        let (stdout, _) = run_with_flags(r#"[1, 2, 3]"#, &["--bench=20", "@"]);
+        // Distribution should appear for >= 10 iterations
+        assert!(stdout.contains("Distribution"));
+    }
+
+    #[test]
+    fn test_bench_pipeline() {
+        let (stdout, _) = run_with_flags(r#"[3, 1, 2]"#, &["--bench=10", "@", "sort(@)"]);
+        // Pipeline expressions should be joined with |
+        assert!(stdout.contains("@ | sort(@)"));
+    }
+}
+
 mod cli_paths {
     use super::*;
 
