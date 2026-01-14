@@ -1,14 +1,27 @@
 # Introduction
 
-**jpx** is a powerful command-line tool for querying and transforming JSON data using JMESPath expressions, extended with over 360 additional functions.
+This documentation covers the **JMESPath Extensions** project, which provides 360+ additional functions for [JMESPath](https://jmespath.org/) queries.
+
+## Project Components
+
+This project includes multiple components:
+
+| Component | Description | Documentation |
+|-----------|-------------|---------------|
+| **[jmespath_extensions](https://crates.io/crates/jmespath_extensions)** | Rust library with 360+ extension functions | [docs.rs](https://docs.rs/jmespath_extensions) |
+| **[jpx](https://crates.io/crates/jpx)** | Command-line tool for querying JSON | This site |
+| **[jmespath-extensions-py](https://pypi.org/project/jmespath-extensions/)** | Python bindings | [Python section](./python/installation.md) |
+| **MCP Server** | AI assistant integration | [MCP section](./mcp/overview.md) |
+
+This documentation primarily focuses on **jpx**, the CLI tool. For using the Rust library directly in your code, see the [rustdoc documentation](https://docs.rs/jmespath_extensions).
 
 ## What is JMESPath?
 
 [JMESPath](https://jmespath.org/) is a query language for JSON. It allows you to declaratively specify how to extract and transform elements from a JSON document.
 
-## Why jpx?
+## Why JMESPath Extensions?
 
-While standard JMESPath is powerful, it's intentionally minimal with only 26 built-in functions. jpx extends JMESPath with 360+ additional functions for:
+While standard JMESPath is powerful, it's intentionally minimal with only 26 built-in functions. This project extends JMESPath with 360+ additional functions for:
 
 - **String manipulation**: `upper`, `lower`, `split`, `replace`, `camel_case`, `snake_case`, and more
 - **Array operations**: `unique`, `chunk`, `flatten`, `group_by`, `zip`, and more
@@ -21,7 +34,8 @@ While standard JMESPath is powerful, it's intentionally minimal with only 26 bui
 
 ## Features
 
-- **Powerful CLI**: Query JSON from files, stdin, or inline
+- **Rust Library**: Use the functions in your Rust applications ([docs.rs](https://docs.rs/jmespath_extensions))
+- **Powerful CLI**: Query JSON from files, stdin, or inline with jpx
 - **MCP Server**: Use jpx with AI assistants like Claude
 - **Python Bindings**: Use the same 360+ functions in Python
 - **Function Discovery**: Built-in help for all functions
