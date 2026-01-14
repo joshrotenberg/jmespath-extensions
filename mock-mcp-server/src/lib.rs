@@ -32,11 +32,11 @@
 //! ```
 
 use rmcp::{
-    ErrorData as McpError, ServerHandler, handler::server::router::tool::ToolRouter,
-    handler::server::wrapper::Parameters, model::*, schemars, tool, tool_handler, tool_router,
+    handler::server::router::tool::ToolRouter, handler::server::wrapper::Parameters, model::*,
+    schemars, tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::sync::Arc;
 
 /// Configuration for the mock server
@@ -393,7 +393,7 @@ impl MockMcpServer {
 
     /// Run the mock server on stdio
     pub async fn run(config: ServerConfig) -> anyhow::Result<()> {
-        use rmcp::{ServiceExt, transport::stdio};
+        use rmcp::{transport::stdio, ServiceExt};
         use tracing::info;
 
         info!("Starting mock MCP server: {}", config.name);
@@ -429,7 +429,7 @@ impl MockMcpServer {
         &self,
         Parameters(params): Parameters<GenericToolParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::json(json!({
+        Ok(CallToolResult::success(vec![Content::json(&json!({
             "server": self.config.name,
             "echo": params.args,
         }))?]))
@@ -441,7 +441,7 @@ impl MockMcpServer {
         &self,
         #[allow(unused)] Parameters(_params): Parameters<GetDiscoverySpecParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::json(json!({
+        Ok(CallToolResult::success(vec![Content::json(&json!({
             "name": self.config.name,
             "version": self.config.version,
             "description": self.config.description,

@@ -19,8 +19,8 @@
 //! ```
 
 use clap::{Parser, ValueEnum};
-use mock_mcp_server::{MockMcpServer, MockToolConfig, ParamConfig, ServerConfig, presets};
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use mock_mcp_server::{presets, MockMcpServer, MockToolConfig, ParamConfig, ServerConfig};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[derive(Debug, Clone, ValueEnum)]
 enum Preset {
