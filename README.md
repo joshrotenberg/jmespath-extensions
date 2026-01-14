@@ -28,11 +28,79 @@ See the [jpx README](jpx/README.md) for details.
 
 ---
 
-## Built on jmespath.rs
+## Acknowledgments
+
+### JMESPath
+
+[JMESPath](https://jmespath.org/) is a query language for JSON, created by [James Saryerwinnie](https://github.com/jamesls). The specification, tutorials, and compliance test suite are maintained by the JMESPath community. We're grateful for this well-designed, portable query language that serves as our foundation.
+
+- **Specification**: [jmespath.org](https://jmespath.org/)
+- **GitHub**: [jmespath/jmespath.spec](https://github.com/jmespath/jmespath.spec)
+- **Community**: [jmespath-community](https://github.com/jmespath-community)
+
+### jmespath.rs
 
 This crate extends the [`jmespath`](https://crates.io/crates/jmespath) crate by [@mtdowling](https://github.com/mtdowling), which provides the complete Rust implementation of the [JMESPath specification](https://jmespath.org/specification.html). All spec-compliant parsing, evaluation, and the 26 built-in functions come from that foundational library—we simply add extra functions on top.
 
 **If you only need standard JMESPath functionality, use [`jmespath`](https://crates.io/crates/jmespath) directly.**
+
+### jp - The Official JMESPath CLI
+
+The official [jp](https://github.com/jmespath/jp) CLI tool (written in Go) is a minimal, focused implementation of a JMESPath command-line interface. If you need a lightweight tool that works with standard JMESPath and don't require the extended functions that jpx provides, jp is an excellent choice.
+
+```bash
+# Install jp via Homebrew
+brew install jmespath/jmespath/jp
+```
+
+jpx is inspired by jp's simplicity while extending it with 320+ additional functions and features like multiple output formats, expression pipelines, and interactive REPL mode.
+
+---
+
+## jpx vs jq
+
+[jq](https://jqlang.org/) is the most popular JSON command-line tool. Here's how jpx compares:
+
+| Aspect | jq | jpx |
+|--------|-----|-----|
+| **Language** | Custom DSL (Turing-complete) | JMESPath (standardized query language) |
+| **Learning curve** | Steeper (unique syntax) | Gentler (declarative, function-based) |
+| **Functions** | ~70 built-in | 320+ (string, math, date, geo, hash, etc.) |
+| **Ecosystem** | Standalone | JMESPath works in AWS CLI, Ansible, many languages |
+| **Streaming** | Yes (`--stream`) | No (loads full document) |
+| **Custom functions** | Yes (`def`) | No (fixed function set) |
+
+### Syntax Comparison
+
+```bash
+# Filtering - jq uses select(), jpx uses [?]
+jq '[.[] | select(.age > 30)]' data.json
+jpx '[?age > `30`]' data.json
+
+# Projection - similar but jpx uses [*]
+jq '[.[].name]' data.json
+jpx '[*].name' data.json
+
+# String manipulation
+jq '.name | ascii_upcase' data.json
+jpx 'upper(name)' data.json
+```
+
+### When to Choose jpx
+
+- **Extended functions**: 320+ functions including geo, hashing, fuzzy matching, semver, validation
+- **JMESPath compatibility**: Queries work in AWS CLI (`--query`), Ansible, and other tools
+- **Multiple output formats**: JSON, YAML, TOML, CSV, TSV, table
+- **AI integration**: MCP server for Claude and other assistants
+- **Function discovery**: `--search`, `--describe`, `--similar` to explore available functions
+
+### When to Choose jq
+
+- **Complex transformations**: Recursive functions, variable bindings, custom function definitions
+- **Streaming**: Process very large files without loading into memory
+- **Team familiarity**: If your team already knows jq well
+
+**[Full comparison guide →](https://joshrotenberg.github.io/jmespath-extensions/examples/jq-comparison.html)**
 
 ---
 
