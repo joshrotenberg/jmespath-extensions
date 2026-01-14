@@ -429,7 +429,7 @@ impl MockMcpServer {
         &self,
         Parameters(params): Parameters<GenericToolParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::json(&json!({
+        Ok(CallToolResult::success(vec![Content::json(json!({
             "server": self.config.name,
             "echo": params.args,
         }))?]))
@@ -441,7 +441,7 @@ impl MockMcpServer {
         &self,
         #[allow(unused)] Parameters(_params): Parameters<GetDiscoverySpecParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::json(&json!({
+        Ok(CallToolResult::success(vec![Content::json(json!({
             "name": self.config.name,
             "version": self.config.version,
             "description": self.config.description,
