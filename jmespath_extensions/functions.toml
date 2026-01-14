@@ -1429,6 +1429,55 @@ examples = [
 ]
 features = ["core", "fp"]
 
+[[functions]]
+name = "recurse"
+category = "expression"
+description = "Collect all nested values recursively (jq parity)"
+signature = "any -> array"
+examples = [
+    { code = "recurse({a: {b: 1}}) -> [{a: {b: 1}}, {b: 1}, 1]", description = "Nested object" },
+    { code = "recurse([1, [2, 3]]) -> [[1, [2, 3]], 1, [2, 3], 2, 3]", description = "Nested array" },
+    { code = "recurse(`5`) -> [5]", description = "Scalar value" },
+    { code = "recurse({a: 1, b: {c: 2}}) -> all nested values", description = "All descendants" },
+]
+features = ["core", "fp"]
+
+[[functions]]
+name = "recurse_with"
+category = "expression"
+description = "Recursive descent with expression filter (jq parity)"
+signature = "any, expression -> array"
+examples = [
+    { code = "recurse_with({a: {a: 1}}, &a) -> [{a: 1}, 1]", description = "Follow 'a' key recursively" },
+    { code = "recurse_with([1, [2, [3]]], &[1]) -> [[2, [3]], [3]]", description = "Follow index recursively" },
+    { code = "recurse_with({children: [{children: []}]}, &children) -> nested children", description = "Tree traversal" },
+]
+features = ["core", "fp"]
+
+[[functions]]
+name = "while_expr"
+category = "expression"
+description = "Loop while condition is true, collecting intermediate values (jq parity)"
+signature = "any, expression, expression -> array"
+examples = [
+    { code = "while_expr(`1`, &@ < `5`, &add(@, `1`)) -> [1, 2, 3, 4]", description = "Count from 1 while < 5" },
+    { code = "while_expr(`2`, &@ < `100`, &multiply(@, `2`)) -> [2, 4, 8, 16, 32, 64]", description = "Double while < 100" },
+    { code = "while_expr(`10`, &@ > `1`, &divide(@, `2`)) -> [10, 5, 2]", description = "Halve while > 1" },
+]
+features = ["core", "fp"]
+
+[[functions]]
+name = "until_expr"
+category = "expression"
+description = "Loop until condition becomes true, collecting intermediate values (jq parity)"
+signature = "any, expression, expression -> array"
+examples = [
+    { code = "until_expr(`1`, &@ >= `5`, &add(@, `1`)) -> [1, 2, 3, 4, 5]", description = "Count until >= 5" },
+    { code = "until_expr(`2`, &@ >= `100`, &multiply(@, `2`)) -> [2, 4, 8, 16, 32, 64, 128]", description = "Double until >= 100" },
+    { code = "until_expr(`100`, &@ <= `1`, &divide(@, `2`)) -> [100, 50, 25, 12, 6, 3, 1]", description = "Halve until <= 1" },
+]
+features = ["core", "fp"]
+
 # =============================================================================
 # FUZZY FUNCTIONS
 # =============================================================================

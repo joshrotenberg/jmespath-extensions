@@ -64,6 +64,14 @@ pub fn register(runtime: &mut Runtime) {
 
     // Recursive transformation
     runtime.register_function("walk", Box::new(WalkFn::new()));
+
+    // Recursive descent (jq parity)
+    runtime.register_function("recurse", Box::new(RecurseFn::new()));
+    runtime.register_function("recurse_with", Box::new(RecurseWithFn::new()));
+
+    // Loop functions (jq parity)
+    runtime.register_function("while_expr", Box::new(WhileExprFn::new()));
+    runtime.register_function("until_expr", Box::new(UntilExprFn::new()));
 }
 
 // =============================================================================
@@ -2236,6 +2244,369 @@ impl Function for WalkFn {
     }
 }
 
+// =============================================================================
+// recurse(value) -> array (collect all nested values, jq parity)
+// =============================================================================
+
+/// Recursively descend into a data structure, collecting all values.
+///
+/// Yields the input value, then recursively yields all values from arrays
+/// and objects. This is similar to jq's `recurse` without a filter.
+///
+/// # Arguments
+/// * `value` - The value to recursively descend into
+///
+/// # Returns
+/// An array containing the input and all nested values.
+///
+/// # Example
+/// ```text
+/// recurse({a: {b: 1}}) -> [{a: {b: 1}}, {b: 1}, 1]
+/// recurse([1, [2, 3]]) -> [[1, [2, 3]], 1, [2, 3], 2, 3]
+/// ```
+pub struct RecurseFn {
+    signature: Signature,
+}
+
+impl Default for RecurseFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RecurseFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::Any], None),
+        }
+    }
+}
+
+/// Helper to collect all values recursively
+fn collect_recursive(value: &Rcvar, results: &mut Vec<Rcvar>) {
+    results.push(value.clone());
+    match &**value {
+        Variable::Array(arr) => {
+            for elem in arr {
+                collect_recursive(elem, results);
+            }
+        }
+        Variable::Object(obj) => {
+            for (_, v) in obj.iter() {
+                collect_recursive(v, results);
+            }
+        }
+        _ => {}
+    }
+}
+
+impl Function for RecurseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let mut results = Vec::new();
+        collect_recursive(&args[0], &mut results);
+
+        Ok(Rc::new(Variable::Array(results)))
+    }
+}
+
+// =============================================================================
+// recurse_with(value, expr) -> array (recursive descent with filter, jq parity)
+// =============================================================================
+
+/// Recursively descend using an expression to get children at each step.
+///
+/// Starting from the input value, repeatedly applies the expression to get
+/// the next values to recurse into. Continues until the expression returns
+/// null or an empty result.
+///
+/// # Arguments
+/// * `value` - The starting value
+/// * `expr` - A JMESPath expression that extracts children to recurse into
+///
+/// # Returns
+/// An array containing all values encountered during recursion.
+///
+/// # Example
+/// ```text
+/// recurse_with({a: {a: {a: null}}}, 'a') -> [{a: {a: {a: null}}}, {a: {a: null}}, {a: null}]
+/// recurse_with({children: [{children: []}]}, 'children[]') -> collects all nodes
+/// ```
+pub struct RecurseWithFn {
+    signature: Signature,
+}
+
+impl Default for RecurseWithFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RecurseWithFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::Any, ArgumentType::String], None),
+        }
+    }
+}
+
+impl Function for RecurseWithFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[1].as_string().unwrap();
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in recurse_with: {}", e)),
+            )
+        })?;
+
+        let mut results = Vec::new();
+        let mut queue = vec![args[0].clone()];
+        let max_iterations = 10000; // Safety limit
+        let mut iterations = 0;
+
+        while let Some(current) = queue.pop() {
+            if iterations >= max_iterations {
+                return Err(JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse("recurse_with exceeded maximum iterations".to_string()),
+                ));
+            }
+            iterations += 1;
+
+            // Skip null values
+            if current.is_null() {
+                continue;
+            }
+
+            results.push(current.clone());
+
+            // Apply expression to get next values
+            let next = compiled.search(current)?;
+
+            match &*next {
+                Variable::Null => {}
+                Variable::Array(arr) => {
+                    // Add non-null elements to queue (in reverse to maintain order)
+                    for elem in arr.iter().rev() {
+                        if !elem.is_null() {
+                            queue.push(elem.clone());
+                        }
+                    }
+                }
+                _ => {
+                    queue.push(next);
+                }
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(results)))
+    }
+}
+
+// =============================================================================
+// while_expr(init, condition, update) -> value (loop while condition is true)
+// =============================================================================
+
+/// Loop while a condition is true, applying an update expression each iteration.
+///
+/// Starting with the initial value, repeatedly checks the condition and applies
+/// the update expression while the condition is truthy. Returns the final value.
+///
+/// # Arguments
+/// * `init` - The initial value
+/// * `condition` - A JMESPath expression that returns truthy/falsy
+/// * `update` - A JMESPath expression to compute the next value
+///
+/// # Returns
+/// The value when the condition becomes falsy.
+///
+/// # Example
+/// ```text
+/// while_expr(`1`, '@ < `100`', '@ * `2`') -> 128
+/// while_expr(`{n: 0, sum: 0}`, 'n < `5`', '{n: add(n, `1`), sum: add(sum, n)}') -> {n: 5, sum: 10}
+/// ```
+pub struct WhileExprFn {
+    signature: Signature,
+}
+
+impl Default for WhileExprFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WhileExprFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(
+                vec![
+                    ArgumentType::Any,
+                    ArgumentType::String,
+                    ArgumentType::String,
+                ],
+                None,
+            ),
+        }
+    }
+}
+
+impl Function for WhileExprFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let condition_str = args[1].as_string().unwrap();
+        let update_str = args[2].as_string().unwrap();
+
+        let condition = ctx.runtime.compile(condition_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid condition in while_expr: {}", e)),
+            )
+        })?;
+
+        let update = ctx.runtime.compile(update_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid update in while_expr: {}", e)),
+            )
+        })?;
+
+        let mut current = args[0].clone();
+        let max_iterations = 100000; // Safety limit
+        let mut iterations = 0;
+
+        loop {
+            if iterations >= max_iterations {
+                return Err(JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse("while_expr exceeded maximum iterations".to_string()),
+                ));
+            }
+            iterations += 1;
+
+            // Check condition
+            let cond_result = condition.search(current.clone())?;
+            if !is_truthy(&cond_result) {
+                break;
+            }
+
+            // Apply update
+            current = update.search(current)?;
+        }
+
+        Ok(current)
+    }
+}
+
+// =============================================================================
+// until_expr(init, condition, update) -> value (loop until condition is true)
+// =============================================================================
+
+/// Loop until a condition becomes true, applying an update expression each iteration.
+///
+/// Starting with the initial value, repeatedly applies the update expression
+/// until the condition becomes truthy. Returns the final value.
+/// This is the inverse of while_expr.
+///
+/// # Arguments
+/// * `init` - The initial value
+/// * `condition` - A JMESPath expression that returns truthy/falsy (stops when true)
+/// * `update` - A JMESPath expression to compute the next value
+///
+/// # Returns
+/// The value when the condition becomes truthy.
+///
+/// # Example
+/// ```text
+/// until_expr(`1`, '@ >= `100`', '@ * `2`') -> 128
+/// until_expr(`{n: 0}`, 'n == `5`', '{n: add(n, `1`)}') -> {n: 5}
+/// ```
+pub struct UntilExprFn {
+    signature: Signature,
+}
+
+impl Default for UntilExprFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl UntilExprFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(
+                vec![
+                    ArgumentType::Any,
+                    ArgumentType::String,
+                    ArgumentType::String,
+                ],
+                None,
+            ),
+        }
+    }
+}
+
+impl Function for UntilExprFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let condition_str = args[1].as_string().unwrap();
+        let update_str = args[2].as_string().unwrap();
+
+        let condition = ctx.runtime.compile(condition_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid condition in until_expr: {}", e)),
+            )
+        })?;
+
+        let update = ctx.runtime.compile(update_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid update in until_expr: {}", e)),
+            )
+        })?;
+
+        let mut current = args[0].clone();
+        let max_iterations = 100000; // Safety limit
+        let mut iterations = 0;
+
+        loop {
+            if iterations >= max_iterations {
+                return Err(JmespathError::new(
+                    ctx.expression,
+                    ctx.offset,
+                    ErrorReason::Parse("until_expr exceeded maximum iterations".to_string()),
+                ));
+            }
+            iterations += 1;
+
+            // Check condition (stop when true, opposite of while)
+            let cond_result = condition.search(current.clone())?;
+            if is_truthy(&cond_result) {
+                break;
+            }
+
+            // Apply update
+            current = update.search(current)?;
+        }
+
+        Ok(current)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3725,5 +4096,154 @@ mod tests {
         let data = Variable::from_json(r#"{}"#).unwrap();
         let result = expr.search(&data).unwrap();
         assert!(result.as_object().unwrap().is_empty());
+    }
+
+    // =========================================================================
+    // recurse tests
+    // =========================================================================
+
+    #[test]
+    fn test_recurse_nested_object() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"a": {"b": 1}}"#).unwrap();
+        let expr = runtime.compile("recurse(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Should have: {a: {b: 1}}, {b: 1}, 1
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_recurse_nested_array() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, [2, 3]]"#).unwrap();
+        let expr = runtime.compile("recurse(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Should have: [1, [2, 3]], 1, [2, 3], 2, 3
+        assert_eq!(arr.len(), 5);
+    }
+
+    #[test]
+    fn test_recurse_scalar() {
+        let runtime = setup();
+        let data = Variable::Number(serde_json::Number::from(42));
+        let expr = runtime.compile("recurse(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Just the scalar itself
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_number().unwrap(), 42.0);
+    }
+
+    #[test]
+    fn test_recurse_with_field() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"{"a": {"a": {"a": null}}}"#).unwrap();
+        let expr = runtime.compile("recurse_with(@, 'a')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Should have: {a: {a: {a: null}}}, {a: {a: null}}, {a: null}
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_recurse_with_children() {
+        let runtime = setup();
+        let data = Variable::from_json(
+            r#"{"name": "root", "children": [{"name": "child1", "children": []}, {"name": "child2", "children": []}]}"#,
+        )
+        .unwrap();
+        let expr = runtime.compile("recurse_with(@, 'children[]')").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Should have: root, child1, child2
+        assert_eq!(arr.len(), 3);
+    }
+
+    // =========================================================================
+    // while_expr tests
+    // =========================================================================
+
+    #[test]
+    fn test_while_expr_doubling() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("while_expr(`1`, '@ < `100`', 'multiply(@, `2`)')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // 1 -> 2 -> 4 -> 8 -> 16 -> 32 -> 64 -> 128 (stops because 128 >= 100)
+        assert_eq!(result.as_number().unwrap(), 128.0);
+    }
+
+    #[test]
+    fn test_while_expr_counter() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("while_expr(`0`, '@ < `5`', 'add(@, `1`)')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // 0 -> 1 -> 2 -> 3 -> 4 -> 5 (stops because 5 >= 5)
+        assert_eq!(result.as_number().unwrap(), 5.0);
+    }
+
+    #[test]
+    fn test_while_expr_immediate_false() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("while_expr(`100`, '@ < `10`', 'add(@, `1`)')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // Condition is false immediately, return initial value
+        assert_eq!(result.as_number().unwrap(), 100.0);
+    }
+
+    // =========================================================================
+    // until_expr tests
+    // =========================================================================
+
+    #[test]
+    fn test_until_expr_doubling() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("until_expr(`1`, '@ >= `100`', 'multiply(@, `2`)')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // 1 -> 2 -> 4 -> 8 -> 16 -> 32 -> 64 -> 128 (stops because 128 >= 100)
+        assert_eq!(result.as_number().unwrap(), 128.0);
+    }
+
+    #[test]
+    fn test_until_expr_counter() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("until_expr(`0`, '@ == `5`', 'add(@, `1`)')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // 0 -> 1 -> 2 -> 3 -> 4 -> 5 (stops because 5 == 5)
+        assert_eq!(result.as_number().unwrap(), 5.0);
+    }
+
+    #[test]
+    fn test_until_expr_immediate_true() {
+        let mut runtime = setup();
+        crate::math::register(&mut runtime);
+        let data = Variable::Null;
+        let expr = runtime
+            .compile("until_expr(`100`, '@ > `10`', 'add(@, `1`)')")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        // Condition is true immediately, return initial value
+        assert_eq!(result.as_number().unwrap(), 100.0);
     }
 }
