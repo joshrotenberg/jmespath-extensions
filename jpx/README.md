@@ -6,7 +6,39 @@
 
 A command-line tool for querying JSON data using JMESPath expressions with 320+ additional functions beyond the standard JMESPath specification.
 
-Built on the [`jmespath`](https://crates.io/crates/jmespath) crate by [@mtdowling](https://github.com/mtdowling), which provides the complete Rust implementation of the [JMESPath specification](https://jmespath.org/specification.html) including parsing, evaluation, and all 26 standard built-in functions.
+## Acknowledgments
+
+jpx builds on the excellent work of the JMESPath community:
+
+- **[JMESPath](https://jmespath.org/)** - The query language specification created by [James Saryerwinnie](https://github.com/jamesls)
+- **[jmespath.rs](https://crates.io/crates/jmespath)** - The Rust implementation by [@mtdowling](https://github.com/mtdowling) that provides our parsing, evaluation, and standard functions
+- **[jp](https://github.com/jmespath/jp)** - The official JMESPath CLI (Go) - a minimal, focused tool that inspired jpx's design
+
+If you only need standard JMESPath without extensions, consider using [jp](https://github.com/jmespath/jp) or the [`jmespath`](https://crates.io/crates/jmespath) crate directly.
+
+## jpx vs jq
+
+Coming from [jq](https://jqlang.org/)? Here's a quick comparison:
+
+| | jq | jpx |
+|---|-----|-----|
+| **Language** | Custom DSL | JMESPath (standardized) |
+| **Functions** | ~70 built-in | 320+ extensions |
+| **Ecosystem** | Standalone | Works with AWS CLI, Ansible |
+| **Streaming** | ✅ | ❌ |
+
+```bash
+# jq                                    # jpx
+jq '[.[] | select(.age > 30)]'          jpx '[?age > `30`]'
+jq '.[].name'                           jpx '[*].name'
+jq '.name | ascii_upcase'               jpx 'upper(name)'
+```
+
+**Choose jpx** for: extended functions (geo, hash, fuzzy, semver), multiple output formats, AI/MCP integration, JMESPath ecosystem compatibility.
+
+**Choose jq** for: streaming large files, custom function definitions, complex recursive transformations.
+
+**[Full comparison →](https://joshrotenberg.github.io/jmespath-extensions/examples/jq-comparison.html)**
 
 ## Installation
 
