@@ -1,4 +1,0 @@
-# hash encoding
-
-Coming soon.
-
