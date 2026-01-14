@@ -11,6 +11,7 @@ jpx supports multiple output formats beyond JSON, making it easy to integrate wi
 | `--csv` | | Comma-separated values |
 | `--tsv` | | Tab-separated values |
 | `--lines` | `-l` | One JSON value per line (JSONL) |
+| `--table` | `-t` | Formatted table (for arrays of objects) |
 
 ## YAML Output
 
@@ -236,6 +237,70 @@ jpx '@' -f logs.json --lines | grep '"level":"error"'
 jpx '[*]' -f data.json --lines | wc -l
 ```
 
+## Table Output
+
+The `--table` flag renders arrays of objects as formatted tables, perfect for terminal display.
+
+```bash
+echo '[{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]' | jpx '@' --table
+```
+```
+┌───────┬─────┐
+│ name  │ age │
+├───────┼─────┤
+│ alice │ 30  │
+│ bob   │ 25  │
+└───────┴─────┘
+```
+
+### Table Styles
+
+Use `--table-style` to choose different table formats:
+
+| Style | Description |
+|-------|-------------|
+| `unicode` | Default, uses box-drawing characters |
+| `ascii` | ASCII characters only (`+`, `-`, `|`) |
+| `markdown` | GitHub-flavored markdown tables |
+| `plain` | No borders, space-separated |
+
+```bash
+# ASCII style (for older terminals)
+echo '[{"name": "alice", "age": 30}]' | jpx '@' -t --table-style ascii
+```
+```
++-------+-----+
+| name  | age |
++-------+-----+
+| alice | 30  |
++-------+-----+
+```
+
+```bash
+# Markdown style (for documentation)
+echo '[{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]' | jpx '@' -t --table-style markdown
+```
+```
+| name  | age |
+|-------|-----|
+| alice | 30  |
+| bob   | 25  |
+```
+
+### Use Cases
+
+- Quick data inspection in the terminal
+- Generating markdown tables for documentation
+- Human-readable output for reports
+
+```bash
+# Display users as a table
+jpx '[*].{name: name, email: email, role: role}' -f users.json --table
+
+# Generate markdown documentation
+jpx '[*].{Function: name, Description: description}' -f functions.json -t --table-style markdown > docs/functions.md
+```
+
 ## Combining with Expressions
 
 Output formats work with any JMESPath expression:
@@ -290,3 +355,5 @@ jpx '@' -f settings.json --toml -o settings.toml
 | Streaming/logging | `--lines` |
 | Database import | `--csv` |
 | API debugging | `--yaml` |
+| Terminal display | `--table` |
+| Markdown documentation | `--table --table-style markdown` |

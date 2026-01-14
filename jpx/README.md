@@ -4,7 +4,7 @@
 [![Downloads](https://img.shields.io/crates/d/jpx.svg)](https://crates.io/crates/jpx)
 [![License](https://img.shields.io/crates/l/jpx.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
 
-A command-line tool for querying JSON data using JMESPath expressions with 320+ additional functions beyond the standard JMESPath specification.
+A command-line tool for querying JSON data using JMESPath expressions with 360+ additional functions beyond the standard JMESPath specification.
 
 ## Acknowledgments
 
@@ -23,7 +23,7 @@ Coming from [jq](https://jqlang.org/)? Here's a quick comparison:
 | | jq | jpx |
 |---|-----|-----|
 | **Language** | Custom DSL | JMESPath (standardized) |
-| **Functions** | ~70 built-in | 320+ extensions |
+| **Functions** | ~70 built-in | 360+ extensions |
 | **Ecosystem** | Standalone | Works with AWS CLI, Ansible |
 | **Streaming** | ✅ | ❌ |
 
@@ -78,22 +78,43 @@ cargo build -p jpx --features mcp --release
 jpx mcp
 ```
 
-### MCP Tools
+### MCP Tools (17 total)
+
+**Discovery** - Find and explore functionality:
+
+| Tool | Description |
+|------|-------------|
+| `search` | Fuzzy search functions by name, description, category, or signature |
+| `similar` | Find functions related to a specified function |
+| `functions` | List available functions (with optional category filter) |
+| `describe` | Get detailed info for a specific function |
+| `categories` | List all function categories |
+
+**Data Analysis** - Understand JSON structure:
+
+| Tool | Description |
+|------|-------------|
+| `stats` | Analyze JSON structure (type, size, depth, field analysis) |
+| `paths` | Extract all paths in dot notation (e.g., `users[0].name`) |
+| `keys` | Extract object keys (optionally recursive with dot notation) |
+
+**Querying** - Evaluate expressions:
 
 | Tool | Description |
 |------|-------------|
 | `evaluate` | Run JMESPath expressions against JSON input |
 | `evaluate_file` | Query JSON files directly from disk (with security checks) |
 | `batch_evaluate` | Run multiple expressions against the same input |
+| `validate` | Check expression syntax without executing |
+
+**JSON Utilities** - Transform and manipulate:
+
+| Tool | Description |
+|------|-------------|
 | `format` | Pretty-print JSON with configurable indentation |
 | `diff` | Generate RFC 6902 JSON Patch between two documents |
 | `patch` | Apply RFC 6902 JSON Patch operations |
 | `merge` | Apply RFC 7396 JSON Merge Patch |
-| `keys` | Extract object keys (optionally recursive with dot notation) |
-| `functions` | List available functions (with optional category filter) |
-| `describe` | Get detailed info for a specific function |
-| `categories` | List all function categories |
-| `validate` | Check expression syntax without executing |
 
 ### Claude Desktop Configuration
 
@@ -150,29 +171,65 @@ Claude: [Uses jpx.keys with input and recursive=true]
 ## Usage
 
 ```bash
-jpx [OPTIONS] [EXPRESSION]
+jpx [OPTIONS] [EXPRESSIONS]...
 
 Arguments:
-  [EXPRESSION]  JMESPath expression to evaluate
+  [EXPRESSIONS]...  JMESPath expression(s) to evaluate (multiple are chained as a pipeline)
 
 Options:
   -e, --expression <EXPR>     Expression(s) to evaluate (can be chained)
   -Q, --query-file <FILE>     Read JMESPath expression from file
   -f, --file <FILE>           Input file (reads from stdin if not provided)
-  -r, --raw                   Output raw strings without quotes
-  -c, --compact               Compact output (no pretty printing)
+  -o, --output <FILE>         Output file (writes to stdout if not provided)
   -n, --null-input            Don't read input, use null as input value
   -s, --slurp                 Read all inputs into an array
       --stream, --each        Process input line by line (NDJSON/JSON Lines)
+
+Output Formats:
+  -r, --raw                   Output raw strings without quotes
+  -c, --compact               Compact output (no pretty printing)
+  -y, --yaml                  Output as YAML
+      --toml                  Output as TOML
+      --csv                   Output as CSV (for arrays of objects)
+      --tsv                   Output as TSV (for arrays of objects)
+  -l, --lines                 Output one JSON value per line (for arrays)
+  -t, --table                 Output as a formatted table (for arrays of objects)
+      --table-style <STYLE>   Table style: unicode, ascii, markdown, plain
       --color <MODE>          Colorize output (auto, always, never)
-  -o, --output <FILE>         Output file (writes to stdout if not provided)
-  -q, --quiet                 Suppress errors and warnings
-  -v, --verbose               Show expression details and timing
-      --strict                Strict mode - only standard JMESPath (no extensions)
-      --completions <SHELL>   Generate shell completions (bash, zsh, fish, powershell)
+
+JSON Patch Operations:
+      --diff <SRC> <TGT>      Generate JSON Patch (RFC 6902) from two files
+      --patch <FILE>          Apply JSON Patch (RFC 6902) to input
+      --merge <FILE>          Apply JSON Merge Patch (RFC 7396) to input
+
+Data Analysis:
+      --stats                 Show statistics about the input data
+      --paths                 List all paths in the input JSON
+      --types                 Show types alongside paths (use with --paths)
+      --values                Show values alongside paths (use with --paths)
+
+Function Discovery:
       --list-functions        List all available extension functions
       --list-category <NAME>  List functions in a specific category
       --describe <FUNCTION>   Show detailed info for a specific function
+      --search <QUERY>        Search functions by name, description, or category
+      --similar <FUNCTION>    Find functions similar to the specified function
+
+Debugging:
+      --explain               Show how an expression is parsed (AST)
+      --debug                 Show diagnostic information
+      --bench [N]             Benchmark expression performance
+      --warmup <N>            Warmup iterations before benchmarking
+
+Modes:
+  -q, --quiet                 Suppress errors and warnings
+  -v, --verbose               Show expression details and timing
+      --strict                Strict mode - only standard JMESPath (no extensions)
+      --repl                  Start interactive REPL mode
+      --demo <NAME>           Load a demo dataset (use with --repl)
+
+Other:
+      --completions <SHELL>   Generate shell completions (bash, zsh, fish, powershell, elvish)
   -h, --help                  Print help
   -V, --version               Print version
 ```
@@ -205,7 +262,7 @@ jpx 'upper(name)' data.json  # Extension functions work
 
 ```bash
 # List all available functions grouped by category
-# Shows 26 standard JMESPath functions and 320+ extension functions
+# Shows 26 standard JMESPath functions and 360+ extension functions
 jpx --list-functions
 
 # List functions in a specific category
