@@ -9,7 +9,9 @@ use rmcp::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
+
+use super::discovery::{DiscoveryRegistry, DiscoverySpec};
 
 /// Global JMESPath runtime with all extensions registered
 static RUNTIME_FULL: OnceLock<Runtime> = OnceLock::new();
@@ -19,6 +21,14 @@ static RUNTIME_STRICT: OnceLock<Runtime> = OnceLock::new();
 
 /// Global function registry for introspection
 static REGISTRY: OnceLock<FunctionRegistry> = OnceLock::new();
+
+/// Global discovery registry for MCP tool discovery
+static DISCOVERY_REGISTRY: OnceLock<RwLock<DiscoveryRegistry>> = OnceLock::new();
+
+/// Get the global discovery registry
+fn discovery_registry() -> &'static RwLock<DiscoveryRegistry> {
+    DISCOVERY_REGISTRY.get_or_init(|| RwLock::new(DiscoveryRegistry::new()))
+}
 
 /// Get the full JMESPath runtime (with all extensions)
 fn runtime_full() -> &'static Runtime {
@@ -196,6 +206,64 @@ pub struct PathsParams {
 
 fn default_true() -> bool {
     true
+}
+
+// =============================================================================
+// Discovery tool parameters
+// =============================================================================
+
+/// Parameters for the get_discovery_schema tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GetDiscoverySchemaParams {
+    /// Schema version (optional, defaults to latest)
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub version: Option<String>,
+}
+
+/// Parameters for the register_discovery tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RegisterDiscoveryParams {
+    /// The discovery spec JSON
+    pub spec: Value,
+    /// Replace existing registration if server already registered (default: false)
+    #[serde(default)]
+    pub replace: bool,
+}
+
+/// Parameters for the query_tools tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct QueryToolsParams {
+    /// Search query (searches across name, description, tags, etc.)
+    pub query: String,
+    /// Maximum number of results to return (default: 10)
+    #[serde(default = "default_top_k")]
+    pub top_k: usize,
+}
+
+fn default_top_k() -> usize {
+    10
+}
+
+/// Parameters for the similar_tools tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SimilarToolsParams {
+    /// Tool ID in format "server:tool_name"
+    pub tool_id: String,
+    /// Maximum number of similar tools to return (default: 5)
+    #[serde(default = "default_similar_k")]
+    pub top_k: usize,
+}
+
+fn default_similar_k() -> usize {
+    5
+}
+
+/// Parameters for the unregister_discovery tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct UnregisterDiscoveryParams {
+    /// Server name to unregister
+    pub server_name: String,
 }
 
 // =============================================================================
@@ -1061,6 +1129,169 @@ impl JpxMcp {
         );
 
         json_result(&paths)
+    }
+
+    // =========================================================================
+    // Discovery tools - MCP tool discovery protocol
+    // =========================================================================
+
+    /// Get the discovery schema for registering MCP server capabilities
+    #[tool(
+        description = "Get the JSON schema for the MCP discovery protocol. MCP servers can use this schema to register their tools with jpx for cross-server discovery and search."
+    )]
+    async fn get_discovery_schema(
+        &self,
+        Parameters(_params): Parameters<GetDiscoverySchemaParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let schema = DiscoveryRegistry::get_schema();
+        json_result(&schema)
+    }
+
+    /// Register an MCP server's tools for discovery
+    #[tool(
+        description = "Register an MCP server's capabilities for discovery. Accepts a discovery spec with server info and tool definitions. Tools are indexed for full-text search across name, description, tags, and parameters."
+    )]
+    async fn register_discovery(
+        &self,
+        Parameters(params): Parameters<RegisterDiscoveryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse the spec
+        let spec: DiscoverySpec = serde_json::from_value(params.spec).map_err(|e| {
+            McpError::invalid_params(format!("Invalid discovery spec: {}", e), None)
+        })?;
+
+        // Register with the global registry
+        let result = {
+            let mut registry = discovery_registry()
+                .write()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.register(spec, params.replace)
+        };
+
+        json_result(&result)
+    }
+
+    /// Query tools across all registered MCP servers
+    #[tool(
+        description = "Search for tools across all registered MCP servers. Uses BM25 full-text search to find relevant tools by name, description, tags, category, or parameters. Returns ranked results with match scores."
+    )]
+    async fn query_tools(
+        &self,
+        Parameters(params): Parameters<QueryToolsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let results = {
+            let registry = discovery_registry()
+                .read()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.query(&params.query, params.top_k)
+        };
+
+        json_result(&results)
+    }
+
+    /// Find tools similar to a given tool
+    #[tool(
+        description = "Find tools similar to a specified tool based on shared terms and concepts. Uses the tool's indexed content to find related tools across all registered servers."
+    )]
+    async fn similar_tools(
+        &self,
+        Parameters(params): Parameters<SimilarToolsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let results = {
+            let registry = discovery_registry()
+                .read()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.similar(&params.tool_id, params.top_k)
+        };
+
+        json_result(&results)
+    }
+
+    /// List all registered MCP servers
+    #[tool(
+        description = "List all MCP servers that have registered their tools for discovery. Returns server names, versions, descriptions, and tool counts."
+    )]
+    async fn list_discovery_servers(
+        &self,
+        Parameters(()): Parameters<()>,
+    ) -> Result<CallToolResult, McpError> {
+        let servers = {
+            let registry = discovery_registry()
+                .read()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.list_servers()
+        };
+
+        json_result(&servers)
+    }
+
+    /// List all tool categories across registered servers
+    #[tool(
+        description = "List all tool categories from registered MCP servers. Returns category names with tool counts and which servers provide tools in each category."
+    )]
+    async fn list_discovery_categories(
+        &self,
+        Parameters(()): Parameters<()>,
+    ) -> Result<CallToolResult, McpError> {
+        let categories = {
+            let registry = discovery_registry()
+                .read()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.list_categories()
+        };
+
+        json_result(&categories)
+    }
+
+    /// Get discovery index statistics
+    #[tool(
+        description = "Get statistics about the discovery index including document count, term count, average document length, and top indexed terms. Useful for understanding what's been indexed."
+    )]
+    async fn inspect_discovery_index(
+        &self,
+        Parameters(()): Parameters<()>,
+    ) -> Result<CallToolResult, McpError> {
+        let stats = {
+            let registry = discovery_registry()
+                .read()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.index_stats()
+        };
+
+        match stats {
+            Some(s) => json_result(&s),
+            None => Ok(text_result(
+                "No tools have been indexed yet. Use register_discovery to add MCP server tools.",
+            )),
+        }
+    }
+
+    /// Unregister an MCP server from discovery
+    #[tool(
+        description = "Remove an MCP server's tools from the discovery index. Use this when a server is no longer available or to re-register with updated tools."
+    )]
+    async fn unregister_discovery(
+        &self,
+        Parameters(params): Parameters<UnregisterDiscoveryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let removed = {
+            let mut registry = discovery_registry()
+                .write()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.unregister(&params.server_name)
+        };
+
+        if removed {
+            Ok(text_result(format!(
+                "Successfully unregistered server '{}'",
+                params.server_name
+            )))
+        } else {
+            Ok(error_result(format!(
+                "Server '{}' was not registered",
+                params.server_name
+            )))
+        }
     }
 }
 
