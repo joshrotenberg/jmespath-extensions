@@ -68,6 +68,144 @@ mod schema_validity {
     }
 }
 
+/// Tests for BM25 search quality improvements
+#[cfg(feature = "mcp")]
+mod search_quality {
+    use jpx::mcp::discovery::{DiscoveryRegistry, DiscoverySpec};
+    use serde_json::json;
+
+    fn spec_with_description(server_name: &str, tool_name: &str, desc: &str) -> DiscoverySpec {
+        serde_json::from_value(json!({
+            "server": { "name": server_name },
+            "tools": [{ "name": tool_name, "description": desc }]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn test_stop_words_filtered_from_index() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register a tool with lots of stop words in description
+        registry.register(
+            spec_with_description(
+                "test-server",
+                "test_tool",
+                "This is a tool for the database that will be used to create and manage resources",
+            ),
+            false,
+        );
+
+        let stats = registry.index_stats().unwrap();
+        let top_terms: Vec<&str> = stats.top_terms.iter().map(|(t, _)| t.as_str()).collect();
+
+        // Stop words should NOT be in the index
+        assert!(
+            !top_terms.contains(&"a"),
+            "Stop word 'a' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"the"),
+            "Stop word 'the' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"is"),
+            "Stop word 'is' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"for"),
+            "Stop word 'for' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"and"),
+            "Stop word 'and' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"to"),
+            "Stop word 'to' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"that"),
+            "Stop word 'that' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"will"),
+            "Stop word 'will' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"be"),
+            "Stop word 'be' should be filtered"
+        );
+
+        // Content words SHOULD be in the index
+        assert!(
+            top_terms.contains(&"tool"),
+            "Content word 'tool' should be indexed"
+        );
+        assert!(
+            top_terms.contains(&"database"),
+            "Content word 'database' should be indexed"
+        );
+        assert!(
+            top_terms.contains(&"create"),
+            "Content word 'create' should be indexed"
+        );
+        assert!(
+            top_terms.contains(&"manage"),
+            "Content word 'manage' should be indexed"
+        );
+        assert!(
+            top_terms.contains(&"resources"),
+            "Content word 'resources' should be indexed"
+        );
+    }
+
+    #[test]
+    fn test_similar_tools_without_stop_word_noise() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register tools with similar purposes but different stop words
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "create_backup", "description": "Create a backup of the database" },
+                    { "name": "restore_backup", "description": "Restore the database from a backup" },
+                    { "name": "list_users", "description": "List all the users in the system" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Find tools similar to create_backup
+        let similar = registry.similar("test-server:create_backup", 10);
+
+        // restore_backup should be the most similar (shares "backup" and "database")
+        assert!(!similar.is_empty(), "Should find similar tools");
+        assert_eq!(
+            similar[0].tool.name, "restore_backup",
+            "restore_backup should be most similar to create_backup"
+        );
+
+        // The matches should NOT include stop words
+        if let Some(matches) = similar[0].matches.get("_matched") {
+            assert!(
+                !matches.contains(&"a".to_string()),
+                "Matches should not include 'a'"
+            );
+            assert!(
+                !matches.contains(&"the".to_string()),
+                "Matches should not include 'the'"
+            );
+            assert!(
+                !matches.contains(&"of".to_string()),
+                "Matches should not include 'of'"
+            );
+        }
+    }
+}
+
 #[cfg(feature = "mcp")]
 mod mock_server_discovery {
     use jpx::mcp::discovery::{DiscoveryRegistry, DiscoverySpec};
