@@ -24,6 +24,18 @@ use std::collections::HashMap;
 /// Discovery spec schema version
 pub const SCHEMA_VERSION: &str = "1.0";
 
+/// Common English stop words to filter from search indexing.
+/// These words are too common to be useful for search relevance.
+const STOP_WORDS: &[&str] = &[
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "he", "in", "is", "it",
+    "its", "of", "on", "or", "that", "the", "to", "was", "were", "will", "with", "this", "but",
+    "they", "have", "had", "what", "when", "where", "who", "which", "why", "how", "all", "each",
+    "every", "both", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only",
+    "own", "same", "so", "than", "too", "very", "just", "can", "could", "should", "would", "may",
+    "might", "must", "shall", "about", "above", "after", "again", "against", "below", "between",
+    "into", "through", "during", "before", "under", "over",
+];
+
 /// Discovery spec - the schema MCP servers use to register their tools
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoverySpec {
@@ -307,6 +319,7 @@ impl DiscoveryRegistry {
                 "params".to_string(),
             ],
             id_field: Some("id".to_string()),
+            stopwords: STOP_WORDS.iter().map(|s| s.to_string()).collect(),
             ..Default::default()
         };
 

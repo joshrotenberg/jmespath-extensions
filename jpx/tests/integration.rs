@@ -2229,7 +2229,8 @@ mod cli_explain {
 
     #[test]
     fn test_explain_simple_expression() {
-        let output = run_with_args(&["--explain", "name"], "{}");
+        // --explain doesn't need stdin, it just parses the expression
+        let output = run_with_args(&["--explain", "name"], "");
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         // Should show AST information
@@ -2238,7 +2239,7 @@ mod cli_explain {
 
     #[test]
     fn test_explain_function_call() {
-        let output = run_with_args(&["--explain", "length(@)"], "{}");
+        let output = run_with_args(&["--explain", "length(@)"], "");
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("length") || stdout.contains("Function"));
@@ -2246,7 +2247,7 @@ mod cli_explain {
 
     #[test]
     fn test_explain_complex_expression() {
-        let output = run_with_args(&["--explain", "items[?price > `100`].name"], "{}");
+        let output = run_with_args(&["--explain", "items[?price > `100`].name"], "");
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         // Should parse without error and show structure
@@ -2255,7 +2256,7 @@ mod cli_explain {
 
     #[test]
     fn test_explain_pipeline() {
-        let output = run_with_args(&["--explain", "items", "sort(@)"], "{}");
+        let output = run_with_args(&["--explain", "items", "sort(@)"], "");
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("sort") || stdout.contains("items"));

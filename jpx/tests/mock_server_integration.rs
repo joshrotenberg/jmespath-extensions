@@ -68,6 +68,447 @@ mod schema_validity {
     }
 }
 
+/// Tests for BM25 search quality improvements
+#[cfg(feature = "mcp")]
+mod search_quality {
+    use jpx::mcp::discovery::{DiscoveryRegistry, DiscoverySpec};
+    use serde_json::json;
+
+    fn spec_with_description(server_name: &str, tool_name: &str, desc: &str) -> DiscoverySpec {
+        serde_json::from_value(json!({
+            "server": { "name": server_name },
+            "tools": [{ "name": tool_name, "description": desc }]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn test_stop_words_filtered_from_index() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register a tool with lots of stop words in description
+        registry.register(
+            spec_with_description(
+                "test-server",
+                "test_tool",
+                "This is a tool for the database that will be used to create and manage resources",
+            ),
+            false,
+        );
+
+        let stats = registry.index_stats().unwrap();
+        let top_terms: Vec<&str> = stats.top_terms.iter().map(|(t, _)| t.as_str()).collect();
+
+        // Stop words should NOT be in the index
+        assert!(
+            !top_terms.contains(&"a"),
+            "Stop word 'a' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"the"),
+            "Stop word 'the' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"is"),
+            "Stop word 'is' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"for"),
+            "Stop word 'for' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"and"),
+            "Stop word 'and' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"to"),
+            "Stop word 'to' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"that"),
+            "Stop word 'that' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"will"),
+            "Stop word 'will' should be filtered"
+        );
+        assert!(
+            !top_terms.contains(&"be"),
+            "Stop word 'be' should be filtered"
+        );
+
+        // Content words SHOULD be in the index (stemmed forms)
+        assert!(
+            top_terms.contains(&"tool"),
+            "Content word 'tool' should be indexed"
+        );
+        assert!(
+            top_terms.contains(&"database"),
+            "Content word 'database' should be indexed"
+        );
+        assert!(
+            top_terms.contains(&"create"),
+            "Content word 'create' should be indexed"
+        );
+        assert!(
+            top_terms.contains(&"manage"),
+            "Content word 'manage' should be indexed"
+        );
+        // Note: "resources" is stemmed to "resource"
+        assert!(
+            top_terms.contains(&"resource"),
+            "Content word 'resource' (stemmed from 'resources') should be indexed"
+        );
+    }
+
+    #[test]
+    fn test_similar_tools_without_stop_word_noise() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register tools with similar purposes but different stop words
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "create_backup", "description": "Create a backup of the database" },
+                    { "name": "restore_backup", "description": "Restore the database from a backup" },
+                    { "name": "list_users", "description": "List all the users in the system" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Find tools similar to create_backup
+        let similar = registry.similar("test-server:create_backup", 10);
+
+        // restore_backup should be the most similar (shares "backup" and "database")
+        assert!(!similar.is_empty(), "Should find similar tools");
+        assert_eq!(
+            similar[0].tool.name, "restore_backup",
+            "restore_backup should be most similar to create_backup"
+        );
+
+        // The matches should NOT include stop words
+        if let Some(matches) = similar[0].matches.get("_matched") {
+            assert!(
+                !matches.contains(&"a".to_string()),
+                "Matches should not include 'a'"
+            );
+            assert!(
+                !matches.contains(&"the".to_string()),
+                "Matches should not include 'the'"
+            );
+            assert!(
+                !matches.contains(&"of".to_string()),
+                "Matches should not include 'of'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_plural_singular_matching() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register tools with plural forms
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "list_databases", "description": "List all databases" },
+                    { "name": "get_database", "description": "Get a single database" },
+                    { "name": "list_acls", "description": "List all ACLs" },
+                    { "name": "create_acl", "description": "Create an ACL" },
+                    { "name": "list_shards", "description": "List cluster shards" },
+                    { "name": "get_shard", "description": "Get a single shard" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Singular query should find plural tools
+        let results = registry.query("database", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_databases"),
+            "Singular 'database' should match 'list_databases'"
+        );
+        assert!(
+            tool_names.contains(&"get_database"),
+            "Singular 'database' should match 'get_database'"
+        );
+
+        // Plural query should also find singular tools
+        let results = registry.query("databases", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_databases"),
+            "Plural 'databases' should match 'list_databases'"
+        );
+        assert!(
+            tool_names.contains(&"get_database"),
+            "Plural 'databases' should match 'get_database'"
+        );
+
+        // Test ACL/ACLs
+        let results = registry.query("acl", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_acls"),
+            "Singular 'acl' should match 'list_acls'"
+        );
+        assert!(
+            tool_names.contains(&"create_acl"),
+            "Singular 'acl' should match 'create_acl'"
+        );
+
+        // Test shard/shards
+        let results = registry.query("shard", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_shards"),
+            "Singular 'shard' should match 'list_shards'"
+        );
+        assert!(
+            tool_names.contains(&"get_shard"),
+            "Singular 'shard' should match 'get_shard'"
+        );
+    }
+
+    #[test]
+    fn test_stemming_ies_to_y() {
+        let mut registry = DiscoveryRegistry::new();
+
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "list_queries", "description": "List all queries" },
+                    { "name": "run_query", "description": "Run a single query" },
+                    { "name": "list_entries", "description": "List all entries" },
+                    { "name": "get_entry", "description": "Get a single entry" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // "query" should match "queries"
+        let results = registry.query("query", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_queries"),
+            "Singular 'query' should match 'list_queries'"
+        );
+        assert!(
+            tool_names.contains(&"run_query"),
+            "Singular 'query' should match 'run_query'"
+        );
+
+        // "entry" should match "entries"
+        let results = registry.query("entry", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_entries"),
+            "Singular 'entry' should match 'list_entries'"
+        );
+        assert!(
+            tool_names.contains(&"get_entry"),
+            "Singular 'entry' should match 'get_entry'"
+        );
+    }
+
+    #[test]
+    fn test_stemming_es_sibilants() {
+        let mut registry = DiscoveryRegistry::new();
+
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    { "name": "list_caches", "description": "List all caches" },
+                    { "name": "clear_cache", "description": "Clear a cache" },
+                    { "name": "list_boxes", "description": "List all boxes" },
+                    { "name": "open_box", "description": "Open a box" }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // "cache" should match "caches"
+        let results = registry.query("cache", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_caches"),
+            "Singular 'cache' should match 'list_caches'"
+        );
+        assert!(
+            tool_names.contains(&"clear_cache"),
+            "Singular 'cache' should match 'clear_cache'"
+        );
+
+        // "box" should match "boxes"
+        let results = registry.query("box", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"list_boxes"),
+            "Singular 'box' should match 'list_boxes'"
+        );
+        assert!(
+            tool_names.contains(&"open_box"),
+            "Singular 'box' should match 'open_box'"
+        );
+    }
+
+    #[test]
+    fn test_parameter_names_indexed() {
+        let mut registry = DiscoveryRegistry::new();
+
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    {
+                        "name": "create_database",
+                        "description": "Create a new database",
+                        "params": [
+                            { "name": "database_id", "type": "string", "required": true },
+                            { "name": "region", "type": "string" }
+                        ]
+                    },
+                    {
+                        "name": "create_subscription",
+                        "description": "Create a new subscription",
+                        "params": [
+                            { "name": "subscription_id", "type": "string", "required": true },
+                            { "name": "plan_type", "type": "string" }
+                        ]
+                    },
+                    {
+                        "name": "list_items",
+                        "description": "List items",
+                        "params": []
+                    }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Search by parameter name "database_id"
+        let results = registry.query("database_id", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"create_database"),
+            "Param search 'database_id' should find create_database"
+        );
+        assert!(
+            !tool_names.contains(&"create_subscription"),
+            "Param search 'database_id' should NOT find create_subscription"
+        );
+
+        // Search by parameter name "subscription_id"
+        let results = registry.query("subscription_id", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"create_subscription"),
+            "Param search 'subscription_id' should find create_subscription"
+        );
+
+        // Search by common parameter "region"
+        let results = registry.query("region", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"create_database"),
+            "Param search 'region' should find create_database"
+        );
+    }
+
+    #[test]
+    fn test_tags_indexed_for_semantic_search() {
+        let mut registry = DiscoveryRegistry::new();
+
+        // Register tools with semantic tags that aren't in the description
+        registry.register(
+            serde_json::from_value(json!({
+                "server": { "name": "test-server" },
+                "tools": [
+                    {
+                        "name": "acl_create",
+                        "description": "Create a new ACL entry",
+                        "tags": ["security", "permissions", "rbac", "auth"]
+                    },
+                    {
+                        "name": "acl_delete",
+                        "description": "Delete an ACL entry",
+                        "tags": ["security", "permissions", "destructive"]
+                    },
+                    {
+                        "name": "backup_create",
+                        "description": "Create a backup",
+                        "tags": ["data-protection", "disaster-recovery"]
+                    },
+                    {
+                        "name": "user_list",
+                        "description": "List all users",
+                        "tags": ["read-only", "users"]
+                    }
+                ]
+            }))
+            .unwrap(),
+            false,
+        );
+
+        // Search by tag "security" - should find ACL tools even though
+        // "security" isn't in their descriptions
+        let results = registry.query("security", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"acl_create"),
+            "Tag search 'security' should find acl_create"
+        );
+        assert!(
+            tool_names.contains(&"acl_delete"),
+            "Tag search 'security' should find acl_delete"
+        );
+        assert!(
+            !tool_names.contains(&"backup_create"),
+            "Tag search 'security' should NOT find backup_create"
+        );
+
+        // Search by tag "permissions"
+        let results = registry.query("permissions", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"acl_create"),
+            "Tag search 'permissions' should find acl_create"
+        );
+
+        // Search by hyphenated tag "disaster-recovery"
+        // Note: BM25 tokenizes on hyphens, so search for component words
+        let results = registry.query("disaster recovery", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"backup_create"),
+            "Tag search 'disaster recovery' should find backup_create"
+        );
+
+        // Search by tag "destructive" - should find tools marked as such
+        let results = registry.query("destructive", 10);
+        let tool_names: Vec<&str> = results.iter().map(|r| r.tool.name.as_str()).collect();
+        assert!(
+            tool_names.contains(&"acl_delete"),
+            "Tag search 'destructive' should find acl_delete"
+        );
+        assert!(
+            !tool_names.contains(&"acl_create"),
+            "Tag search 'destructive' should NOT find acl_create"
+        );
+    }
+}
+
 #[cfg(feature = "mcp")]
 mod mock_server_discovery {
     use jpx::mcp::discovery::{DiscoveryRegistry, DiscoverySpec};

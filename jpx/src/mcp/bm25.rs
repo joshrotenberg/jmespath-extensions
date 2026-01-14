@@ -319,10 +319,60 @@ impl Bm25Index {
         text.split(|c: char| !c.is_alphanumeric() && c != '_')
             .filter(|s| !s.is_empty())
             .filter(|s| !self.options.stopwords.contains(&s.to_string()))
-            .map(|s| s.to_string())
+            .map(stem_simple)
             .collect()
     }
+}
 
+/// Simple plural stemmer for search indexing.
+///
+/// Handles common English plural forms:
+/// - "databases" -> "database" (strip -s after vowel+consonant+e pattern)
+/// - "ACLs" -> "ACL" (strip -s)
+/// - "queries" -> "query" (ies -> y)
+/// - "boxes" -> "box" (strip -es after x/z)
+///
+/// This is intentionally simple - it improves recall for plural/singular
+/// matching without the complexity of a full Porter stemmer.
+fn stem_simple(term: &str) -> String {
+    let t = term.to_string();
+    let len = t.len();
+
+    // Skip very short terms
+    if len < 3 {
+        return t;
+    }
+
+    // Handle -ies -> -y (queries -> query, entries -> entry)
+    if len > 3 && t.ends_with("ies") {
+        return format!("{}y", &t[..len - 3]);
+    }
+
+    // Handle -xes -> -x and -zes -> -z (boxes -> box, buzzes handled by -ss check)
+    if len > 3 && (t.ends_with("xes") || t.ends_with("zes")) {
+        return t[..len - 2].to_string();
+    }
+
+    // Handle -sses -> -ss (classes -> class, but keep the ss)
+    if len > 4 && t.ends_with("sses") {
+        return t[..len - 2].to_string();
+    }
+
+    // Handle -shes -> -sh (dishes -> dish)
+    if len > 4 && t.ends_with("shes") {
+        return t[..len - 2].to_string();
+    }
+
+    // Handle simple -s (but not -ss like "lass", "class", "boss")
+    // This covers: databases -> database, caches -> cache, shards -> shard
+    if t.ends_with('s') && !t.ends_with("ss") {
+        return t[..len - 1].to_string();
+    }
+
+    t
+}
+
+impl Bm25Index {
     /// Calculate IDF for a term
     fn idf(&self, term: &str) -> f64 {
         let df = self.terms.get(term).map(|t| t.df as f64).unwrap_or(0.0);
