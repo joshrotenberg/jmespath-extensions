@@ -1,0 +1,4 @@
+# strict mode
+
+Coming soon.
+
