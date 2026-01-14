@@ -176,15 +176,15 @@ struct Args {
     #[arg(long, value_name = "QUERY")]
     search: Option<String>,
 
-    /// Generate JSON Patch (RFC 6902) from two files: --diff <source> <target>
+    /// Generate JSON Patch (RFC 6902) from two files: --diff SOURCE TARGET
     #[arg(long, num_args = 2, value_names = ["SOURCE", "TARGET"])]
     diff: Option<Vec<String>>,
 
-    /// Apply JSON Patch (RFC 6902): --patch <file> (reads patch from stdin, or use -f for document)
+    /// Apply JSON Patch (RFC 6902): --patch FILE (reads patch from stdin, or use -f for document)
     #[arg(long, value_name = "PATCH_FILE")]
     patch: Option<String>,
 
-    /// Apply JSON Merge Patch (RFC 7396): --merge <file> (reads merge patch from stdin, or use -f for document)
+    /// Apply JSON Merge Patch (RFC 7396): --merge FILE (reads merge patch from stdin, or use -f for document)
     #[arg(long, value_name = "MERGE_FILE")]
     merge: Option<String>,
 
