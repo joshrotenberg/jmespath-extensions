@@ -4848,6 +4848,30 @@ examples = [
 ]
 features = ["format"]
 
+[[functions]]
+name = "from_csv"
+category = "format"
+description = "Parse CSV string into array of arrays (jq parity)"
+signature = "string -> array"
+examples = [
+    { code = '''from_csv("a,b,c\\n1,2,3") -> [["a", "b", "c"], ["1", "2", "3"]]''', description = "Basic CSV parsing" },
+    { code = '''from_csv("\"hello, world\",test") -> [["hello, world", "test"]]''', description = "Quoted fields with commas" },
+    { code = '''from_csv("") -> []''', description = "Empty string returns empty array" },
+]
+features = ["format"]
+
+[[functions]]
+name = "from_tsv"
+category = "format"
+description = "Parse TSV string into array of arrays (jq parity)"
+signature = "string -> array"
+examples = [
+    { code = '''from_tsv("a\\tb\\tc\\n1\\t2\\t3") -> [["a", "b", "c"], ["1", "2", "3"]]''', description = "Basic TSV parsing" },
+    { code = '''from_tsv("hello world\\ttest") -> [["hello world", "test"]]''', description = "Spaces preserved in fields" },
+    { code = '''from_tsv("") -> []''', description = "Empty string returns empty array" },
+]
+features = ["format"]
+
 # =============================================================================
 # ENVIRONMENT FUNCTIONS (opt-in, requires "env" feature)
 # =============================================================================
