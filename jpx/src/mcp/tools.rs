@@ -2898,13 +2898,14 @@ mod tests {
             if let RawContent::Text(text_content) = &content.raw {
                 let similar: SimilarResult = serde_json::from_str(&text_content.text).unwrap();
                 // Should find same-category functions (other string functions)
-                assert!(!similar.same_category.is_empty());
-                // lower should be in same category
                 assert!(
-                    similar
-                        .same_category
-                        .iter()
-                        .any(|f| f.name == "lower" || f.name == "capitalize")
+                    !similar.same_category.is_empty(),
+                    "Expected same_category to have functions"
+                );
+                // All same_category functions should be string functions (same category as upper)
+                assert!(
+                    similar.same_category.iter().all(|f| f.category == "String"),
+                    "All same_category functions should be String category"
                 );
             } else {
                 panic!("Expected text content");
