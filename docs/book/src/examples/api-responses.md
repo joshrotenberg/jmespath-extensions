@@ -1,4 +1,0 @@
-# api responses
-
-Coming soon.
-

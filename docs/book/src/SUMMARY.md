@@ -16,6 +16,7 @@
 - [Working with Files](./guide/working-with-files.md)
 - [Query Files](./guide/query-files.md)
 - [Strict Mode](./guide/strict-mode.md)
+- [jq Comparison](./examples/jq-comparison.md)
 
 # MCP Server
 
@@ -66,13 +67,6 @@
 - [API Reference](./python/api.md)
 
 # Examples
-
-- [Data Transformation](./examples/data-transformation.md)
-- [Log Processing](./examples/log-processing.md)
-- [API Response Handling](./examples/api-responses.md)
-- [jq Comparison](./examples/jq-comparison.md)
-
-# Real-World Datasets
 
 - [Overview](./examples/datasets/index.md)
 - [USGS Earthquakes](./examples/datasets/earthquakes.md)
