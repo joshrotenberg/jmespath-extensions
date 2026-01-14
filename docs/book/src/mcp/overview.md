@@ -22,11 +22,11 @@ When working with JSON data in Claude, jpx provides:
 
 ## Available Tools
 
-The MCP server exposes 17 tools organized by purpose:
+The MCP server exposes 25 tools organized by purpose:
 
-### Discovery Tools
+### Function Discovery Tools
 
-Tools for finding and exploring available functionality:
+Tools for finding and exploring available JMESPath functions:
 
 | Tool | Description |
 |------|-------------|
@@ -35,6 +35,21 @@ Tools for finding and exploring available functionality:
 | `functions` | List available functions (optionally filter by category) |
 | `describe` | Get detailed info for a specific function |
 | `categories` | List all function categories |
+
+### Multi-Server Tool Discovery
+
+Tools for semantic search across multiple MCP servers (see [Discovery](./discovery.md)):
+
+| Tool | Description |
+|------|-------------|
+| `register_discovery` | Register an MCP server's tools for indexing |
+| `query_tools` | BM25 semantic search across registered tools |
+| `similar_tools` | Find tools related to a specific tool |
+| `list_discovery_servers` | List registered servers |
+| `list_discovery_categories` | List tool categories across servers |
+| `inspect_discovery_index` | Debug index statistics |
+| `unregister_discovery` | Remove a server from the registry |
+| `get_discovery_schema` | Get the registration schema |
 
 ### Data Analysis Tools
 
