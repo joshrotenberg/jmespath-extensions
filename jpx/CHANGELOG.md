@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.16](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.15...jpx-v0.1.16) - 2026-01-14
+
+### Added
+
+- *(discovery)* BM25 search quality improvements ([#296](https://github.com/joshrotenberg/jmespath-extensions/pull/296))
+- *(mcp)* add BM25 search indexing and discovery protocol ([#291](https://github.com/joshrotenberg/jmespath-extensions/pull/291))
+- *(discovery)* add fuzzy_search, fuzzy_match, and fuzzy_score functions ([#288](https://github.com/joshrotenberg/jmespath-extensions/pull/288))
+- *(mcp)* add discovery and analysis tools for AI agents ([#283](https://github.com/joshrotenberg/jmespath-extensions/pull/283))
+- *(cli)* add --stream flag for line-by-line NDJSON processing ([#281](https://github.com/joshrotenberg/jmespath-extensions/pull/281))
+- *(cli)* add config file support with TOML ([#278](https://github.com/joshrotenberg/jmespath-extensions/pull/278))
+- *(cli)* add --debug flag for diagnostic information ([#277](https://github.com/joshrotenberg/jmespath-extensions/pull/277))
+- *(cli)* add --similar flag to find related functions ([#272](https://github.com/joshrotenberg/jmespath-extensions/pull/272))
+- *(cli)* add --bench flag for expression benchmarking ([#269](https://github.com/joshrotenberg/jmespath-extensions/pull/269))
+- *(cli)* add --paths and --table flags ([#267](https://github.com/joshrotenberg/jmespath-extensions/pull/267))
+- *(cli)* add output format options (--yaml, --toml, --csv, --tsv, --lines) ([#266](https://github.com/joshrotenberg/jmespath-extensions/pull/266))
+- *(cli)* add --stats flag for quick data inspection ([#265](https://github.com/joshrotenberg/jmespath-extensions/pull/265))
+- *(cli)* support multiple positional expressions as pipeline ([#262](https://github.com/joshrotenberg/jmespath-extensions/pull/262))
+- *(cli)* add --diff, --patch, and --merge flags for JSON Patch operations ([#243](https://github.com/joshrotenberg/jmespath-extensions/pull/243))
+- *(cli)* add colored output and --search flag for function discovery ([#234](https://github.com/joshrotenberg/jmespath-extensions/pull/234))
+
+### Fixed
+
+- *(mcp)* Parameters<()> schema bug + mock server + BM25 improvements issue ([#294](https://github.com/joshrotenberg/jmespath-extensions/pull/294))
+- *(cli)* prefix all error messages with 'jpx:' ([#276](https://github.com/joshrotenberg/jmespath-extensions/pull/276))
+- make Category match statements exhaustive for compile-time safety ([#213](https://github.com/joshrotenberg/jmespath-extensions/pull/213))
+- add language category to MCP parse_category ([#212](https://github.com/joshrotenberg/jmespath-extensions/pull/212))
+
+### Other
+
+- acknowledge JMESPath project and add jq comparison ([#279](https://github.com/joshrotenberg/jmespath-extensions/pull/279))
+- add comprehensive integration tests for jpx CLI and MCP server ([#224](https://github.com/joshrotenberg/jmespath-extensions/pull/224))
+
 ## [0.1.15](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.14...jpx-v0.1.15) - 2026-01-12
 
 ### Added
