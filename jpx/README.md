@@ -78,22 +78,43 @@ cargo build -p jpx --features mcp --release
 jpx mcp
 ```
 
-### MCP Tools
+### MCP Tools (17 total)
+
+**Discovery** - Find and explore functionality:
+
+| Tool | Description |
+|------|-------------|
+| `search` | Fuzzy search functions by name, description, category, or signature |
+| `similar` | Find functions related to a specified function |
+| `functions` | List available functions (with optional category filter) |
+| `describe` | Get detailed info for a specific function |
+| `categories` | List all function categories |
+
+**Data Analysis** - Understand JSON structure:
+
+| Tool | Description |
+|------|-------------|
+| `stats` | Analyze JSON structure (type, size, depth, field analysis) |
+| `paths` | Extract all paths in dot notation (e.g., `users[0].name`) |
+| `keys` | Extract object keys (optionally recursive with dot notation) |
+
+**Querying** - Evaluate expressions:
 
 | Tool | Description |
 |------|-------------|
 | `evaluate` | Run JMESPath expressions against JSON input |
 | `evaluate_file` | Query JSON files directly from disk (with security checks) |
 | `batch_evaluate` | Run multiple expressions against the same input |
+| `validate` | Check expression syntax without executing |
+
+**JSON Utilities** - Transform and manipulate:
+
+| Tool | Description |
+|------|-------------|
 | `format` | Pretty-print JSON with configurable indentation |
 | `diff` | Generate RFC 6902 JSON Patch between two documents |
 | `patch` | Apply RFC 6902 JSON Patch operations |
 | `merge` | Apply RFC 7396 JSON Merge Patch |
-| `keys` | Extract object keys (optionally recursive with dot notation) |
-| `functions` | List available functions (with optional category filter) |
-| `describe` | Get detailed info for a specific function |
-| `categories` | List all function categories |
-| `validate` | Check expression syntax without executing |
 
 ### Claude Desktop Configuration
 

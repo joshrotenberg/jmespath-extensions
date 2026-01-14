@@ -22,22 +22,59 @@ When working with JSON data in Claude, jpx provides:
 
 ## Available Tools
 
-The MCP server exposes 12 tools:
+The MCP server exposes 17 tools organized by purpose:
+
+### Discovery Tools
+
+Tools for finding and exploring available functionality:
 
 | Tool | Description |
 |------|-------------|
-| `evaluate` | Run JMESPath expressions against JSON input |
+| `search` | Fuzzy search for functions by name, description, category, or signature |
+| `similar` | Find functions related to a specified function |
+| `functions` | List available functions (optionally filter by category) |
+| `describe` | Get detailed info for a specific function |
+| `categories` | List all function categories |
+
+### Data Analysis Tools
+
+Tools for understanding JSON structure before querying:
+
+| Tool | Description |
+|------|-------------|
+| `stats` | Analyze JSON structure (type, size, depth, field analysis) |
+| `paths` | Extract all paths in dot notation (e.g., `users[0].name`) |
+| `keys` | Extract object keys (optionally recursive with dot notation) |
+
+### Query Tools
+
+Tools for evaluating JMESPath expressions:
+
+| Tool | Description |
+|------|-------------|
+| `evaluate` | Run a JMESPath expression against JSON input |
 | `evaluate_file` | Query JSON files directly from disk |
 | `batch_evaluate` | Run multiple expressions against the same input |
+| `validate` | Check expression syntax without executing |
+
+### JSON Utility Tools
+
+Tools for JSON manipulation (RFC 6902/7396):
+
+| Tool | Description |
+|------|-------------|
 | `format` | Pretty-print JSON with configurable indentation |
 | `diff` | Generate RFC 6902 JSON Patch between documents |
 | `patch` | Apply RFC 6902 JSON Patch operations |
 | `merge` | Apply RFC 7396 JSON Merge Patch |
-| `keys` | Extract object keys (optionally recursive) |
-| `functions` | List available functions |
-| `describe` | Get detailed info for a specific function |
-| `categories` | List all function categories |
-| `validate` | Check expression syntax without executing |
+
+## Typical Workflow for AI Agents
+
+1. **Analyze data**: Use `stats` and `paths` to understand the JSON structure
+2. **Discover functions**: Use `search` to find relevant functions, `similar` to explore alternatives
+3. **Build query**: Use `validate` to check syntax before executing
+4. **Execute**: Use `evaluate` or `batch_evaluate` to run queries
+5. **Transform**: Use `diff`, `patch`, or `merge` for modifications
 
 ## Getting Started
 
