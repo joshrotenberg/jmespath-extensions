@@ -71,3 +71,10 @@
 - [Log Processing](./examples/log-processing.md)
 - [API Response Handling](./examples/api-responses.md)
 - [jq Comparison](./examples/jq-comparison.md)
+
+# Real-World Datasets
+
+- [Overview](./examples/datasets/index.md)
+- [USGS Earthquakes](./examples/datasets/earthquakes.md)
+- [Nobel Prize API](./examples/datasets/nobel-prize.md)
+- [NASA Near Earth Objects](./examples/datasets/nasa-neo.md)
