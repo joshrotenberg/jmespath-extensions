@@ -3,6 +3,8 @@
 //! Provides tools for evaluating JMESPath expressions and discovering
 //! available functions.
 
+pub mod bm25;
+pub mod discovery;
 mod tools;
 
 use anyhow::Result;

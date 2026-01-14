@@ -1,5 +1,5 @@
 #[cfg(feature = "mcp")]
-mod mcp;
+use jpx::mcp;
 mod repl;
 
 use anyhow::{Context, Result};

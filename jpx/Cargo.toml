@@ -16,6 +16,10 @@ categories = ["command-line-utilities", "parsing", "text-processing"]
 name = "jpx"
 path = "src/main.rs"
 
+[lib]
+name = "jpx"
+path = "src/lib.rs"
+
 [build-dependencies]
 toml = "0.8"
 serde = { workspace = true, features = ["derive"] }
