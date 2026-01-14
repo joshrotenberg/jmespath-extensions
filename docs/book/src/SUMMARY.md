@@ -11,6 +11,7 @@
 # User Guide
 
 - [CLI Reference](./guide/cli-reference.md)
+- [Output Formats](./guide/output-formats.md)
 - [Expression Syntax](./guide/expression-syntax.md)
 - [Working with Files](./guide/working-with-files.md)
 - [Query Files](./guide/query-files.md)
