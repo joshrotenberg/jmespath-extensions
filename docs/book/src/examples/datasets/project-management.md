@@ -1,8 +1,8 @@
-# JMESPath Extensions: Comprehensive Examples
+# Project Management Dataset
 
-This guide demonstrates the power of jmespath_extensions through real-world query examples on a realistic dataset.
+A comprehensive example using synthetic project management data that demonstrates most jpx function categories.
 
-## Sample Dataset
+## Dataset
 
 All examples use this project management dataset:
 

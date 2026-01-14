@@ -14,6 +14,7 @@ Learn jpx by working with real data from public APIs. Each example includes:
 | [USGS Earthquakes](./earthquakes.md) | Real-time seismic data | Geo functions, statistics, filtering |
 | [Nobel Prize API](./nobel-prize.md) | Laureates and prizes | Multilingual data, text processing, dates |
 | [NASA Near Earth Objects](./nasa-neo.md) | Asteroids and comets | Nested data, unit conversions, risk analysis |
+| [Project Management](./project-management.md) | Synthetic project data | Comprehensive function coverage, all categories |
 
 ## Quick Start
 
