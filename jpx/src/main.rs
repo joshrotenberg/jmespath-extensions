@@ -146,8 +146,21 @@ struct Args {
     tsv_output: bool,
 
     /// Output one JSON value per line (for arrays)
-    #[arg(short = 'l', long = "lines", conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output"])]
+    #[arg(short = 'l', long = "lines", conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output", "table"])]
     lines_output: bool,
+
+    /// Output as a formatted table (for arrays of objects)
+    #[arg(short = 't', long, conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output", "lines_output"])]
+    table: bool,
+
+    /// Table style: unicode (default), ascii, markdown, or plain
+    #[arg(
+        long,
+        value_name = "STYLE",
+        default_value = "unicode",
+        requires = "table"
+    )]
+    table_style: String,
 
     /// Null input - don't read input, use null as the input value
     #[arg(short = 'n', long)]
@@ -227,6 +240,18 @@ struct Args {
     /// Show statistics about the input data
     #[arg(long)]
     stats: bool,
+
+    /// List all paths in the input JSON
+    #[arg(long)]
+    paths: bool,
+
+    /// Show types alongside paths (use with --paths)
+    #[arg(long, requires = "paths")]
+    types: bool,
+
+    /// Show values alongside paths (use with --paths)
+    #[arg(long, requires = "paths")]
+    values: bool,
 }
 
 fn main() -> Result<()> {
@@ -294,6 +319,11 @@ fn main() -> Result<()> {
     // Handle --stats: show data statistics
     if args.stats {
         return show_stats(&args.file, &args.color);
+    }
+
+    // Handle --paths: list all paths in JSON
+    if args.paths {
+        return show_paths(&args.file, &args.color, args.types, args.values);
     }
 
     // Get expressions from positional args, -e flags, or file
@@ -460,6 +490,9 @@ fn main() -> Result<()> {
     }
     if args.lines_output {
         return output_as_lines(&json_value, &args.output);
+    }
+    if args.table {
+        return output_as_table(&json_value, &args.output, &args.table_style, &args.color);
     }
 
     // When writing to file, don't colorize unless explicitly requested
@@ -1674,6 +1707,377 @@ fn value_to_cell(value: &serde_json::Value) -> String {
         // Arrays and objects get JSON-encoded in the cell
         serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
             serde_json::to_string(value).unwrap_or_default()
+        }
+    }
+}
+
+// =============================================================================
+// Table Output
+// =============================================================================
+
+/// Output as a formatted table
+fn output_as_table(
+    value: &serde_json::Value,
+    output_path: &Option<String>,
+    style: &str,
+    color_mode: &ColorMode,
+) -> Result<()> {
+    let use_color = match color_mode {
+        ColorMode::Always => true,
+        ColorMode::Never => false,
+        ColorMode::Auto => output_path.is_none() && atty::is(atty::Stream::Stdout),
+    };
+
+    match value {
+        serde_json::Value::Array(arr) => {
+            if arr.is_empty() {
+                return write_output("(empty array)", output_path);
+            }
+
+            // Check if all items are objects
+            let all_objects = arr.iter().all(|v| v.is_object());
+
+            if all_objects {
+                output_objects_as_table(arr, output_path, style, use_color)
+            } else {
+                // Array of primitives or mixed - single column table
+                output_primitives_as_table(arr, output_path, style)
+            }
+        }
+        serde_json::Value::Object(_) => {
+            // Single object - output as key/value table
+            output_objects_as_table(std::slice::from_ref(value), output_path, style, use_color)
+        }
+        _ => Err(anyhow::anyhow!(
+            "Table output requires an array or object, got {}",
+            get_type_name(value)
+        )),
+    }
+}
+
+/// Output array of objects as a table
+fn output_objects_as_table(
+    arr: &[serde_json::Value],
+    output_path: &Option<String>,
+    style: &str,
+    use_color: bool,
+) -> Result<()> {
+    use tabled::{Table, settings::Style};
+
+    // Collect all unique keys from all objects (flattened)
+    let mut all_keys: Vec<String> = Vec::new();
+    let mut seen_keys = std::collections::HashSet::new();
+
+    for item in arr {
+        if let serde_json::Value::Object(obj) = item {
+            collect_flattened_keys(obj, "", &mut all_keys, &mut seen_keys);
+        }
+    }
+
+    if all_keys.is_empty() {
+        return write_output("(no columns)", output_path);
+    }
+
+    // Build rows
+    let mut rows: Vec<Vec<String>> = Vec::new();
+
+    // Header row
+    let header: Vec<String> = if use_color {
+        all_keys.iter().map(|k| k.bold().to_string()).collect()
+    } else {
+        all_keys.clone()
+    };
+    rows.push(header);
+
+    // Data rows
+    for item in arr {
+        let flattened = flatten_object(item);
+        let row: Vec<String> = all_keys
+            .iter()
+            .map(|key| {
+                flattened
+                    .get(key)
+                    .map(|v| value_to_table_cell(v, use_color))
+                    .unwrap_or_default()
+            })
+            .collect();
+        rows.push(row);
+    }
+
+    // Create table
+    let mut table = Table::from_iter(rows);
+
+    // Apply style
+    match style.to_lowercase().as_str() {
+        "ascii" => {
+            table.with(Style::ascii());
+        }
+        "markdown" | "md" => {
+            table.with(Style::markdown());
+        }
+        "plain" | "blank" => {
+            table.with(Style::blank());
+        }
+        "rounded" => {
+            table.with(Style::rounded());
+        }
+        "sharp" => {
+            table.with(Style::sharp());
+        }
+        "modern" => {
+            table.with(Style::modern());
+        }
+        _ => {
+            table.with(Style::rounded());
+        } // unicode/default
+    };
+
+    write_output(&table.to_string(), output_path)
+}
+
+/// Output array of primitives as a single-column table
+fn output_primitives_as_table(
+    arr: &[serde_json::Value],
+    output_path: &Option<String>,
+    style: &str,
+) -> Result<()> {
+    use tabled::{Table, settings::Style};
+
+    let mut rows: Vec<Vec<String>> = Vec::new();
+    rows.push(vec!["Value".to_string()]);
+
+    for item in arr {
+        rows.push(vec![value_to_table_cell(item, false)]);
+    }
+
+    let mut table = Table::from_iter(rows);
+
+    match style.to_lowercase().as_str() {
+        "ascii" => {
+            table.with(Style::ascii());
+        }
+        "markdown" | "md" => {
+            table.with(Style::markdown());
+        }
+        "plain" | "blank" => {
+            table.with(Style::blank());
+        }
+        "rounded" => {
+            table.with(Style::rounded());
+        }
+        "sharp" => {
+            table.with(Style::sharp());
+        }
+        "modern" => {
+            table.with(Style::modern());
+        }
+        _ => {
+            table.with(Style::rounded());
+        }
+    };
+
+    write_output(&table.to_string(), output_path)
+}
+
+/// Convert a JSON value to a table cell string
+fn value_to_table_cell(value: &serde_json::Value, use_color: bool) -> String {
+    match value {
+        serde_json::Value::Null => {
+            if use_color {
+                "null".dimmed().to_string()
+            } else {
+                "null".to_string()
+            }
+        }
+        serde_json::Value::Bool(b) => {
+            if use_color {
+                if *b {
+                    "true".green().to_string()
+                } else {
+                    "false".red().to_string()
+                }
+            } else {
+                b.to_string()
+            }
+        }
+        serde_json::Value::Number(n) => {
+            if use_color {
+                n.to_string().cyan().to_string()
+            } else {
+                n.to_string()
+            }
+        }
+        serde_json::Value::String(s) => {
+            // Truncate long strings
+            if s.len() <= 40 {
+                s.clone()
+            } else {
+                format!("{}...", &s[..37])
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            if use_color {
+                format!("[{} items]", arr.len()).dimmed().to_string()
+            } else {
+                format!("[{} items]", arr.len())
+            }
+        }
+        serde_json::Value::Object(obj) => {
+            if use_color {
+                format!("{{{} keys}}", obj.len()).dimmed().to_string()
+            } else {
+                format!("{{{} keys}}", obj.len())
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Path Listing
+// =============================================================================
+
+/// Show all paths in the JSON data
+fn show_paths(
+    file_path: &Option<String>,
+    color_mode: &ColorMode,
+    show_types: bool,
+    show_values: bool,
+) -> Result<()> {
+    let data = read_json_from(file_path.as_deref())?;
+
+    let use_color = match color_mode {
+        ColorMode::Always => true,
+        ColorMode::Never => false,
+        ColorMode::Auto => atty::is(atty::Stream::Stdout),
+    };
+
+    let mut paths_info: Vec<(String, String, Option<String>)> = Vec::new();
+    collect_paths(&data, String::new(), &mut paths_info);
+
+    // Calculate max widths for alignment
+    let max_path_width = paths_info
+        .iter()
+        .map(|(p, _, _)| p.len())
+        .max()
+        .unwrap_or(0);
+    let max_type_width = if show_types {
+        paths_info
+            .iter()
+            .map(|(_, t, _)| t.len())
+            .max()
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
+    for (path, type_name, value) in &paths_info {
+        let path_display = if use_color {
+            path.cyan().to_string()
+        } else {
+            path.clone()
+        };
+
+        if show_types && show_values {
+            let type_display = if use_color {
+                format!("{:width$}", type_name, width = max_type_width)
+                    .yellow()
+                    .to_string()
+            } else {
+                format!("{:width$}", type_name, width = max_type_width)
+            };
+            let value_display = value.as_deref().unwrap_or("");
+            println!(
+                "{:width$}  {}  {}",
+                path_display,
+                type_display,
+                value_display,
+                width = max_path_width
+            );
+        } else if show_types {
+            let type_display = if use_color {
+                type_name.yellow().to_string()
+            } else {
+                type_name.clone()
+            };
+            println!(
+                "{:width$}  {}",
+                path_display,
+                type_display,
+                width = max_path_width
+            );
+        } else if show_values {
+            let value_display = value.as_deref().unwrap_or("");
+            println!(
+                "{:width$}  {}",
+                path_display,
+                value_display,
+                width = max_path_width
+            );
+        } else {
+            println!("{}", path_display);
+        }
+    }
+
+    Ok(())
+}
+
+/// Recursively collect all paths from a JSON value
+fn collect_paths(
+    value: &serde_json::Value,
+    current_path: String,
+    paths: &mut Vec<(String, String, Option<String>)>,
+) {
+    let display_path = if current_path.is_empty() {
+        ".".to_string()
+    } else {
+        current_path.clone()
+    };
+
+    match value {
+        serde_json::Value::Object(obj) => {
+            // Add the object path itself
+            let type_name = format!("object{{{}}}", obj.len());
+            paths.push((display_path, type_name, None));
+
+            for (key, val) in obj {
+                let new_path = if current_path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", current_path, key)
+                };
+                collect_paths(val, new_path, paths);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            // Add the array path itself
+            let type_name = format!("array[{}]", arr.len());
+            paths.push((display_path, type_name, None));
+
+            for (i, val) in arr.iter().enumerate() {
+                let new_path = if current_path.is_empty() {
+                    format!("[{}]", i)
+                } else {
+                    format!("{}[{}]", current_path, i)
+                };
+                collect_paths(val, new_path, paths);
+            }
+        }
+        serde_json::Value::String(s) => {
+            let preview = if s.len() <= 40 {
+                format!("\"{}\"", s)
+            } else {
+                format!("\"{}...\"", &s[..37])
+            };
+            paths.push((display_path, "string".to_string(), Some(preview)));
+        }
+        serde_json::Value::Number(n) => {
+            paths.push((display_path, "number".to_string(), Some(n.to_string())));
+        }
+        serde_json::Value::Bool(b) => {
+            paths.push((display_path, "boolean".to_string(), Some(b.to_string())));
+        }
+        serde_json::Value::Null => {
+            paths.push((display_path, "null".to_string(), Some("null".to_string())));
         }
     }
 }

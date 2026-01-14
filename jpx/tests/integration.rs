@@ -1013,6 +1013,169 @@ mod validation_functions {
     }
 }
 
+mod cli_paths {
+    use super::*;
+
+    fn run_with_flags(json: &str, flags: &[&str]) -> String {
+        let mut cmd = jpx_cmd();
+        for flag in flags {
+            cmd.arg(flag);
+        }
+        let mut child = cmd
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(json.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn test_paths_basic() {
+        let result = run_with_flags(r#"{"name": "alice", "age": 30}"#, &["--paths"]);
+        assert!(result.contains("."));
+        assert!(result.contains("name"));
+        assert!(result.contains("age"));
+    }
+
+    #[test]
+    fn test_paths_nested() {
+        let result = run_with_flags(r#"{"user": {"name": "alice"}}"#, &["--paths"]);
+        assert!(result.contains("user"));
+        assert!(result.contains("user.name"));
+    }
+
+    #[test]
+    fn test_paths_array() {
+        let result = run_with_flags(r#"{"items": [1, 2, 3]}"#, &["--paths"]);
+        assert!(result.contains("items"));
+        assert!(result.contains("items[0]"));
+        assert!(result.contains("items[1]"));
+        assert!(result.contains("items[2]"));
+    }
+
+    #[test]
+    fn test_paths_with_types() {
+        let result = run_with_flags(r#"{"name": "alice", "age": 30}"#, &["--paths", "--types"]);
+        assert!(result.contains("string"));
+        assert!(result.contains("number"));
+        assert!(result.contains("object"));
+    }
+
+    #[test]
+    fn test_paths_with_values() {
+        let result = run_with_flags(r#"{"name": "alice"}"#, &["--paths", "--values"]);
+        assert!(result.contains("\"alice\""));
+    }
+
+    #[test]
+    fn test_paths_with_types_and_values() {
+        let result = run_with_flags(r#"{"count": 42}"#, &["--paths", "--types", "--values"]);
+        assert!(result.contains("number"));
+        assert!(result.contains("42"));
+    }
+}
+
+mod cli_table {
+    use super::*;
+
+    fn run_with_flags(json: &str, flags: &[&str]) -> String {
+        let mut cmd = jpx_cmd();
+        for flag in flags {
+            cmd.arg(flag);
+        }
+        let mut child = cmd
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(json.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn test_table_basic() {
+        let result = run_with_flags(
+            r#"[{"name": "alice", "age": 30}]"#,
+            &["@", "--table", "--color", "never"],
+        );
+        assert!(result.contains("name"));
+        assert!(result.contains("age"));
+        assert!(result.contains("alice"));
+        assert!(result.contains("30"));
+    }
+
+    #[test]
+    fn test_table_multiple_rows() {
+        let result = run_with_flags(
+            r#"[{"name": "alice"}, {"name": "bob"}]"#,
+            &["@", "--table", "--color", "never"],
+        );
+        assert!(result.contains("alice"));
+        assert!(result.contains("bob"));
+    }
+
+    #[test]
+    fn test_table_ascii_style() {
+        let result = run_with_flags(
+            r#"[{"name": "alice"}]"#,
+            &["@", "--table", "--table-style", "ascii"],
+        );
+        assert!(result.contains("+"));
+        assert!(result.contains("-"));
+        assert!(result.contains("|"));
+    }
+
+    #[test]
+    fn test_table_markdown_style() {
+        let result = run_with_flags(
+            r#"[{"name": "alice"}]"#,
+            &["@", "--table", "--table-style", "markdown"],
+        );
+        // Markdown tables use | for columns
+        let lines: Vec<&str> = result.lines().collect();
+        assert!(lines.len() >= 2);
+        assert!(lines[0].contains("|"));
+        // Second line should be the separator with dashes
+        assert!(lines[1].contains("-"));
+    }
+
+    #[test]
+    fn test_table_with_expression() {
+        let result = run_with_flags(
+            r#"[{"user": {"name": "alice"}}, {"user": {"name": "bob"}}]"#,
+            &["[*].user", "--table", "--color", "never"],
+        );
+        assert!(result.contains("alice"));
+        assert!(result.contains("bob"));
+    }
+
+    #[test]
+    fn test_table_short_flag() {
+        let result = run_with_flags(r#"[{"name": "alice"}]"#, &["@", "-t", "--color", "never"]);
+        assert!(result.contains("name"));
+        assert!(result.contains("alice"));
+    }
+}
+
 mod output_formats {
     use super::*;
 
