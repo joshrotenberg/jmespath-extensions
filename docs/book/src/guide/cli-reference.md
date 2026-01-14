@@ -33,7 +33,14 @@ jpx [OPTIONS] [EXPRESSION]
 |--------|-------------|
 | `-r, --raw` | Output raw strings without quotes |
 | `-c, --compact` | Compact output (no pretty printing) |
+| `-y, --yaml` | Output as YAML |
+| `--toml` | Output as TOML |
+| `--csv` | Output as CSV (comma-separated values) |
+| `--tsv` | Output as TSV (tab-separated values) |
+| `-l, --lines` | Output one JSON value per line |
 | `--color <MODE>` | Colorize output: `auto`, `always`, `never` |
+
+See [Output Formats](./output-formats.md) for detailed examples.
 
 ### Modes
 

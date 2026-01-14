@@ -1013,6 +1013,200 @@ mod validation_functions {
     }
 }
 
+mod output_formats {
+    use super::*;
+
+    fn run_query_with_flag(json: &str, query: &str, flag: &str) -> String {
+        let mut child = jpx_cmd()
+            .arg(flag)
+            .arg(query)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(json.as_bytes())
+            .expect("Failed to write to stdin");
+
+        let output = child.wait_with_output().expect("Failed to wait on jpx");
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn test_yaml_output_object() {
+        let result = run_query_with_flag(r#"{"name": "alice", "age": 30}"#, "@", "--yaml");
+        assert!(result.contains("name: alice"));
+        assert!(result.contains("age: 30"));
+    }
+
+    #[test]
+    fn test_yaml_output_array() {
+        let result = run_query_with_flag(r#"[{"name": "alice"}, {"name": "bob"}]"#, "@", "--yaml");
+        assert!(result.contains("- name: alice"));
+        assert!(result.contains("- name: bob"));
+    }
+
+    #[test]
+    fn test_yaml_output_nested() {
+        let result = run_query_with_flag(
+            r#"{"user": {"name": "alice", "skills": ["rust", "python"]}}"#,
+            "@",
+            "--yaml",
+        );
+        assert!(result.contains("user:"));
+        assert!(result.contains("name: alice"));
+        assert!(result.contains("- rust"));
+        assert!(result.contains("- python"));
+    }
+
+    #[test]
+    fn test_toml_output_object() {
+        let result = run_query_with_flag(r#"{"name": "alice", "age": 30}"#, "@", "--toml");
+        assert!(result.contains("name = \"alice\""));
+        assert!(result.contains("age = 30"));
+    }
+
+    #[test]
+    fn test_toml_output_nested() {
+        let result = run_query_with_flag(
+            r#"{"server": {"host": "localhost", "port": 8080}}"#,
+            "@",
+            "--toml",
+        );
+        assert!(result.contains("[server]"));
+        assert!(result.contains("host = \"localhost\""));
+        assert!(result.contains("port = 8080"));
+    }
+
+    #[test]
+    fn test_csv_output_array_of_objects() {
+        let result = run_query_with_flag(
+            r#"[{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]"#,
+            "@",
+            "--csv",
+        );
+        // Should have header and two data rows
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 3);
+        // Header should contain both column names
+        assert!(lines[0].contains("name"));
+        assert!(lines[0].contains("age"));
+        // Data rows
+        assert!(result.contains("alice"));
+        assert!(result.contains("bob"));
+    }
+
+    #[test]
+    fn test_csv_output_nested_flattening() {
+        let result = run_query_with_flag(
+            r#"[{"name": "alice", "address": {"city": "NYC", "zip": "10001"}}]"#,
+            "@",
+            "--csv",
+        );
+        // Nested keys should be flattened with dot notation
+        assert!(result.contains("address.city"));
+        assert!(result.contains("address.zip"));
+        assert!(result.contains("NYC"));
+        assert!(result.contains("10001"));
+    }
+
+    #[test]
+    fn test_csv_output_array_in_cell() {
+        let result = run_query_with_flag(
+            r#"[{"name": "alice", "tags": ["dev", "admin"]}]"#,
+            "@",
+            "--csv",
+        );
+        // Arrays should be JSON-encoded in cells (CSV escapes quotes as "")
+        assert!(result.contains("alice"));
+        assert!(result.contains("dev") && result.contains("admin"));
+    }
+
+    #[test]
+    fn test_tsv_output_array_of_objects() {
+        let result = run_query_with_flag(
+            r#"[{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]"#,
+            "@",
+            "--tsv",
+        );
+        // Should be tab-separated
+        assert!(result.contains('\t'));
+        assert!(result.contains("alice"));
+        assert!(result.contains("bob"));
+    }
+
+    #[test]
+    fn test_lines_output_array() {
+        let result = run_query_with_flag(r#"[1, 2, 3, "hello"]"#, "@", "--lines");
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 4);
+        assert_eq!(lines[0], "1");
+        assert_eq!(lines[1], "2");
+        assert_eq!(lines[2], "3");
+        assert_eq!(lines[3], "\"hello\"");
+    }
+
+    #[test]
+    fn test_lines_output_array_of_objects() {
+        let result = run_query_with_flag(r#"[{"id": 1}, {"id": 2}]"#, "@", "--lines");
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("\"id\":1") || lines[0].contains("\"id\": 1"));
+        assert!(lines[1].contains("\"id\":2") || lines[1].contains("\"id\": 2"));
+    }
+
+    #[test]
+    fn test_lines_output_with_expression() {
+        let result = run_query_with_flag(
+            r#"[{"name": "alice"}, {"name": "bob"}]"#,
+            "[*].name",
+            "--lines",
+        );
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "\"alice\"");
+        assert_eq!(lines[1], "\"bob\"");
+    }
+
+    #[test]
+    fn test_yaml_short_flag() {
+        let result = run_query_with_flag(r#"{"name": "alice"}"#, "@", "-y");
+        assert!(result.contains("name: alice"));
+    }
+
+    #[test]
+    fn test_lines_short_flag() {
+        let result = run_query_with_flag(r#"[1, 2, 3]"#, "@", "-l");
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 3);
+    }
+
+    #[test]
+    fn test_csv_single_object() {
+        let result = run_query_with_flag(r#"{"name": "alice", "age": 30}"#, "@", "--csv");
+        // Single object should be output as single-row table
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 2); // header + 1 data row
+        assert!(result.contains("alice"));
+    }
+
+    #[test]
+    fn test_csv_array_of_primitives() {
+        let result = run_query_with_flag(r#"[1, 2, 3]"#, "@", "--csv");
+        // Array of primitives - single column, no header
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert!(result.contains("1"));
+        assert!(result.contains("2"));
+        assert!(result.contains("3"));
+    }
+}
+
 mod error_handling {
     use super::*;
 

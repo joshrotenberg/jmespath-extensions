@@ -10,6 +10,7 @@ use jmespath::ast::Ast;
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
 use jmespath_extensions::registry::{Category, FunctionRegistry};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::rc::Rc;
@@ -127,6 +128,26 @@ struct Args {
     /// Can also be set with JPX_COMPACT=1
     #[arg(short, long)]
     compact: bool,
+
+    /// Output as YAML
+    #[arg(short = 'y', long, conflicts_with_all = ["toml_output", "csv_output", "tsv_output", "lines_output"])]
+    yaml: bool,
+
+    /// Output as TOML
+    #[arg(long = "toml", conflicts_with_all = ["yaml", "csv_output", "tsv_output", "lines_output"])]
+    toml_output: bool,
+
+    /// Output as CSV (for arrays of objects)
+    #[arg(long = "csv", conflicts_with_all = ["yaml", "toml_output", "tsv_output", "lines_output"])]
+    csv_output: bool,
+
+    /// Output as TSV (for arrays of objects)
+    #[arg(long = "tsv", conflicts_with_all = ["yaml", "toml_output", "csv_output", "lines_output"])]
+    tsv_output: bool,
+
+    /// Output one JSON value per line (for arrays)
+    #[arg(short = 'l', long = "lines", conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output"])]
+    lines_output: bool,
 
     /// Null input - don't read input, use null as the input value
     #[arg(short = 'n', long)]
@@ -423,6 +444,23 @@ fn main() -> Result<()> {
 
     // Convert to serde_json::Value for output formatting
     let json_value: serde_json::Value = serde_json::to_value(&*result)?;
+
+    // Handle alternative output formats
+    if args.yaml {
+        return output_as_yaml(&json_value, &args.output);
+    }
+    if args.toml_output {
+        return output_as_toml(&json_value, &args.output);
+    }
+    if args.csv_output {
+        return output_as_csv(&json_value, &args.output);
+    }
+    if args.tsv_output {
+        return output_as_tsv(&json_value, &args.output);
+    }
+    if args.lines_output {
+        return output_as_lines(&json_value, &args.output);
+    }
 
     // When writing to file, don't colorize unless explicitly requested
     let should_colorize = match args.color {
@@ -1395,5 +1433,247 @@ fn get_value_preview(value: &serde_json::Value) -> String {
         serde_json::Value::Null => "null".to_string(),
         serde_json::Value::Array(arr) => format!("[{} items]", arr.len()),
         serde_json::Value::Object(obj) => format!("{{{} keys}}", obj.len()),
+    }
+}
+
+// =============================================================================
+// Output Format Functions
+// =============================================================================
+
+/// Helper to write output to file or stdout
+fn write_output(content: &str, output_path: &Option<String>) -> Result<()> {
+    if let Some(path) = output_path {
+        let mut file = File::create(path)
+            .with_context(|| format!("Failed to create output file: {}", path))?;
+        writeln!(file, "{}", content)
+            .with_context(|| format!("Failed to write to output file: {}", path))?;
+    } else {
+        println!("{}", content);
+    }
+    Ok(())
+}
+
+/// Output as YAML
+fn output_as_yaml(value: &serde_json::Value, output_path: &Option<String>) -> Result<()> {
+    let yaml = serde_yaml::to_string(value).context("Failed to serialize to YAML")?;
+    // Remove trailing newline that serde_yaml adds
+    let yaml = yaml.trim_end();
+    write_output(yaml, output_path)
+}
+
+/// Output as TOML
+fn output_as_toml(value: &serde_json::Value, output_path: &Option<String>) -> Result<()> {
+    // TOML requires a table at the root level
+    match value {
+        serde_json::Value::Object(_) => {
+            let toml_value: toml::Value = serde_json::from_value(value.clone())
+                .context("Failed to convert JSON to TOML-compatible structure")?;
+            let toml_str =
+                toml::to_string_pretty(&toml_value).context("Failed to serialize to TOML")?;
+            write_output(toml_str.trim_end(), output_path)
+        }
+        serde_json::Value::Array(arr) => {
+            // Wrap array in a table with "items" key
+            let mut wrapper = serde_json::Map::new();
+            wrapper.insert("items".to_string(), serde_json::Value::Array(arr.clone()));
+            let toml_value: toml::Value =
+                serde_json::from_value(serde_json::Value::Object(wrapper))
+                    .context("Failed to convert JSON array to TOML-compatible structure")?;
+            let toml_str =
+                toml::to_string_pretty(&toml_value).context("Failed to serialize to TOML")?;
+            write_output(toml_str.trim_end(), output_path)
+        }
+        _ => Err(anyhow::anyhow!(
+            "TOML output requires an object or array at the root level, got {}",
+            get_type_name(value)
+        )),
+    }
+}
+
+/// Output one JSON value per line (for arrays)
+fn output_as_lines(value: &serde_json::Value, output_path: &Option<String>) -> Result<()> {
+    match value {
+        serde_json::Value::Array(arr) => {
+            let lines: Vec<String> = arr
+                .iter()
+                .map(|v| serde_json::to_string(v).unwrap_or_else(|_| "null".to_string()))
+                .collect();
+            write_output(&lines.join("\n"), output_path)
+        }
+        _ => {
+            // For non-arrays, just output the single value
+            let line = serde_json::to_string(value)?;
+            write_output(&line, output_path)
+        }
+    }
+}
+
+/// Output as CSV
+fn output_as_csv(value: &serde_json::Value, output_path: &Option<String>) -> Result<()> {
+    output_as_delimited(value, output_path, b',')
+}
+
+/// Output as TSV
+fn output_as_tsv(value: &serde_json::Value, output_path: &Option<String>) -> Result<()> {
+    output_as_delimited(value, output_path, b'\t')
+}
+
+/// Output as delimited format (CSV or TSV)
+fn output_as_delimited(
+    value: &serde_json::Value,
+    output_path: &Option<String>,
+    delimiter: u8,
+) -> Result<()> {
+    let format_name = if delimiter == b',' { "CSV" } else { "TSV" };
+
+    match value {
+        serde_json::Value::Array(arr) => {
+            if arr.is_empty() {
+                return write_output("", output_path);
+            }
+
+            // Check if all items are objects
+            let all_objects = arr.iter().all(|v| v.is_object());
+
+            if all_objects {
+                // Array of objects - flatten and output as table
+                output_objects_as_delimited(arr, output_path, delimiter)
+            } else {
+                // Array of primitives or mixed - output as single column
+                let mut wtr = csv::WriterBuilder::new()
+                    .delimiter(delimiter)
+                    .from_writer(vec![]);
+
+                for item in arr {
+                    let cell = value_to_cell(item);
+                    wtr.write_record([&cell])?;
+                }
+
+                let output = String::from_utf8(wtr.into_inner()?)?;
+                write_output(output.trim_end(), output_path)
+            }
+        }
+        serde_json::Value::Object(_) => {
+            // Single object - output as two columns (key, value)
+            output_objects_as_delimited(std::slice::from_ref(value), output_path, delimiter)
+        }
+        _ => Err(anyhow::anyhow!(
+            "{} output requires an array or object, got {}",
+            format_name,
+            get_type_name(value)
+        )),
+    }
+}
+
+/// Output array of objects as delimited format with flattening
+fn output_objects_as_delimited(
+    arr: &[serde_json::Value],
+    output_path: &Option<String>,
+    delimiter: u8,
+) -> Result<()> {
+    // Collect all unique keys from all objects, flattening nested structures
+    let mut all_keys: Vec<String> = Vec::new();
+    let mut seen_keys = std::collections::HashSet::new();
+
+    for item in arr {
+        if let serde_json::Value::Object(obj) = item {
+            collect_flattened_keys(obj, "", &mut all_keys, &mut seen_keys);
+        }
+    }
+
+    // Create CSV writer
+    let mut wtr = csv::WriterBuilder::new()
+        .delimiter(delimiter)
+        .from_writer(vec![]);
+
+    // Write header
+    wtr.write_record(&all_keys)?;
+
+    // Write rows
+    for item in arr {
+        let flattened = flatten_object(item);
+        let row: Vec<String> = all_keys
+            .iter()
+            .map(|key| flattened.get(key).map(value_to_cell).unwrap_or_default())
+            .collect();
+        wtr.write_record(&row)?;
+    }
+
+    let output = String::from_utf8(wtr.into_inner()?)?;
+    write_output(output.trim_end(), output_path)
+}
+
+/// Collect flattened keys from an object using dot notation
+fn collect_flattened_keys(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    prefix: &str,
+    keys: &mut Vec<String>,
+    seen: &mut std::collections::HashSet<String>,
+) {
+    for (key, value) in obj {
+        let full_key = if prefix.is_empty() {
+            key.clone()
+        } else {
+            format!("{}.{}", prefix, key)
+        };
+
+        match value {
+            serde_json::Value::Object(nested) => {
+                // Recursively flatten nested objects
+                collect_flattened_keys(nested, &full_key, keys, seen);
+            }
+            _ => {
+                // Add leaf key
+                if seen.insert(full_key.clone()) {
+                    keys.push(full_key);
+                }
+            }
+        }
+    }
+}
+
+/// Flatten a JSON value into a map with dot-notation keys
+fn flatten_object(value: &serde_json::Value) -> BTreeMap<String, serde_json::Value> {
+    let mut result = BTreeMap::new();
+    flatten_value_recursive(value, "", &mut result);
+    result
+}
+
+/// Recursively flatten a value
+fn flatten_value_recursive(
+    value: &serde_json::Value,
+    prefix: &str,
+    result: &mut BTreeMap<String, serde_json::Value>,
+) {
+    match value {
+        serde_json::Value::Object(obj) => {
+            for (key, val) in obj {
+                let new_prefix = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", prefix, key)
+                };
+                flatten_value_recursive(val, &new_prefix, result);
+            }
+        }
+        _ => {
+            if !prefix.is_empty() {
+                result.insert(prefix.to_string(), value.clone());
+            }
+        }
+    }
+}
+
+/// Convert a JSON value to a CSV cell string
+fn value_to_cell(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => s.clone(),
+        // Arrays and objects get JSON-encoded in the cell
+        serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+            serde_json::to_string(value).unwrap_or_default()
+        }
     }
 }
