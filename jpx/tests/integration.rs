@@ -1722,3 +1722,395 @@ mod cli_stream {
         assert!(stderr.contains("Processed 3 lines"));
     }
 }
+
+// ============================================================================
+// CLI Debug Flag Tests
+// ============================================================================
+
+mod cli_debug {
+    use super::*;
+
+    #[test]
+    fn test_debug_shows_version() {
+        let mut child = jpx_cmd()
+            .arg("--debug")
+            .arg("@")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"null")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("Version:"), "Debug should show version");
+    }
+
+    #[test]
+    fn test_debug_shows_environment() {
+        let mut child = jpx_cmd()
+            .arg("--debug")
+            .arg("@")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"null")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("Environment:"),
+            "Debug should show environment section"
+        );
+        assert!(
+            stderr.contains("JPX_VERBOSE"),
+            "Debug should list JPX_VERBOSE env var"
+        );
+    }
+
+    #[test]
+    fn test_debug_shows_expressions() {
+        let mut child = jpx_cmd()
+            .arg("--debug")
+            .arg("name")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"{\"name\": \"test\"}")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("Expressions:"),
+            "Debug should show expressions section"
+        );
+        assert!(stderr.contains("name"), "Debug should show the expression");
+    }
+
+    #[test]
+    fn test_debug_shows_functions_count() {
+        let mut child = jpx_cmd()
+            .arg("--debug")
+            .arg("@")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"null")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("Functions:"),
+            "Debug should show functions section"
+        );
+        assert!(
+            stderr.contains("registered:"),
+            "Debug should show registered function count"
+        );
+    }
+}
+
+// ============================================================================
+// CLI Stats Flag Tests
+// ============================================================================
+
+mod cli_stats {
+    use super::*;
+
+    #[test]
+    fn test_stats_array() {
+        let mut child = jpx_cmd()
+            .arg("--stats")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"[1, 2, 3, 4, 5]")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("array"), "Stats should show type as array");
+        assert!(
+            stdout.contains("5") || stdout.contains("Length"),
+            "Stats should show length"
+        );
+    }
+
+    #[test]
+    fn test_stats_object() {
+        let mut child = jpx_cmd()
+            .arg("--stats")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"{\"name\": \"alice\", \"age\": 30}")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("object"),
+            "Stats should show type as object"
+        );
+        assert!(
+            stdout.contains("2") || stdout.contains("Keys"),
+            "Stats should show key count"
+        );
+    }
+
+    #[test]
+    fn test_stats_array_of_objects() {
+        let mut child = jpx_cmd()
+            .arg("--stats")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"[{\"name\": \"alice\"}, {\"name\": \"bob\"}]")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("array"), "Stats should show type as array");
+        // Should show field analysis for arrays of objects
+        assert!(
+            stdout.contains("name") || stdout.contains("Field"),
+            "Stats should analyze fields"
+        );
+    }
+
+    #[test]
+    fn test_stats_shows_depth() {
+        let mut child = jpx_cmd()
+            .arg("--stats")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"{\"a\": {\"b\": {\"c\": 1}}}")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("Depth") || stdout.contains("depth") || stdout.contains("level"),
+            "Stats should show depth"
+        );
+    }
+}
+
+// ============================================================================
+// CLI Search Flag Tests
+// ============================================================================
+
+mod cli_search {
+    use super::*;
+
+    #[test]
+    fn test_search_finds_functions() {
+        let output = jpx_cmd()
+            .arg("--search")
+            .arg("upper")
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx")
+            .wait_with_output()
+            .expect("Failed to wait");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("upper"),
+            "Search should find 'upper' function"
+        );
+    }
+
+    #[test]
+    fn test_search_by_category() {
+        let output = jpx_cmd()
+            .arg("--search")
+            .arg("hash")
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx")
+            .wait_with_output()
+            .expect("Failed to wait");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        // Should find hash-related functions like md5, sha256
+        assert!(
+            stdout.contains("md5") || stdout.contains("sha") || stdout.contains("hash"),
+            "Search should find hash functions"
+        );
+    }
+
+    #[test]
+    fn test_search_no_results() {
+        let output = jpx_cmd()
+            .arg("--search")
+            .arg("xyznonexistent123")
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx")
+            .wait_with_output()
+            .expect("Failed to wait");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("No functions found") || stdout.contains("0"),
+            "Search should indicate no results"
+        );
+    }
+
+    #[test]
+    fn test_search_by_description() {
+        let output = jpx_cmd()
+            .arg("--search")
+            .arg("distance")
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx")
+            .wait_with_output()
+            .expect("Failed to wait");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        // Should find functions with "distance" in description (like geo functions or levenshtein)
+        assert!(
+            stdout.contains("geo")
+                || stdout.contains("levenshtein")
+                || stdout.contains("haversine"),
+            "Search should find functions by description"
+        );
+    }
+}
+
+// ============================================================================
+// Environment Variable Tests
+// ============================================================================
+
+mod cli_env_vars {
+    use super::*;
+
+    #[test]
+    fn test_jpx_raw_env_var() {
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_jpx"))
+            .env("JPX_RAW", "1")
+            .arg("@")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"\"hello\"")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        // With JPX_RAW=1, string should be output without quotes
+        assert_eq!(stdout, "hello");
+    }
+
+    #[test]
+    fn test_jpx_compact_env_var() {
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_jpx"))
+            .env("JPX_COMPACT", "1")
+            .arg("@")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn jpx");
+
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"{\"a\": 1, \"b\": 2}")
+            .expect("Failed to write");
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        // Compact output should be on one line with no extra spaces
+        assert!(
+            !stdout.contains('\n'),
+            "Compact output should be single line"
+        );
+    }
+
+    #[test]
+    fn test_cli_flag_overrides_env_var() {
+        // Set JPX_RAW=1 via env, then use -r explicitly too (should work the same)
+        // This tests that explicit CLI flags work alongside env vars
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_jpx"))
+            .env("JPX_RAW", "1")
+            .arg("-r") // Explicit flag alongside env var
+            .arg("@")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to run jpx");
+
+        use std::io::Write;
+        child.stdin.take().unwrap().write_all(b"\"test\"").unwrap();
+
+        let output = child.wait_with_output().expect("Failed to wait");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        // With raw mode, string output should not have quotes
+        assert_eq!(stdout.trim(), "test");
+    }
+}
