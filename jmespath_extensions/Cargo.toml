@@ -87,6 +87,7 @@ serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 criterion.workspace = true
+serde = { version = "1.0", features = ["derive"] }
 
 [[bench]]
 name = "functions"
