@@ -1,0 +1,20 @@
+[book]
+title = "jpx - JMESPath Extended"
+authors = ["Josh Rotenberg"]
+description = "JMESPath CLI with 320+ extension functions"
+language = "en"
+src = "src"
+
+[build]
+build-dir = "build"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "ayu"
+git-repository-url = "https://github.com/joshrotenberg/jmespath-extensions"
+edit-url-template = "https://github.com/joshrotenberg/jmespath-extensions/edit/main/docs/book/{path}"
+site-url = "/jmespath-extensions/"
+
+[output.html.search]
+enable = true
+limit-results = 30

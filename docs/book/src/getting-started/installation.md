@@ -1,0 +1,77 @@
+# Installation
+
+## Homebrew (macOS/Linux)
+
+The easiest way to install jpx on macOS or Linux:
+
+```bash
+brew tap joshrotenberg/brew
+brew install jpx
+```
+
+## Pre-built Binaries
+
+Download pre-built binaries for your platform from the [GitHub Releases](https://github.com/joshrotenberg/jmespath-extensions/releases) page.
+
+Available platforms:
+- macOS (Apple Silicon / arm64)
+- macOS (Intel / x86_64)
+- Linux (x86_64)
+- Windows (x86_64)
+
+## Cargo (from crates.io)
+
+If you have Rust installed:
+
+```bash
+cargo install jpx
+```
+
+## From Source
+
+Clone and build from source:
+
+```bash
+git clone https://github.com/joshrotenberg/jmespath-extensions
+cd jmespath-extensions/jpx
+cargo install --path .
+```
+
+### With MCP Server Support
+
+To include the MCP server for AI assistant integration:
+
+```bash
+cargo install --path . --features mcp
+```
+
+## Verify Installation
+
+Check that jpx is installed correctly:
+
+```bash
+jpx --version
+```
+
+You should see output like:
+```
+jpx 0.1.15
+```
+
+## Shell Completions
+
+Generate shell completions for your shell:
+
+```bash
+# Bash
+jpx --completions bash > ~/.local/share/bash-completion/completions/jpx
+
+# Zsh
+jpx --completions zsh > ~/.zfunc/_jpx
+
+# Fish
+jpx --completions fish > ~/.config/fish/completions/jpx.fish
+
+# PowerShell
+jpx --completions powershell > jpx.ps1
+```
