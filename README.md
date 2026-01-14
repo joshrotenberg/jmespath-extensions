@@ -196,6 +196,7 @@ All features are opt-in. Use `default-features = false` to select only what you 
 | `datetime` | `parse_date`, `format_date`, `date_add`, `date_diff` | chrono |
 | `fuzzy` | `levenshtein`, `jaro_winkler`, `sorensen_dice`, etc. | strsim |
 | `phonetic` | `soundex`, `metaphone`, `double_metaphone`, `nysiis`, etc. | rphonetic |
+| `language` | `detect_language`, `detect_language_iso`, `detect_script`, `detect_language_info` | whatlang |
 | `geo` | `geo_distance`, `geo_distance_km`, `geo_distance_miles`, `geo_bearing` | geoutils |
 | `semver` | `semver_parse`, `semver_compare`, `semver_satisfies`, etc. | semver |
 | `network` | `ip_to_int`, `cidr_contains`, `cidr_network`, `is_private_ip` | ipnetwork |
@@ -292,6 +293,71 @@ match_all('hello world', ['hello', 'world'])            → true
 match_which('hello world', ['hello', 'foo', 'world'])   → ["hello", "world"]
 match_count('abcabc', ['a', 'b'])                       → 4
 replace_many('hello world', {hello: 'hi', world: 'earth'}) → "hi earth"
+```
+
+### Safe Path Navigation
+
+```
+get({a: {b: 1}}, 'a.b')                       → 1
+get({a: 1}, 'x.y.z', 'default')               → "default"
+has({a: {b: 1}}, 'a.b')                       → true
+has({a: 1}, 'x.y')                            → false
+set_path({a: 1}, '/b', `2`)                   → {a: 1, b: 2}
+delete_path({a: 1, b: 2}, '/b')               → {a: 1}
+```
+
+### Array Indexing & Lookups
+
+```
+index_by([{id: 1, name: 'alice'}], 'id')      → {"1": {id: 1, name: "alice"}}
+index_at([1, 2, 3], `-1`)                     → 3
+```
+
+### Data Cleanup
+
+```
+remove_nulls({a: 1, b: null})                 → {a: 1}
+remove_empty({a: '', b: [], c: 'x'})          → {c: "x"}
+remove_empty_strings({a: '', b: 'hi'})        → {b: "hi"}
+compact([1, null, 2, null])                   → [1, 2]
+```
+
+### Data Quality & Redaction
+
+```
+data_quality_score({a: null, b: ''}).score    → 50
+mask('4111111111111111')                      → "************1111"
+mask('555-1234', `3`)                         → "****234"
+redact({pass: 'x', name: 'y'}, ['pass'])      → {pass: "[REDACTED]", name: "y"}
+redact_keys({api_key: 'x'}, 'api.*')          → {api_key: "[REDACTED]"}
+```
+
+### Key Transformation & Search
+
+```
+camel_keys({user_name: 'alice'})              → {userName: "alice"}
+snake_keys({userName: 'bob'})                 → {user_name: "bob"}
+pluck_deep({a: {id: 1}, b: {id: 2}}, 'id')    → [1, 2]
+paths_to({a: {id: 1}, b: {id: 2}}, 'id')      → ["a.id", "b.id"]
+```
+
+### Statistical Analysis
+
+```
+quartiles([1, 2, 3, 4, 5])                    → {min: 1, q1: 2, q2: 3, q3: 4, max: 5, iqr: 2}
+outliers_iqr([1, 2, 3, 4, 100])               → [100]
+outliers_zscore([1, 2, 3, 4, 100])            → [100]
+percentile([1, 2, 3, 4, 5], `75`)             → 4
+```
+
+### Language Detection
+
+```
+detect_language('Hello world')                → "English"
+detect_language('Bonjour le monde')           → "Français"
+detect_language_iso('Hola mundo')             → "spa"
+detect_script('Привет мир')                   → "Cyrillic"
+detect_language_info('Test').confidence       → 0.95
 ```
 
 See the [API documentation](https://docs.rs/jmespath_extensions) for complete function reference with examples.
