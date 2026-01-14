@@ -266,7 +266,14 @@ struct Args {
     warmup: u32,
 }
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("jpx: {err:#}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let mut args = Args::parse();
     apply_env_defaults(&mut args);
 
