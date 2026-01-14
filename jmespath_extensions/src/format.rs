@@ -29,6 +29,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("to_tsv", Box::new(ToTsvFn::new()));
     runtime.register_function("to_csv_rows", Box::new(ToCsvRowsFn::new()));
     runtime.register_function("to_csv_table", Box::new(ToCsvTableFn::new()));
+    runtime.register_function("from_csv", Box::new(FromCsvFn::new()));
+    runtime.register_function("from_tsv", Box::new(FromTsvFn::new()));
 }
 
 /// Convert a JMESPath Variable to a string suitable for CSV field.
@@ -272,6 +274,108 @@ impl Function for ToCsvTableFn {
     }
 }
 
+// =============================================================================
+// from_csv(string) -> array of arrays
+// =============================================================================
+
+// Parse a CSV string into an array of arrays.
+//
+// # Arguments
+// * `csv_string` - A CSV-formatted string
+//
+// # Returns
+// An array of arrays, where each inner array represents a row.
+//
+// # Example
+// from_csv("a,b,c\n1,2,3") -> [["a", "b", "c"], ["1", "2", "3"]]
+define_function!(FromCsvFn, vec![ArgumentType::String], None);
+
+impl Function for FromCsvFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let input = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                crate::common::ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        parse_delimited(input, b',', ctx)
+    }
+}
+
+// =============================================================================
+// from_tsv(string) -> array of arrays
+// =============================================================================
+
+// Parse a TSV string into an array of arrays.
+//
+// # Arguments
+// * `tsv_string` - A TSV-formatted string
+//
+// # Returns
+// An array of arrays, where each inner array represents a row.
+//
+// # Example
+// from_tsv("a\tb\tc\n1\t2\t3") -> [["a", "b", "c"], ["1", "2", "3"]]
+define_function!(FromTsvFn, vec![ArgumentType::String], None);
+
+impl Function for FromTsvFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let input = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                crate::common::ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        parse_delimited(input, b'\t', ctx)
+    }
+}
+
+/// Parse a delimited string (CSV or TSV) into an array of arrays.
+fn parse_delimited(input: &str, delimiter: u8, ctx: &Context<'_>) -> Result<Rcvar, JmespathError> {
+    use csv::ReaderBuilder;
+
+    // Handle empty input
+    if input.trim().is_empty() {
+        return Ok(Rc::new(Variable::Array(vec![])));
+    }
+
+    let mut reader = ReaderBuilder::new()
+        .delimiter(delimiter)
+        .has_headers(false)
+        .flexible(true) // Allow rows with different numbers of fields
+        .from_reader(input.as_bytes());
+
+    let mut rows: Vec<Rcvar> = Vec::new();
+
+    for result in reader.records() {
+        match result {
+            Ok(record) => {
+                let row: Vec<Rcvar> = record
+                    .iter()
+                    .map(|field| Rc::new(Variable::String(field.to_string())))
+                    .collect();
+                rows.push(Rc::new(Variable::Array(row)));
+            }
+            Err(e) => {
+                return Err(crate::common::custom_error(
+                    ctx,
+                    &format!("CSV parse error: {}", e),
+                ));
+            }
+        }
+    }
+
+    Ok(Rc::new(Variable::Array(rows)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -481,5 +585,133 @@ mod tests {
         // Should properly escape commas and quotes
         assert!(result.as_string().unwrap().contains("\"O'Brien, Jr.\""));
         assert!(result.as_string().unwrap().contains("\"said \"\"hi\"\"\""));
+    }
+
+    // =========================================================================
+    // from_csv tests
+    // =========================================================================
+
+    #[test]
+    fn test_from_csv_simple() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"csv": "a,b,c\n1,2,3"}"#).unwrap();
+        let expr = runtime.compile("from_csv(csv)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        // First row
+        let row0 = arr[0].as_array().unwrap();
+        assert_eq!(row0[0].as_string().unwrap(), "a");
+        assert_eq!(row0[1].as_string().unwrap(), "b");
+        assert_eq!(row0[2].as_string().unwrap(), "c");
+        // Second row
+        let row1 = arr[1].as_array().unwrap();
+        assert_eq!(row1[0].as_string().unwrap(), "1");
+        assert_eq!(row1[1].as_string().unwrap(), "2");
+        assert_eq!(row1[2].as_string().unwrap(), "3");
+    }
+
+    #[test]
+    fn test_from_csv_quoted() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"csv": "\"hello, world\",test"}"#).unwrap();
+        let expr = runtime.compile("from_csv(csv)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        let row0 = arr[0].as_array().unwrap();
+        assert_eq!(row0[0].as_string().unwrap(), "hello, world");
+        assert_eq!(row0[1].as_string().unwrap(), "test");
+    }
+
+    #[test]
+    fn test_from_csv_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"csv": ""}"#).unwrap();
+        let expr = runtime.compile("from_csv(csv)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_from_csv_single_row() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"csv": "a,b,c"}"#).unwrap();
+        let expr = runtime.compile("from_csv(csv)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        let row0 = arr[0].as_array().unwrap();
+        assert_eq!(row0.len(), 3);
+    }
+
+    // =========================================================================
+    // from_tsv tests
+    // =========================================================================
+
+    #[test]
+    fn test_from_tsv_simple() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"tsv": "a\tb\tc\n1\t2\t3"}"#).unwrap();
+        let expr = runtime.compile("from_tsv(tsv)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        // First row
+        let row0 = arr[0].as_array().unwrap();
+        assert_eq!(row0[0].as_string().unwrap(), "a");
+        assert_eq!(row0[1].as_string().unwrap(), "b");
+        assert_eq!(row0[2].as_string().unwrap(), "c");
+    }
+
+    #[test]
+    fn test_from_tsv_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"tsv": ""}"#).unwrap();
+        let expr = runtime.compile("from_tsv(tsv)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_from_tsv_spaces_preserved() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"tsv": "hello world\ttest"}"#).unwrap();
+        let expr = runtime.compile("from_tsv(tsv)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        let row0 = arr[0].as_array().unwrap();
+        assert_eq!(row0[0].as_string().unwrap(), "hello world");
+        assert_eq!(row0[1].as_string().unwrap(), "test");
+    }
+
+    // =========================================================================
+    // roundtrip tests
+    // =========================================================================
+
+    #[test]
+    fn test_csv_roundtrip() {
+        let runtime = setup_runtime();
+        // to_csv_rows then from_csv should give back similar structure
+        let data = Variable::from_json(r#"[["a", "b"], ["1", "2"]]"#).unwrap();
+        let expr = runtime.compile("to_csv_rows(@)").unwrap();
+        let csv_result = expr.search(&data).unwrap();
+
+        // Now parse it back
+        let parse_data = Variable::from_json(&format!(
+            r#"{{"csv": {}}}"#,
+            serde_json::to_string(csv_result.as_string().unwrap()).unwrap()
+        ))
+        .unwrap();
+        let parse_expr = runtime.compile("from_csv(csv)").unwrap();
+        let parsed = parse_expr.search(&parse_data).unwrap();
+
+        let arr = parsed.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        let row0 = arr[0].as_array().unwrap();
+        assert_eq!(row0[0].as_string().unwrap(), "a");
+        assert_eq!(row0[1].as_string().unwrap(), "b");
     }
 }
