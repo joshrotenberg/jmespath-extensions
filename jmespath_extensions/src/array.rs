@@ -64,6 +64,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("pairwise", Box::new(PairwiseFn::new()));
     // Alias for window (sliding_window is a common name)
     runtime.register_function("sliding_window", Box::new(WindowFn::new()));
+    // jq-parity functions
+    runtime.register_function("indices_array", Box::new(IndicesArrayFn::new()));
+    runtime.register_function("inside_array", Box::new(InsideArrayFn::new()));
+    runtime.register_function("bsearch", Box::new(BsearchFn::new()));
 }
 
 // =============================================================================
@@ -1730,6 +1734,210 @@ impl Function for PairwiseFn {
     }
 }
 
+// =============================================================================
+// indices_array(array, value) -> array of indices
+// =============================================================================
+
+// Find all indices where a value appears in an array.
+//
+// # Arguments
+// * `array` - The input array to search
+// * `value` - The value to find
+//
+// # Returns
+// An array of indices (numbers) where the value appears.
+//
+// # Example
+// indices_array([1, 2, 3, 2, 4, 2], 2) -> [1, 3, 5]
+// indices_array(["a", "b", "a", "c"], "a") -> [0, 2]
+define_function!(
+    IndicesArrayFn,
+    vec![ArgumentType::Array, ArgumentType::Any],
+    None
+);
+
+impl Function for IndicesArrayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let search_key = serde_json::to_string(&*args[1]).unwrap_or_default();
+
+        let mut indices: Vec<Rcvar> = Vec::new();
+        for (i, item) in arr.iter().enumerate() {
+            let item_key = serde_json::to_string(&**item).unwrap_or_default();
+            if item_key == search_key {
+                indices.push(Rc::new(Variable::Number(serde_json::Number::from(
+                    i as i64,
+                ))));
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(indices)))
+    }
+}
+
+// =============================================================================
+// inside_array(needle, haystack) -> boolean
+// =============================================================================
+
+// Check if all elements of the first array are contained in the second array.
+// This is the inverse of contains for arrays.
+//
+// # Arguments
+// * `needle` - The array whose elements to look for
+// * `haystack` - The array to search in
+//
+// # Returns
+// `true` if all elements of needle appear in haystack, `false` otherwise.
+//
+// # Example
+// inside_array([1, 2], [1, 2, 3, 4]) -> true
+// inside_array([1, 5], [1, 2, 3, 4]) -> false
+define_function!(
+    InsideArrayFn,
+    vec![ArgumentType::Array, ArgumentType::Array],
+    None
+);
+
+impl Function for InsideArrayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let needle = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let haystack = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        // Build a set of serialized haystack values for efficient lookup
+        let haystack_set: HashSet<String> = haystack
+            .iter()
+            .map(|item| serde_json::to_string(&**item).unwrap_or_default())
+            .collect();
+
+        // Check if all needle elements are in the haystack
+        let result = needle.iter().all(|item| {
+            let item_key = serde_json::to_string(&**item).unwrap_or_default();
+            haystack_set.contains(&item_key)
+        });
+
+        Ok(Rc::new(Variable::Bool(result)))
+    }
+}
+
+// =============================================================================
+// bsearch(sorted_array, value) -> number
+// =============================================================================
+
+// Binary search for a value in a sorted array.
+//
+// Returns the index if found, or the negative insertion point minus 1 if not found.
+// The insertion point is the index where the value would be inserted to maintain
+// sorted order. This follows jq's bsearch semantics.
+//
+// # Arguments
+// * `sorted_array` - A sorted array to search in
+// * `value` - The value to find
+//
+// # Returns
+// - If found: the index of the element (0-based)
+// - If not found: -(insertion_point) - 1
+//
+// # Example
+// bsearch([1, 3, 5, 7, 9], 5) -> 2
+// bsearch([1, 3, 5, 7, 9], 4) -> -3 (would be inserted at index 2)
+// bsearch([1, 3, 5, 7, 9], 0) -> -1 (would be inserted at index 0)
+define_function!(
+    BsearchFn,
+    vec![ArgumentType::Array, ArgumentType::Any],
+    None
+);
+
+impl Function for BsearchFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let target = &args[1];
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Number(serde_json::Number::from(-1))));
+        }
+
+        // Helper to compare two Variable values
+        // Returns Ordering based on type-aware comparison
+        fn compare_values(a: &Variable, b: &Variable) -> std::cmp::Ordering {
+            match (a, b) {
+                // Numbers: compare numerically
+                (Variable::Number(n1), Variable::Number(n2)) => {
+                    let f1 = n1.as_f64().unwrap_or(0.0);
+                    let f2 = n2.as_f64().unwrap_or(0.0);
+                    f1.partial_cmp(&f2).unwrap_or(std::cmp::Ordering::Equal)
+                }
+                // Strings: compare lexicographically
+                (Variable::String(s1), Variable::String(s2)) => s1.cmp(s2),
+                // Booleans: false < true
+                (Variable::Bool(b1), Variable::Bool(b2)) => b1.cmp(b2),
+                // Different types or complex types: fall back to JSON string comparison
+                _ => {
+                    let s1 = serde_json::to_string(a).unwrap_or_default();
+                    let s2 = serde_json::to_string(b).unwrap_or_default();
+                    s1.cmp(&s2)
+                }
+            }
+        }
+
+        let mut left = 0i64;
+        let mut right = arr.len() as i64 - 1;
+
+        while left <= right {
+            let mid = left + (right - left) / 2;
+
+            match compare_values(&arr[mid as usize], target) {
+                std::cmp::Ordering::Equal => {
+                    return Ok(Rc::new(Variable::Number(serde_json::Number::from(mid))));
+                }
+                std::cmp::Ordering::Less => {
+                    left = mid + 1;
+                }
+                std::cmp::Ordering::Greater => {
+                    right = mid - 1;
+                }
+            }
+        }
+
+        // Not found - return -(insertion_point) - 1
+        // At this point, left is the insertion point
+        let result = -(left) - 1;
+        Ok(Rc::new(Variable::Number(serde_json::Number::from(result))))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3001,5 +3209,116 @@ mod tests {
         let win0 = arr[0].as_array().unwrap();
         assert_eq!(win0.len(), 3);
         assert_eq!(win0[0].as_number().unwrap() as i64, 1);
+    }
+
+    // indices_array tests
+    #[test]
+    fn test_indices_array_found() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3, 2, 4, 2]"#).unwrap();
+        let expr = runtime.compile("indices_array(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 3);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 5);
+    }
+
+    #[test]
+    fn test_indices_array_not_found() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("indices_array(@, `5`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_indices_array_strings() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b", "a", "c", "a"]"#).unwrap();
+        let expr = runtime.compile(r#"indices_array(@, `"a"`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 4);
+    }
+
+    // inside_array tests
+    #[test]
+    fn test_inside_array_true() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 2], "b": [1, 2, 3, 4]}"#).unwrap();
+        let expr = runtime.compile("inside_array(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_inside_array_false() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [1, 5], "b": [1, 2, 3, 4]}"#).unwrap();
+        let expr = runtime.compile("inside_array(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), false);
+    }
+
+    #[test]
+    fn test_inside_array_empty() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"a": [], "b": [1, 2, 3]}"#).unwrap();
+        let expr = runtime.compile("inside_array(a, b)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    // bsearch tests
+    #[test]
+    fn test_bsearch_found() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 3, 5, 7, 9]"#).unwrap();
+        let expr = runtime.compile("bsearch(@, `5`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_bsearch_not_found_middle() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 3, 5, 7, 9]"#).unwrap();
+        let expr = runtime.compile("bsearch(@, `4`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, -3);
+    }
+
+    #[test]
+    fn test_bsearch_not_found_start() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 3, 5, 7, 9]"#).unwrap();
+        let expr = runtime.compile("bsearch(@, `0`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, -1);
+    }
+
+    #[test]
+    fn test_bsearch_not_found_end() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 3, 5, 7, 9]"#).unwrap();
+        let expr = runtime.compile("bsearch(@, `10`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, -6);
+    }
+
+    #[test]
+    fn test_bsearch_empty_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("bsearch(@, `5`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_number().unwrap() as i64, -1);
     }
 }
