@@ -233,6 +233,10 @@ struct Args {
     #[arg(long)]
     explain: bool,
 
+    /// Show diagnostic information for troubleshooting
+    #[arg(long)]
+    debug: bool,
+
     /// Start interactive REPL mode
     #[arg(long)]
     repl: bool,
@@ -323,6 +327,75 @@ fn run() -> Result<()> {
     if let Some(func_name) = &args.similar {
         find_similar_functions(&registry, func_name)?;
         return Ok(());
+    }
+
+    // Debug mode: show diagnostic information
+    if args.debug {
+        eprintln!("{}", "=== jpx debug info ===".cyan().bold());
+        eprintln!("{}: {}", "Version".dimmed(), env!("CARGO_PKG_VERSION"));
+        eprintln!();
+
+        // Show environment variables
+        eprintln!("{}:", "Environment".cyan());
+        for (var, desc) in [
+            ("JPX_VERBOSE", "verbose mode"),
+            ("JPX_QUIET", "quiet mode"),
+            ("JPX_STRICT", "strict mode"),
+            ("JPX_RAW", "raw output"),
+            ("JPX_COMPACT", "compact output"),
+        ] {
+            let value = std::env::var(var).unwrap_or_else(|_| "(not set)".to_string());
+            eprintln!("  {} = {} ({})", var, value.yellow(), desc);
+        }
+        eprintln!();
+
+        // Show effective settings
+        eprintln!("{}:", "Effective settings".cyan());
+        eprintln!("  verbose: {}", args.verbose);
+        eprintln!("  quiet: {}", args.quiet);
+        eprintln!("  strict: {}", args.strict);
+        eprintln!("  raw: {}", args.raw);
+        eprintln!("  compact: {}", args.compact);
+        eprintln!();
+
+        // Show input source
+        eprintln!("{}:", "Input".cyan());
+        match &args.file {
+            Some(path) => eprintln!("  source: file ({})", path),
+            None if args.null_input => eprintln!("  source: null (--null-input)"),
+            None => eprintln!("  source: stdin"),
+        }
+        if args.slurp {
+            eprintln!("  mode: slurp (multiple JSON values)");
+        }
+        eprintln!();
+
+        // Show expressions
+        let debug_expressions: Vec<&String> = args
+            .expressions
+            .iter()
+            .chain(args.positional_expressions.iter())
+            .collect();
+        eprintln!("{}:", "Expressions".cyan());
+        if debug_expressions.is_empty() {
+            eprintln!("  (none provided - will use '@')");
+        } else {
+            for (i, expr) in debug_expressions.iter().enumerate() {
+                eprintln!("  [{}] {}", i + 1, expr.yellow());
+            }
+        }
+        eprintln!();
+
+        // Show registered functions count
+        eprintln!("{}:", "Functions".cyan());
+        eprintln!("  registered: {}", registry.len());
+        if args.strict {
+            eprintln!("  mode: strict (standard JMESPath only)");
+        } else {
+            eprintln!("  mode: extended (all functions available)");
+        }
+        eprintln!("{}", "======================".cyan().bold());
+        eprintln!();
     }
 
     // Handle --diff: generate JSON Patch from two files
