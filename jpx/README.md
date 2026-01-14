@@ -163,6 +163,7 @@ Options:
   -c, --compact               Compact output (no pretty printing)
   -n, --null-input            Don't read input, use null as input value
   -s, --slurp                 Read all inputs into an array
+      --stream, --each        Process input line by line (NDJSON/JSON Lines)
       --color <MODE>          Colorize output (auto, always, never)
   -o, --output <FILE>         Output file (writes to stdout if not provided)
   -q, --quiet                 Suppress errors and warnings
@@ -237,6 +238,42 @@ echo '[1, 2, 3, 4, 5]' | jpx 'sum(@)'
 echo '{"user": {"profile": {"email": "alice@example.com"}}}' | jpx 'user.profile.email'
 # "alice@example.com"
 ```
+
+### Streaming (NDJSON/JSON Lines)
+
+Process newline-delimited JSON one line at a time with constant memory usage. Perfect for large log files, event streams, and data pipelines.
+
+```bash
+# Basic streaming - each line is processed independently
+cat events.jsonl | jpx --stream 'user.name'
+
+# With raw output for piping to other tools
+cat logs.jsonl | jpx --stream -r 'message' | grep "error"
+
+# From a file
+jpx --stream 'id' -f huge_dataset.jsonl
+
+# Using the --each alias
+cat data.jsonl | jpx --each 'timestamp'
+
+# With expression functions
+cat users.jsonl | jpx --stream -r 'upper(name)'
+```
+
+**Performance**: ~1.25 million lines/second (processes 100k lines in ~80ms)
+
+**How it works**:
+- Each line is parsed as a complete JSON object
+- Expression is compiled once, reused for all lines
+- Results output immediately (no accumulation)
+- Empty lines and null results are skipped
+- Errors on individual lines don't stop processing (use `-q` to suppress)
+
+**Comparison with `--slurp`**:
+- `--slurp` loads all lines into memory as an array, then queries
+- `--stream` processes each line independently with constant memory
+- Use `--slurp` when you need to aggregate across lines (e.g., `sum([*].value)`)
+- Use `--stream` for large files or when lines are independent
 
 ### String Functions
 
