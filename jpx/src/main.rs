@@ -172,6 +172,10 @@ struct Args {
     #[arg(long, value_name = "FUNCTION")]
     describe: Option<String>,
 
+    /// Search functions by name, description, or category (fuzzy matching)
+    #[arg(long, value_name = "QUERY")]
+    search: Option<String>,
+
     /// Generate JSON Patch (RFC 6902) from two files: --diff <source> <target>
     #[arg(long, num_args = 2, value_names = ["SOURCE", "TARGET"])]
     diff: Option<Vec<String>>,
@@ -236,6 +240,11 @@ fn main() -> Result<()> {
 
     if let Some(func_name) = &args.describe {
         describe_function(&registry, func_name)?;
+        return Ok(());
+    }
+
+    if let Some(query) = &args.search {
+        search_functions(&registry, query);
         return Ok(());
     }
 
@@ -468,23 +477,38 @@ fn parse_slurp(input: &str) -> Result<Variable> {
 }
 
 fn print_functions(registry: &FunctionRegistry) {
-    println!("jpx - JMESPath with Extended Functions\n");
+    println!(
+        "{}\n",
+        "jpx - JMESPath with Extended Functions".bold().green()
+    );
 
     // Count standard and extension functions
     let standard_count = registry.functions().filter(|f| f.is_standard).count();
     let extension_count = registry.functions().filter(|f| !f.is_standard).count();
 
-    // Print standard functions
-    let standard_funcs: Vec<_> = registry
-        .functions_in_category(Category::Standard)
-        .map(|f| f.name)
-        .collect();
-    println!("Standard JMESPath functions ({}):", standard_count);
-    println!("  {}\n", standard_funcs.join(", "));
+    // Print standard functions header
+    println!(
+        "  {} {}:",
+        "▸".dimmed(),
+        format!("STANDARD ({})", standard_count).dimmed()
+    );
+    for func in registry.functions_in_category(Category::Standard) {
+        println!(
+            "    {} [{}] - {}",
+            func.name.cyan().bold(),
+            "std".dimmed(),
+            func.description
+        );
+    }
+    println!();
 
-    println!("Extension functions ({} available):\n", extension_count);
+    // Print extension functions by category
+    println!(
+        "{} ({} available):\n",
+        "Extension functions".bold(),
+        extension_count.to_string().yellow()
+    );
 
-    // Group by category (skip Standard)
     for category in Category::all() {
         if *category == Category::Standard || !category.is_available() {
             continue;
@@ -495,14 +519,170 @@ fn print_functions(registry: &FunctionRegistry) {
             continue;
         }
 
-        let names: Vec<_> = funcs.iter().map(|f| f.name).collect();
-        println!("{}: {}", category.name().to_uppercase(), names.join(", "));
+        println!(
+            "  {} {}:",
+            "▸".dimmed(),
+            format!("{} ({})", category.name().to_uppercase(), funcs.len())
+                .green()
+                .bold()
+        );
+        for func in funcs {
+            println!("    {} - {}", func.name.cyan().bold(), func.description);
+        }
         println!();
     }
 
-    println!("Use --list-category <name> for details on a category");
-    println!("Use --describe <function> for details on a specific function");
-    println!("\nFor full documentation: https://docs.rs/jmespath_extensions");
+    println!(
+        "Use {} for details on a category",
+        "--list-category <name>".cyan()
+    );
+    println!(
+        "Use {} for details on a specific function",
+        "--describe <function>".cyan()
+    );
+    println!("Use {} to find functions", "--search <query>".cyan());
+    println!(
+        "\nFor full documentation: {}",
+        "https://docs.rs/jmespath_extensions".blue().underline()
+    );
+}
+
+/// Search result with relevance score
+struct SearchResult<'a> {
+    func: &'a jmespath_extensions::registry::FunctionInfo,
+    score: i32,
+    match_type: MatchType,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum MatchType {
+    ExactName,
+    NamePrefix,
+    NameContains,
+    AliasMatch,
+    CategoryMatch,
+    DescriptionMatch,
+    SignatureMatch,
+}
+
+impl MatchType {
+    fn label(&self) -> &'static str {
+        match self {
+            MatchType::ExactName => "exact",
+            MatchType::NamePrefix => "prefix",
+            MatchType::NameContains => "name",
+            MatchType::AliasMatch => "alias",
+            MatchType::CategoryMatch => "category",
+            MatchType::DescriptionMatch => "description",
+            MatchType::SignatureMatch => "signature",
+        }
+    }
+}
+
+fn search_functions(registry: &FunctionRegistry, query: &str) {
+    let query_lower = query.to_lowercase();
+    let mut results: Vec<SearchResult> = Vec::new();
+
+    for func in registry.functions() {
+        let name_lower = func.name.to_lowercase();
+        let desc_lower = func.description.to_lowercase();
+        let sig_lower = func.signature.to_lowercase();
+        let cat_lower = func.category.name().to_lowercase();
+
+        // Scoring: higher = better match
+        let (score, match_type) = if name_lower == query_lower {
+            (1000, MatchType::ExactName)
+        } else if name_lower.starts_with(&query_lower) {
+            (800, MatchType::NamePrefix)
+        } else if name_lower.contains(&query_lower) {
+            (600, MatchType::NameContains)
+        } else if func
+            .aliases
+            .iter()
+            .any(|a| a.to_lowercase().contains(&query_lower))
+        {
+            (500, MatchType::AliasMatch)
+        } else if cat_lower.contains(&query_lower) {
+            (400, MatchType::CategoryMatch)
+        } else if desc_lower.contains(&query_lower) {
+            // Boost if query appears early in description
+            let pos = desc_lower.find(&query_lower).unwrap_or(100);
+            (300 - pos.min(100) as i32, MatchType::DescriptionMatch)
+        } else if sig_lower.contains(&query_lower) {
+            (100, MatchType::SignatureMatch)
+        } else {
+            continue; // No match
+        };
+
+        results.push(SearchResult {
+            func,
+            score,
+            match_type,
+        });
+    }
+
+    // Sort by score descending
+    results.sort_by(|a, b| b.score.cmp(&a.score));
+
+    if results.is_empty() {
+        println!(
+            "{} No functions found matching '{}'\n",
+            "✗".red(),
+            query.yellow()
+        );
+        println!("Try searching for:");
+        println!("  • Function names: {}", "median, split, json".cyan());
+        println!("  • Categories: {}", "math, string, array".cyan());
+        println!("  • Concepts: {}", "hash, encode, date".cyan());
+        return;
+    }
+
+    println!(
+        "{} Found {} functions matching '{}':\n",
+        "✓".green(),
+        results.len().to_string().yellow(),
+        query.cyan()
+    );
+
+    // Group by match type for nicer display
+    let mut current_group: Option<&str> = None;
+
+    for result in results.iter().take(25) {
+        let group = result.match_type.label();
+        if current_group != Some(group) {
+            if current_group.is_some() {
+                println!();
+            }
+            println!("  {} {}:", "▸".dimmed(), group.to_uppercase().dimmed());
+            current_group = Some(group);
+        }
+
+        let type_badge = if result.func.is_standard {
+            "std".dimmed()
+        } else {
+            result.func.category.name().green()
+        };
+
+        println!(
+            "    {} [{}] - {}",
+            result.func.name.cyan().bold(),
+            type_badge,
+            result.func.description
+        );
+    }
+
+    if results.len() > 25 {
+        println!(
+            "\n  {} and {} more... (refine your search)",
+            "...".dimmed(),
+            (results.len() - 25).to_string().yellow()
+        );
+    }
+
+    println!(
+        "\nUse {} for details on a specific function",
+        "--describe <function>".cyan()
+    );
 }
 
 fn print_category(registry: &FunctionRegistry, category_name: &str) -> Result<()> {
@@ -529,12 +709,15 @@ fn print_category(registry: &FunctionRegistry, category_name: &str) -> Result<()
         ));
     }
 
-    println!("{} functions:\n", category.name().to_uppercase());
+    println!(
+        "{} functions:\n",
+        category.name().to_uppercase().green().bold()
+    );
 
     for func in registry.functions_in_category(*category) {
-        println!("  {} - {}", func.name, func.description);
-        println!("    Signature: {}", func.signature);
-        println!("    Example: {}", func.example);
+        println!("  {} - {}", func.name.cyan().bold(), func.description);
+        println!("    {}: {}", "Signature".dimmed(), func.signature);
+        println!("    {}: {}", "Example".dimmed(), func.example.yellow());
         println!();
     }
 
@@ -549,26 +732,27 @@ fn describe_function(registry: &FunctionRegistry, func_name: &str) -> Result<()>
         )
     })?;
 
-    println!("{}", func.name);
-    println!("{}", "=".repeat(func.name.len()));
+    println!("{}", func.name.cyan().bold());
+    println!("{}", "=".repeat(func.name.len()).dimmed());
     println!();
     println!(
-        "Type:        {}",
+        "{}: {}",
+        "Type".dimmed(),
         if func.is_standard {
-            "standard JMESPath"
+            "standard JMESPath".normal()
         } else {
-            "extension"
+            "extension".green()
         }
     );
-    println!("Category:    {}", func.category.name());
+    println!("{}: {}", "Category".dimmed(), func.category.name().green());
     if let Some(jep) = func.jep {
-        println!("JEP:         {}", jep);
+        println!("{}: {}", "JEP".dimmed(), jep.yellow());
     }
-    println!("Description: {}", func.description);
-    println!("Signature:   {}", func.signature);
+    println!("{}: {}", "Description".dimmed(), func.description);
+    println!("{}: {}", "Signature".dimmed(), func.signature.white());
     println!();
-    println!("Example:");
-    println!("  {}", func.example);
+    println!("{}:", "Example".bold());
+    println!("  {}", func.example.yellow());
 
     Ok(())
 }
