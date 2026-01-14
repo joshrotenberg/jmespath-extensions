@@ -10,9 +10,11 @@ use jmespath::ast::Ast;
 use jmespath::{Runtime, Variable};
 use jmespath_extensions::register_all;
 use jmespath_extensions::registry::{Category, FunctionInfo, FunctionRegistry};
+use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Read, Write};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -22,6 +24,99 @@ const STYLES: styling::Styles = styling::Styles::styled()
     .usage(styling::AnsiColor::Green.on_default().bold())
     .literal(styling::AnsiColor::Cyan.on_default().bold())
     .placeholder(styling::AnsiColor::Cyan.on_default());
+
+// =============================================================================
+// Configuration File Support
+// =============================================================================
+
+/// Configuration file structure
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct Config {
+    /// Output settings
+    verbose: Option<bool>,
+    quiet: Option<bool>,
+    strict: Option<bool>,
+    raw: Option<bool>,
+    compact: Option<bool>,
+    /// Color mode (auto, always, never)
+    color: Option<String>,
+}
+
+/// Get the path to the config file
+fn get_config_path() -> Option<PathBuf> {
+    // Check JPX_CONFIG environment variable first
+    if let Ok(path) = std::env::var("JPX_CONFIG") {
+        let path = PathBuf::from(path);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    // Check ~/.config/jpx/config.toml (XDG style)
+    if let Some(config_dir) = dirs::config_dir() {
+        let path = config_dir.join("jpx").join("config.toml");
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    // Check ~/.jpxrc (traditional style)
+    if let Some(home_dir) = dirs::home_dir() {
+        let path = home_dir.join(".jpxrc");
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    None
+}
+
+/// Load configuration from file
+fn load_config() -> Config {
+    let Some(path) = get_config_path() else {
+        return Config::default();
+    };
+
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return Config::default(),
+    };
+
+    match toml::from_str(&content) {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!(
+                "{}: Failed to parse config file {}: {}",
+                "warning".yellow(),
+                path.display(),
+                e
+            );
+            Config::default()
+        }
+    }
+}
+
+/// Apply config file defaults to args (lowest priority)
+fn apply_config_defaults(args: &mut Args, config: &Config) {
+    // Only apply config values if CLI flag wasn't explicitly set
+    // Config has lowest priority: config < env var < CLI flag
+    if !args.verbose && config.verbose == Some(true) {
+        args.verbose = true;
+    }
+    if !args.quiet && config.quiet == Some(true) {
+        args.quiet = true;
+    }
+    if !args.strict && config.strict == Some(true) {
+        args.strict = true;
+    }
+    if !args.raw && config.raw == Some(true) {
+        args.raw = true;
+    }
+    if !args.compact && config.compact == Some(true) {
+        args.compact = true;
+    }
+}
 
 /// Check if an environment variable is set to a "truthy" value
 fn env_is_true(var: &str) -> bool {
@@ -279,6 +374,10 @@ fn main() {
 
 fn run() -> Result<()> {
     let mut args = Args::parse();
+
+    // Load config and apply defaults (priority: config < env var < CLI flag)
+    let config = load_config();
+    apply_config_defaults(&mut args, &config);
     apply_env_defaults(&mut args);
 
     // Handle subcommands
