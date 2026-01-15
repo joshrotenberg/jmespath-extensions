@@ -2,6 +2,8 @@
 use jpx::mcp;
 mod repl;
 
+use jpx::query_library::{self, LoadResult};
+
 use anyhow::{Context, Result};
 use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueEnum, builder::styling};
 use clap_complete::{Shell, generate};
@@ -70,6 +72,14 @@ fn get_config_path() -> Option<PathBuf> {
     }
 
     None
+}
+
+/// Create a JMESPath runtime with all extension functions registered.
+fn create_runtime() -> Runtime {
+    let mut runtime = Runtime::new();
+    runtime.register_builtin_functions();
+    register_all(&mut runtime);
+    runtime
 }
 
 /// Load configuration from file
@@ -269,9 +279,41 @@ struct Args {
 
     /// Read expression from file
     #[arg(short = 'Q', long = "query-file", conflicts_with_all = ["positional_expressions", "expressions"],
-          help = "Read expression from file",
-          long_help = "Read JMESPath expression from a file instead of command line.\nUseful for complex expressions or reusable queries.")]
+          help = "Read expression from file or query library (.jpx)",
+          long_help = "Read JMESPath expression from a file. Supports:\n\
+            - Plain text files with a single expression\n\
+            - Query libraries (.jpx) with named queries\n\n\
+            For .jpx files, use colon syntax or --query:\n  \
+            jpx -Q queries.jpx:my-query data.json\n  \
+            jpx -Q queries.jpx --query my-query data.json")]
     query_file: Option<String>,
+
+    /// Named query to run from a .jpx query library
+    #[arg(
+        long = "query",
+        value_name = "NAME",
+        help = "Named query to run from .jpx file",
+        long_help = "Specify which named query to run from a .jpx query library.\n\
+            Can also use colon syntax: -Q file.jpx:query-name"
+    )]
+    query_name: Option<String>,
+
+    /// List available queries in a .jpx file
+    #[arg(
+        long = "list-queries",
+        help = "List queries in a .jpx file",
+        long_help = "List all named queries available in a .jpx query library file."
+    )]
+    list_queries: bool,
+
+    /// Validate queries without running
+    #[arg(
+        long = "check",
+        help = "Validate query file without running",
+        long_help = "Parse and validate all queries in a .jpx file without executing.\n\
+            Useful for CI/CD pipelines. Exit code 0 if all valid, 1 if errors."
+    )]
+    check_queries: bool,
 
     /// Input JSON file
     #[arg(
@@ -715,14 +757,30 @@ fn run() -> Result<()> {
         return show_paths(&args.file, &args.color, args.types, args.values);
     }
 
+    // Handle --list-queries: list available queries in a .jpx file
+    if args.list_queries {
+        let query_path = args
+            .query_file
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--list-queries requires -Q/--query-file"))?;
+        return list_queries(query_path, &args.color);
+    }
+
+    // Handle --check: validate queries without running
+    if args.check_queries {
+        let query_path = args
+            .query_file
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--check requires -Q/--query-file"))?;
+        return check_queries(query_path, &args.color);
+    }
+
     // Get expressions from positional args, -e flags, or file
     let expressions: Vec<String> = if let Some(query_path) = &args.query_file {
-        vec![
-            std::fs::read_to_string(query_path)
-                .with_context(|| format!("Failed to read query file: {}", query_path))?
-                .trim()
-                .to_string(),
-        ]
+        match query_library::load_query_expression(query_path, args.query_name.as_deref(), false)? {
+            LoadResult::Expression(expr) => vec![expr],
+            LoadResult::List(_) => unreachable!(), // list_mode is false
+        }
     } else if !args.expressions.is_empty() {
         std::mem::take(&mut args.expressions)
     } else if !args.positional_expressions.is_empty() {
@@ -1706,6 +1764,149 @@ fn diff_files(
 
     let patch_value = serde_json::to_value(&patch)?;
     output_json(&patch_value, compact, color_mode)
+}
+
+/// List queries in a .jpx query library file
+fn list_queries(query_path: &str, color_mode: &ColorMode) -> Result<()> {
+    let (file_path, _) = query_library::parse_query_path(query_path);
+    let content = std::fs::read_to_string(file_path)
+        .with_context(|| format!("Failed to read query file: {}", file_path))?;
+
+    let library = query_library::QueryLibrary::parse(&content)
+        .with_context(|| format!("Failed to parse query library: {}", file_path))?;
+
+    let use_color = match color_mode {
+        ColorMode::Always => true,
+        ColorMode::Never => false,
+        ColorMode::Auto => atty::is(atty::Stream::Stdout),
+    };
+
+    println!("Queries in {}:\n", file_path);
+
+    // Calculate column widths
+    let max_name_len = library
+        .list()
+        .iter()
+        .map(|q| q.name.len())
+        .max()
+        .unwrap_or(4);
+    let name_width = max_name_len.max(4);
+
+    // Header
+    if use_color {
+        println!(
+            "  {:<name_width$}  {}",
+            "NAME".bold(),
+            "DESCRIPTION".bold(),
+            name_width = name_width
+        );
+    } else {
+        println!(
+            "  {:<name_width$}  DESCRIPTION",
+            "NAME",
+            name_width = name_width
+        );
+    }
+    println!(
+        "  {:-<name_width$}  {:-<40}",
+        "",
+        "",
+        name_width = name_width
+    );
+
+    // Queries
+    for query in library.list() {
+        let desc = query.description.as_deref().unwrap_or("-");
+        if use_color {
+            println!(
+                "  {:<name_width$}  {}",
+                query.name.cyan(),
+                desc,
+                name_width = name_width
+            );
+        } else {
+            println!(
+                "  {:<name_width$}  {}",
+                query.name,
+                desc,
+                name_width = name_width
+            );
+        }
+    }
+
+    println!("\nUse: jpx -Q {}:<query-name> <input>", file_path);
+
+    Ok(())
+}
+
+/// Validate queries in a .jpx file without running them
+fn check_queries(query_path: &str, color_mode: &ColorMode) -> Result<()> {
+    let (file_path, _) = query_library::parse_query_path(query_path);
+    let content = std::fs::read_to_string(file_path)
+        .with_context(|| format!("Failed to read query file: {}", file_path))?;
+
+    let library = query_library::QueryLibrary::parse(&content)
+        .with_context(|| format!("Failed to parse query library: {}", file_path))?;
+
+    let use_color = match color_mode {
+        ColorMode::Always => true,
+        ColorMode::Never => false,
+        ColorMode::Auto => atty::is(atty::Stream::Stdout),
+    };
+
+    // Create runtime with all functions registered for proper validation
+    let runtime = create_runtime();
+
+    let mut has_errors = false;
+
+    println!("Validating {}...\n", file_path);
+
+    for query in library.list() {
+        // Use runtime.compile() to validate function names too
+        match runtime.compile(&query.expression) {
+            Ok(_) => {
+                if use_color {
+                    println!("  {} {}", "✓".green(), query.name);
+                } else {
+                    println!("  [OK] {}", query.name);
+                }
+            }
+            Err(e) => {
+                has_errors = true;
+                if use_color {
+                    println!(
+                        "  {} {} (line {})",
+                        "✗".red(),
+                        query.name.red(),
+                        query.line_number
+                    );
+                    println!("    {}", e.to_string().red());
+                } else {
+                    println!("  [ERROR] {} (line {})", query.name, query.line_number);
+                    println!("    {}", e);
+                }
+            }
+        }
+    }
+
+    println!();
+
+    if has_errors {
+        if use_color {
+            println!("{}", "Validation failed.".red().bold());
+        } else {
+            println!("Validation failed.");
+        }
+        std::process::exit(1);
+    } else {
+        if use_color {
+            println!("{}", "All queries valid.".green().bold());
+        } else {
+            println!("All queries valid.");
+        }
+    }
+
+    Ok(())
 }
 
 /// Apply JSON Patch (RFC 6902) to a document
