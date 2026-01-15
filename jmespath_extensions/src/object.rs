@@ -67,6 +67,7 @@ pub fn register(runtime: &mut Runtime) {
     // Data redaction functions
     runtime.register_function("redact", Box::new(RedactFn::new()));
     runtime.register_function("mask", Box::new(MaskFn::new()));
+    #[cfg(feature = "regex")]
     runtime.register_function("redact_keys", Box::new(RedactKeysFn::new()));
     // Recursive key search and transformation
     runtime.register_function("pluck_deep", Box::new(PluckDeepFn::new()));
@@ -2243,12 +2244,14 @@ impl Function for MaskFn {
 // redact_keys(any, pattern) -> any (redact keys matching pattern)
 // =============================================================================
 
+#[cfg(feature = "regex")]
 define_function!(
     RedactKeysFn,
     vec![ArgumentType::Any, ArgumentType::String],
     None
 );
 
+#[cfg(feature = "regex")]
 impl Function for RedactKeysFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
@@ -2273,6 +2276,7 @@ impl Function for RedactKeysFn {
     }
 }
 
+#[cfg(feature = "regex")]
 fn redact_keys_recursive(value: &Variable, pattern: &regex::Regex) -> Variable {
     match value {
         Variable::Object(obj) => {
@@ -4247,6 +4251,7 @@ mod tests {
     // =========================================================================
 
     #[test]
+    #[cfg(feature = "regex")]
     fn test_redact_keys_basic() {
         let runtime = setup_runtime();
         let data =
@@ -4269,6 +4274,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "regex")]
     fn test_redact_keys_pattern() {
         let runtime = setup_runtime();
         let data =

@@ -3957,6 +3957,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_zip_with_add() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -3973,6 +3974,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_zip_with_unequal_lengths() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -3988,6 +3990,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_zip_with_multiply() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -4021,6 +4024,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "type")]
     fn test_walk_type_of_all() {
         let mut runtime = setup();
         crate::type_conv::register(&mut runtime);
@@ -4046,6 +4050,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_walk_scalar() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -4166,6 +4171,7 @@ mod tests {
     // =========================================================================
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_while_expr_doubling() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -4179,6 +4185,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_while_expr_counter() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -4192,6 +4199,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_while_expr_immediate_false() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -4209,6 +4217,7 @@ mod tests {
     // =========================================================================
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_until_expr_doubling() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -4222,6 +4231,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_until_expr_counter() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
@@ -4235,6 +4245,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "math")]
     fn test_until_expr_immediate_true() {
         let mut runtime = setup();
         crate::math::register(&mut runtime);
