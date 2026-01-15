@@ -26,9 +26,9 @@ jobs:
       - name: Run tests (all features)
         run: cargo test --all-features
       - name: Run tests (no default features)
-        run: cargo test --no-default-features
+        run: cargo test -p jmespath_extensions --no-default-features
       - name: Run tests (core features only)
-        run: cargo test --no-default-features --features core
+        run: cargo test -p jmespath_extensions --no-default-features --features core
 
   features:
     name: Feature combinations
