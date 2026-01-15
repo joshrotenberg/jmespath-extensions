@@ -181,7 +181,28 @@ enum Commands {
 #[command(version, about, long_about = None)]
 #[command(styles = STYLES)]
 #[command(disable_help_flag = true)]
+#[command(after_help = "Use --help for examples and detailed documentation")]
 #[command(after_long_help = concat!(
+    "GETTING STARTED:\n",
+    "  JMESPath basics (work everywhere):\n",
+    "    .field          Access object field       {\"name\": \"jo\"} | jpx 'name' -> \"jo\"\n",
+    "    [*]             Iterate arrays            [{\"a\":1},{\"a\":2}] | jpx '[*].a' -> [1,2]\n",
+    "    [?expr]         Filter arrays             [1,2,3] | jpx '[?@ > `1`]' -> [2,3]\n",
+    "\n",
+    "  Essential standard functions:\n",
+    "    length(@)       Array/string/object size\n",
+    "    sort(@)         Sort arrays\n",
+    "    keys(@)         Object keys\n",
+    "    values(@)       Object values\n",
+    "    contains(@, x)  Check if array/string contains value\n",
+    "    join(', ', @)   Join array into string\n",
+    "\n",
+    "  Popular extensions:\n",
+    "    sum(@), avg(@), min(@), max(@)     Math on arrays\n",
+    "    unique(@), flatten(@), first(@)   Array manipulation\n",
+    "    now(), format_date(ts, fmt)       Date/time\n",
+    "    split(s, delim), upper(s)         String processing\n",
+    "\n",
     "EXAMPLES:\n",
     "  Basic query:\n",
     "    echo '{\"name\": \"alice\"}' | jpx 'name'\n",

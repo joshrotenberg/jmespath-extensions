@@ -4,6 +4,7 @@ members = ["jmespath_extensions", "jpx", "xtask", "mock-mcp-server"]
 # The jmespath-extensions-py crate is built/released separately via the Python workflow
 exclude = ["jmespath-extensions-py"]
 resolver = "2"
+default-members = ["jpx"]
 
 [workspace.package]
 edition = "2024"
