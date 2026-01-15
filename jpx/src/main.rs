@@ -3,7 +3,7 @@ use jpx::mcp;
 mod repl;
 
 use anyhow::{Context, Result};
-use clap::{CommandFactory, Parser, Subcommand, ValueEnum, builder::styling};
+use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueEnum, builder::styling};
 use clap_complete::{Shell, generate};
 use colored::Colorize;
 use jmespath::ast::Ast;
@@ -180,48 +180,103 @@ enum Commands {
 #[command(name = "jpx")]
 #[command(version, about, long_about = None)]
 #[command(styles = STYLES)]
-#[command(after_help = concat!(
-    "Examples:\n",
-    "  echo '{\"name\": \"alice\"}' | jpx 'name'\n",
-    "  echo '[1, 2, 3]' | jpx 'sum(@)'\n",
-    "  echo '{\"ts\": \"2024-01-15\"}' | jpx 'format_date(ts, \"%B %d, %Y\")'\n",
-    "  jpx -n 'now()'\n",
+#[command(disable_help_flag = true)]
+#[command(after_long_help = concat!(
+    "EXAMPLES:\n",
+    "  Basic query:\n",
+    "    echo '{\"name\": \"alice\"}' | jpx 'name'\n",
     "\n",
-    "Pipeline (multiple expressions chained):\n",
-    "  cat data.json | jpx 'items[*].name' 'sort(@)' 'first(@)'\n",
-    "  cat data.json | jpx -e 'items[*].name' -e 'sort(@)'\n",
-    "\nVersion: ", env!("CARGO_PKG_VERSION"),
+    "  Using extension functions:\n",
+    "    echo '[1, 2, 3]' | jpx 'sum(@)'\n",
+    "    echo '{\"ts\": \"2024-01-15\"}' | jpx 'format_date(ts, \"%B %d, %Y\")'\n",
+    "    jpx -n 'now()'\n",
+    "\n",
+    "  Pipeline (multiple expressions chained):\n",
+    "    cat data.json | jpx 'items[*].name' 'sort(@)' 'first(@)'\n",
+    "    cat data.json | jpx -e 'items[*].name' -e 'sort(@)'\n",
+    "\n",
+    "  Output formats:\n",
+    "    jpx -t 'users[*]' < data.json       # Table format\n",
+    "    jpx --csv 'users[*]' < data.json    # CSV output\n",
+    "    jpx -y 'config' < data.json         # YAML output\n",
+    "\n",
+    "  Discovery:\n",
+    "    jpx --list-functions                # List all 320+ functions\n",
+    "    jpx --search date                   # Find date-related functions\n",
+    "    jpx --describe format_date          # Function documentation\n",
+    "\n",
+    "ENVIRONMENT VARIABLES:\n",
+    "  JPX_VERBOSE=1     Enable verbose mode\n",
+    "  JPX_QUIET=1       Enable quiet mode\n",
+    "  JPX_STRICT=1      Disable extension functions\n",
+    "  JPX_RAW=1         Output raw strings\n",
+    "  JPX_COMPACT=1     Compact JSON output\n",
+    "  JPX_CONFIG=PATH   Custom config file path\n",
+    "\n",
+    "CONFIG FILES:\n",
+    "  ~/.config/jpx/config.toml  or  ~/.jpxrc\n",
+    "\n",
+    "Version: ", env!("CARGO_PKG_VERSION"),
     "\nDocumentation: https://docs.rs/jmespath_extensions"
 ))]
 struct Args {
+    /// Print help (use --help for more detail)
+    #[arg(short = 'h', action = ArgAction::HelpShort, global = true)]
+    help_short: (),
+
+    /// Print detailed help with examples
+    #[arg(long = "help", action = ArgAction::HelpLong, global = true)]
+    help_long: (),
+
     /// Subcommand to run
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// JMESPath expression(s) to evaluate (multiple expressions are chained)
-    #[arg(short = 'e', long = "expression", conflicts_with = "query_file")]
+    /// JMESPath expression(s) to evaluate
+    #[arg(
+        short = 'e',
+        long = "expression",
+        conflicts_with = "query_file",
+        help = "JMESPath expression(s) to evaluate",
+        long_help = "JMESPath expression(s) to evaluate. Multiple -e flags are chained as a pipeline,\nwhere each expression receives the output of the previous one."
+    )]
     expressions: Vec<String>,
 
-    /// JMESPath expression(s) as positional arguments (multiple are chained as a pipeline)
+    /// Expression(s) as positional args
     #[arg(conflicts_with_all = ["query_file", "expressions"])]
     positional_expressions: Vec<String>,
 
-    /// Read JMESPath expression from file
-    #[arg(short = 'Q', long = "query-file", conflicts_with_all = ["positional_expressions", "expressions"])]
+    /// Read expression from file
+    #[arg(short = 'Q', long = "query-file", conflicts_with_all = ["positional_expressions", "expressions"],
+          help = "Read expression from file",
+          long_help = "Read JMESPath expression from a file instead of command line.\nUseful for complex expressions or reusable queries.")]
     query_file: Option<String>,
 
-    /// Input file (reads from stdin if not provided)
-    #[arg(short, long)]
+    /// Input JSON file
+    #[arg(
+        short,
+        long,
+        help = "Input JSON file",
+        long_help = "Input file to read JSON from. If not provided, reads from stdin.\nSupports any valid JSON file."
+    )]
     file: Option<String>,
 
     /// Output raw strings without quotes
-    /// Can also be set with JPX_RAW=1
-    #[arg(short = 'r', long)]
+    #[arg(
+        short = 'r',
+        long,
+        help = "Output raw strings without quotes",
+        long_help = "Output raw strings without JSON quotes. Useful for piping string results\nto other commands. Can also be set with JPX_RAW=1 environment variable."
+    )]
     raw: bool,
 
-    /// Compact output (no pretty printing)
-    /// Can also be set with JPX_COMPACT=1
-    #[arg(short, long)]
+    /// Compact JSON output
+    #[arg(
+        short,
+        long,
+        help = "Compact JSON output (no pretty-printing)",
+        long_help = "Compact output without pretty-printing or indentation.\nCan also be set with JPX_COMPACT=1 environment variable."
+    )]
     compact: bool,
 
     /// Output as YAML
@@ -232,141 +287,253 @@ struct Args {
     #[arg(long = "toml", conflicts_with_all = ["yaml", "csv_output", "tsv_output", "lines_output"])]
     toml_output: bool,
 
-    /// Output as CSV (for arrays of objects)
-    #[arg(long = "csv", conflicts_with_all = ["yaml", "toml_output", "tsv_output", "lines_output"])]
+    /// Output as CSV
+    #[arg(long = "csv", conflicts_with_all = ["yaml", "toml_output", "tsv_output", "lines_output"],
+          help = "Output as CSV",
+          long_help = "Output as CSV (comma-separated values). Best for arrays of objects.\nNested structures are flattened with dot notation.")]
     csv_output: bool,
 
-    /// Output as TSV (for arrays of objects)
-    #[arg(long = "tsv", conflicts_with_all = ["yaml", "toml_output", "csv_output", "lines_output"])]
+    /// Output as TSV
+    #[arg(long = "tsv", conflicts_with_all = ["yaml", "toml_output", "csv_output", "lines_output"],
+          help = "Output as TSV",
+          long_help = "Output as TSV (tab-separated values). Best for arrays of objects.\nNested structures are flattened with dot notation.")]
     tsv_output: bool,
 
-    /// Output one JSON value per line (for arrays)
-    #[arg(short = 'l', long = "lines", conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output", "table"])]
+    /// Output one value per line
+    #[arg(short = 'l', long = "lines", conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output", "table"],
+          help = "Output one JSON value per line",
+          long_help = "Output one JSON value per line (NDJSON/JSON Lines format).\nUseful for streaming or piping array results to other tools.")]
     lines_output: bool,
 
-    /// Output as a formatted table (for arrays of objects)
-    #[arg(short = 't', long, conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output", "lines_output"])]
+    /// Output as formatted table
+    #[arg(short = 't', long, conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output", "lines_output"],
+          help = "Output as formatted table",
+          long_help = "Output as a formatted table. Best for arrays of objects.\nUse --table-style to change appearance (unicode, ascii, markdown, plain).")]
     table: bool,
 
-    /// Table style: unicode (default), ascii, markdown, or plain
+    /// Table style
     #[arg(
         long,
         value_name = "STYLE",
         default_value = "unicode",
-        requires = "table"
+        requires = "table",
+        help = "Table style: unicode, ascii, markdown, plain",
+        long_help = "Table style for --table output:\n  unicode   Box-drawing characters (default)\n  ascii     ASCII characters only\n  markdown  GitHub-flavored markdown\n  plain     No borders"
     )]
     table_style: String,
 
-    /// Null input - don't read input, use null as the input value
-    #[arg(short = 'n', long)]
+    /// Use null as input
+    #[arg(
+        short = 'n',
+        long,
+        help = "Use null as input (don't read stdin)",
+        long_help = "Null input mode - use null as the input value instead of reading from stdin.\nUseful for expressions that don't need input, like: jpx -n 'now()'"
+    )]
     null_input: bool,
 
-    /// Slurp - read all inputs into an array
-    #[arg(short = 's', long, conflicts_with = "stream")]
+    /// Slurp multiple inputs into array
+    #[arg(
+        short = 's',
+        long,
+        conflicts_with = "stream",
+        help = "Slurp multiple JSON values into array",
+        long_help = "Slurp mode - read multiple JSON values from input and combine them into\na single array. Useful for processing multiple JSON objects."
+    )]
     slurp: bool,
 
-    /// Stream - process input line by line (for NDJSON/JSON Lines)
-    /// Each line is parsed and evaluated independently with constant memory
-    #[arg(long, visible_alias = "each", conflicts_with_all = ["slurp", "null_input"])]
+    /// Process input line by line
+    #[arg(long, visible_alias = "each", conflicts_with_all = ["slurp", "null_input"],
+          help = "Process input line by line (NDJSON)",
+          long_help = "Stream mode - process input line by line (for NDJSON/JSON Lines).\nEach line is parsed and evaluated independently with constant memory usage.")]
     stream: bool,
 
-    /// Colorize output (auto, always, never)
+    /// Color output mode
     #[arg(long, value_enum, default_value = "auto")]
     color: ColorMode,
 
-    /// Output file (writes to stdout if not provided)
-    #[arg(short = 'o', long)]
+    /// Output file
+    #[arg(
+        short = 'o',
+        long,
+        help = "Write output to file",
+        long_help = "Write output to a file instead of stdout."
+    )]
     output: Option<String>,
 
-    /// Quiet mode - suppress errors and warnings
-    /// Can also be set with JPX_QUIET=1
-    #[arg(short = 'q', long)]
+    /// Suppress errors and warnings
+    #[arg(
+        short = 'q',
+        long,
+        help = "Suppress errors and warnings",
+        long_help = "Quiet mode - suppress errors and warnings.\nCan also be set with JPX_QUIET=1 environment variable."
+    )]
     quiet: bool,
 
-    /// Verbose mode - show expression details and timing
-    /// Can also be set with JPX_VERBOSE=1
-    #[arg(short = 'v', long)]
+    /// Show expression details and timing
+    #[arg(
+        short = 'v',
+        long,
+        help = "Show expression details and timing",
+        long_help = "Verbose mode - show expression details, input info, and timing.\nCan also be set with JPX_VERBOSE=1 environment variable."
+    )]
     verbose: bool,
 
-    /// Strict mode - only use standard JMESPath functions (no extensions)
-    /// Can also be set with JPX_STRICT=1
-    #[arg(long)]
+    /// Disable extension functions
+    #[arg(
+        long,
+        help = "Use only standard JMESPath functions",
+        long_help = "Strict mode - only use standard JMESPath functions (no extensions).\nCan also be set with JPX_STRICT=1 environment variable."
+    )]
     strict: bool,
 
     /// Generate shell completions
-    #[arg(long, value_name = "SHELL")]
+    #[arg(
+        long,
+        value_name = "SHELL",
+        help = "Generate shell completions",
+        long_help = "Generate shell completion script for the specified shell.\nSupported: bash, zsh, fish, powershell, elvish"
+    )]
     completions: Option<Shell>,
 
-    /// List available extension functions
-    #[arg(long)]
+    /// List all functions
+    #[arg(
+        long,
+        help = "List all available functions",
+        long_help = "List all available extension functions organized by category.\nUse --list-category for a specific category or --describe for details."
+    )]
     list_functions: bool,
 
-    /// List functions in a specific category
-    #[arg(long, value_name = "CATEGORY")]
+    /// List functions in category
+    #[arg(
+        long,
+        value_name = "CATEGORY",
+        help = "List functions in a category",
+        long_help = "List functions in a specific category. Categories include:\narray, datetime, math, string, hash, encoding, object, and more."
+    )]
     list_category: Option<String>,
 
-    /// Show detailed info for a specific function
-    #[arg(long, value_name = "FUNCTION")]
+    /// Show function details
+    #[arg(
+        long,
+        value_name = "FUNCTION",
+        help = "Show detailed info for a function",
+        long_help = "Show detailed information about a specific function including\nsignature, description, and usage examples."
+    )]
     describe: Option<String>,
 
-    /// Search functions by name, description, or category (fuzzy matching)
-    #[arg(long, value_name = "QUERY")]
+    /// Search for functions
+    #[arg(
+        long,
+        value_name = "QUERY",
+        help = "Search functions by name or description",
+        long_help = "Search functions by name, description, or category using fuzzy matching.\nResults are ranked by relevance."
+    )]
     search: Option<String>,
 
-    /// Find functions similar to the specified function
-    #[arg(long, value_name = "FUNCTION")]
+    /// Find similar functions
+    #[arg(
+        long,
+        value_name = "FUNCTION",
+        help = "Find functions similar to another",
+        long_help = "Find functions similar to the specified function based on category,\nsignature, and description keywords."
+    )]
     similar: Option<String>,
 
-    /// Generate JSON Patch (RFC 6902) from two files: --diff SOURCE TARGET
-    #[arg(long, num_args = 2, value_names = ["SOURCE", "TARGET"])]
+    /// Generate JSON Patch from two files
+    #[arg(long, num_args = 2, value_names = ["SOURCE", "TARGET"],
+          help = "Generate JSON Patch from two files",
+          long_help = "Generate JSON Patch (RFC 6902) that transforms SOURCE into TARGET.\nOutput can be used with --patch to apply changes.")]
     diff: Option<Vec<String>>,
 
-    /// Apply JSON Patch (RFC 6902): --patch FILE (reads patch from stdin, or use -f for document)
-    #[arg(long, value_name = "PATCH_FILE")]
+    /// Apply JSON Patch
+    #[arg(
+        long,
+        value_name = "PATCH_FILE",
+        help = "Apply JSON Patch (RFC 6902)",
+        long_help = "Apply JSON Patch (RFC 6902) to a document.\nReads document from -f or stdin, applies patch operations from file."
+    )]
     patch: Option<String>,
 
-    /// Apply JSON Merge Patch (RFC 7396): --merge FILE (reads merge patch from stdin, or use -f for document)
-    #[arg(long, value_name = "MERGE_FILE")]
+    /// Apply JSON Merge Patch
+    #[arg(
+        long,
+        value_name = "MERGE_FILE",
+        help = "Apply JSON Merge Patch (RFC 7396)",
+        long_help = "Apply JSON Merge Patch (RFC 7396) to a document.\nReads document from -f or stdin, merges with patch from file."
+    )]
     merge: Option<String>,
 
-    /// Explain how an expression is parsed (show AST)
-    #[arg(long)]
+    /// Show expression AST
+    #[arg(
+        long,
+        help = "Show how expression is parsed (AST)",
+        long_help = "Explain how an expression is parsed by showing the Abstract Syntax Tree.\nUseful for understanding complex expressions and debugging."
+    )]
     explain: bool,
 
-    /// Show diagnostic information for troubleshooting
-    #[arg(long)]
+    /// Show diagnostic info
+    #[arg(
+        long,
+        help = "Show diagnostic information",
+        long_help = "Show diagnostic information for troubleshooting including\nenvironment variables, effective settings, and input info."
+    )]
     debug: bool,
 
-    /// Start interactive REPL mode
-    #[arg(long)]
+    /// Start interactive REPL
+    #[arg(
+        long,
+        help = "Start interactive REPL mode",
+        long_help = "Start interactive REPL (Read-Eval-Print Loop) mode.\nSupports history, tab completion, and multi-line editing."
+    )]
     repl: bool,
 
-    /// Load a demo dataset (use with --repl)
-    #[arg(long, value_name = "NAME")]
+    /// Load demo dataset
+    #[arg(
+        long,
+        value_name = "NAME",
+        help = "Load a demo dataset for REPL",
+        long_help = "Load a demo dataset when starting REPL mode.\nAvailable: users, products, github, mixed"
+    )]
     demo: Option<String>,
 
-    /// Show statistics about the input data
-    #[arg(long)]
+    /// Show input statistics
+    #[arg(
+        long,
+        help = "Show statistics about input data",
+        long_help = "Show statistics about the input JSON data including type, size,\ndepth, and field analysis for arrays of objects."
+    )]
     stats: bool,
 
-    /// List all paths in the input JSON
-    #[arg(long)]
+    /// List all JSON paths
+    #[arg(
+        long,
+        help = "List all paths in input JSON",
+        long_help = "List all paths in the input JSON document.\nUse --types and --values for additional details."
+    )]
     paths: bool,
 
-    /// Show types alongside paths (use with --paths)
+    /// Show types with paths
     #[arg(long, requires = "paths")]
     types: bool,
 
-    /// Show values alongside paths (use with --paths)
+    /// Show values with paths
     #[arg(long, requires = "paths")]
     values: bool,
 
-    /// Benchmark expression performance (default: 100 iterations)
-    #[arg(long, value_name = "ITERATIONS", default_missing_value = "100", num_args = 0..=1)]
+    /// Benchmark expression
+    #[arg(long, value_name = "ITERATIONS", default_missing_value = "100", num_args = 0..=1,
+          help = "Benchmark expression performance",
+          long_help = "Benchmark expression performance over multiple iterations.\nShows statistics including mean, median, p95, p99, and throughput.")]
     bench: Option<u32>,
 
-    /// Number of warmup iterations before benchmarking (use with --bench)
-    #[arg(long, value_name = "COUNT", default_value = "5", requires = "bench")]
+    /// Warmup iterations for benchmark
+    #[arg(
+        long,
+        value_name = "COUNT",
+        default_value = "5",
+        requires = "bench",
+        help = "Warmup iterations before benchmarking"
+    )]
     warmup: u32,
 }
 
