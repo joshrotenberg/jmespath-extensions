@@ -1,5 +1,8 @@
 [workspace]
-members = ["jmespath_extensions", "jpx", "jmespath-extensions-py", "xtask", "mock-mcp-server"]
+members = ["jmespath_extensions", "jpx", "xtask", "mock-mcp-server"]
+# Python bindings are excluded from workspace to avoid PyO3 build issues in cargo-dist
+# The jmespath-extensions-py crate is built/released separately via the Python workflow
+exclude = ["jmespath-extensions-py"]
 resolver = "2"
 
 [workspace.package]

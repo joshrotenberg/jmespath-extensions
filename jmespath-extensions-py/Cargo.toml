@@ -13,15 +13,19 @@ categories = ["api-bindings"]
 # This crate is not published to crates.io - it's a Python package published to PyPI
 publish = false
 
+# Exclude from cargo-dist binary releases (it's a Python extension, not a standalone binary)
+[package.metadata.dist]
+dist = false
+
 [lib]
 name = "jmespath_extensions_py"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-jmespath.workspace = true
+jmespath = "0.4"
 jmespath_extensions = { path = "../jmespath_extensions", features = ["full"] }
 pyo3 = { version = "0.23", features = ["extension-module"] }
-serde_json.workspace = true
+serde_json = "1.0"
 
 [build-dependencies]
 pyo3-build-config = "0.23"
