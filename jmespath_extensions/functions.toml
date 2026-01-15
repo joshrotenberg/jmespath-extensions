@@ -4366,6 +4366,31 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "tokens"
+category = "text"
+description = "Simple word tokenization with normalization (lowercase, strip punctuation)"
+signature = "string -> array"
+examples = [
+    { code = "tokens('Hello, World!') -> \\['hello', 'world'\\]", description = "Basic tokenization" },
+    { code = "tokens('The quick, brown fox!') -> \\['the', 'quick', 'brown', 'fox'\\]", description = "Strip punctuation" },
+    { code = "tokens('... --- !!!') -> \\[\\]", description = "Punctuation-only returns empty" },
+]
+features = ["core"]
+
+[[functions]]
+name = "tokenize"
+category = "text"
+description = "Configurable tokenization with options for case and punctuation handling"
+signature = "string, object? -> array"
+examples = [
+    { code = "tokenize('Hello, World!') -> \\['hello', 'world'\\]", description = "Default (lowercase, strip punctuation)" },
+    { code = "tokenize('Hello, World!', `{\"case\": \"preserve\"}`) -> \\['Hello', 'World'\\]", description = "Preserve case" },
+    { code = "tokenize('Hello, World!', `{\"case\": \"upper\"}`) -> \\['HELLO', 'WORLD'\\]", description = "Uppercase" },
+    { code = "tokenize('Hello, World!', `{\"punctuation\": \"keep\"}`) -> \\['hello,', 'world!'\\]", description = "Keep punctuation" },
+]
+features = ["core"]
+
 # =============================================================================
 # TYPE FUNCTIONS
 # =============================================================================

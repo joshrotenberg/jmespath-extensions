@@ -38,6 +38,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("ngrams", Box::new(NgramsFn::new()));
     runtime.register_function("bigrams", Box::new(BigramsFn::new()));
     runtime.register_function("trigrams", Box::new(TrigramsFn::new()));
+    runtime.register_function("tokens", Box::new(TokensFn::new()));
+    runtime.register_function("tokenize", Box::new(TokenizeFn::new()));
 }
 
 // Average reading speed in words per minute
@@ -528,6 +530,135 @@ impl Function for TrigramsFn {
     }
 }
 
+// =============================================================================
+// tokens(s) -> array
+// Simple word tokenization: lowercase, strip punctuation
+// =============================================================================
+
+pub struct TokensFn {
+    signature: Signature,
+}
+
+impl Default for TokensFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TokensFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], None),
+        }
+    }
+}
+
+impl Function for TokensFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+
+        let tokens: Vec<Rcvar> = s
+            .split_whitespace()
+            .filter_map(|word| {
+                let normalized: String = word
+                    .chars()
+                    .filter(|c| c.is_alphanumeric())
+                    .collect::<String>()
+                    .to_lowercase();
+
+                if normalized.is_empty() {
+                    None
+                } else {
+                    Some(Rc::new(Variable::String(normalized)))
+                }
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(tokens)))
+    }
+}
+
+// =============================================================================
+// tokenize(s, options?) -> array
+// Configurable tokenization with options:
+//   - case: "lower" (default), "upper", "preserve"
+//   - punctuation: "strip" (default), "keep"
+// =============================================================================
+
+pub struct TokenizeFn {
+    signature: Signature,
+}
+
+impl Default for TokenizeFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TokenizeFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], Some(ArgumentType::Object)),
+        }
+    }
+}
+
+impl Function for TokenizeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+
+        // Parse options
+        let (case_mode, strip_punctuation) = if args.len() > 1 {
+            if let Some(opts) = args[1].as_object() {
+                let case_mode = opts
+                    .get("case")
+                    .and_then(|v| v.as_string())
+                    .map(|s| s.as_str())
+                    .unwrap_or("lower");
+
+                let punctuation = opts
+                    .get("punctuation")
+                    .and_then(|v| v.as_string())
+                    .map(|s| s.as_str())
+                    .unwrap_or("strip");
+
+                (case_mode.to_string(), punctuation != "keep")
+            } else {
+                ("lower".to_string(), true)
+            }
+        } else {
+            ("lower".to_string(), true)
+        };
+
+        let tokens: Vec<Rcvar> = s
+            .split_whitespace()
+            .filter_map(|word| {
+                let processed: String = if strip_punctuation {
+                    word.chars().filter(|c| c.is_alphanumeric()).collect()
+                } else {
+                    word.to_string()
+                };
+
+                if processed.is_empty() {
+                    return None;
+                }
+
+                let final_token = match case_mode.as_str() {
+                    "upper" => processed.to_uppercase(),
+                    "preserve" => processed,
+                    _ => processed.to_lowercase(), // "lower" or default
+                };
+
+                Some(Rc::new(Variable::String(final_token)))
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(tokens)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -749,5 +880,127 @@ mod tests {
         let result = expr.search(&data).unwrap();
         let arr = result.as_array().unwrap();
         assert_eq!(arr.len(), 0);
+    }
+
+    // =========================================================================
+    // tokens tests
+    // =========================================================================
+
+    #[test]
+    fn test_tokens_basic() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""Hello, World!""#).unwrap();
+        let expr = runtime.compile("tokens(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "hello");
+        assert_eq!(arr[1].as_string().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_tokens_punctuation_only() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""... --- !!!""#).unwrap();
+        let expr = runtime.compile("tokens(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_tokens_mixed() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""The quick, brown fox!""#).unwrap();
+        let expr = runtime.compile("tokens(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4);
+        assert_eq!(arr[0].as_string().unwrap(), "the");
+        assert_eq!(arr[1].as_string().unwrap(), "quick");
+        assert_eq!(arr[2].as_string().unwrap(), "brown");
+        assert_eq!(arr[3].as_string().unwrap(), "fox");
+    }
+
+    #[test]
+    fn test_tokens_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""""#).unwrap();
+        let expr = runtime.compile("tokens(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    // =========================================================================
+    // tokenize tests
+    // =========================================================================
+
+    #[test]
+    fn test_tokenize_default() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""Hello, World!""#).unwrap();
+        let expr = runtime.compile("tokenize(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "hello");
+        assert_eq!(arr[1].as_string().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_tokenize_preserve_case() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""Hello, World!""#).unwrap();
+        let expr = runtime
+            .compile(r#"tokenize(@, `{"case": "preserve"}`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "Hello");
+        assert_eq!(arr[1].as_string().unwrap(), "World");
+    }
+
+    #[test]
+    fn test_tokenize_upper_case() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""Hello, World!""#).unwrap();
+        let expr = runtime
+            .compile(r#"tokenize(@, `{"case": "upper"}`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "HELLO");
+        assert_eq!(arr[1].as_string().unwrap(), "WORLD");
+    }
+
+    #[test]
+    fn test_tokenize_keep_punctuation() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""Hello, World!""#).unwrap();
+        let expr = runtime
+            .compile(r#"tokenize(@, `{"punctuation": "keep"}`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "hello,");
+        assert_eq!(arr[1].as_string().unwrap(), "world!");
+    }
+
+    #[test]
+    fn test_tokenize_preserve_case_keep_punctuation() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""Hello, World!""#).unwrap();
+        let expr = runtime
+            .compile(r#"tokenize(@, `{"case": "preserve", "punctuation": "keep"}`)"#)
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_string().unwrap(), "Hello,");
+        assert_eq!(arr[1].as_string().unwrap(), "World!");
     }
 }
