@@ -70,6 +70,7 @@
 # Examples
 
 - [Overview](./examples/datasets/index.md)
+- [NLP Text Processing](./examples/datasets/nlp-text-processing.md)
 - [USGS Earthquakes](./examples/datasets/earthquakes.md)
 - [Nobel Prize API](./examples/datasets/nobel-prize.md)
 - [NASA Near Earth Objects](./examples/datasets/nasa-neo.md)
