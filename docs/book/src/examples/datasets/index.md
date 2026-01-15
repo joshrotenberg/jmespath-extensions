@@ -12,6 +12,7 @@ Learn jpx by working with real data from public APIs. Each example includes:
 | Dataset | Description | Key Features |
 |---------|-------------|--------------|
 | [NLP Text Processing](./nlp-text-processing.md) | Text analysis pipelines | Tokenization, stemming, stopwords, normalization |
+| [Hacker News](./hacker-news.md) | Tech discussions via Algolia API | NLP on real content, topic detection, vocabulary analysis |
 | [USGS Earthquakes](./earthquakes.md) | Real-time seismic data | Geo functions, statistics, filtering |
 | [Nobel Prize API](./nobel-prize.md) | Laureates and prizes | Multilingual data, text processing, dates |
 | [NASA Near Earth Objects](./nasa-neo.md) | Asteroids and comets | Nested data, unit conversions, risk analysis |
