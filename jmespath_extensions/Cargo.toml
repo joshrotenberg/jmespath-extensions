@@ -42,6 +42,9 @@ json-patch = { workspace = true, optional = true }
 aho-corasick = { workspace = true, optional = true }
 csv = { workspace = true, optional = true }
 whatlang = { workspace = true, optional = true }
+rust-stemmers = { workspace = true, optional = true }
+stop-words = { workspace = true, optional = true }
+unicode-normalization = { workspace = true, optional = true }
 
 [features]
 default = ["full"]
@@ -69,7 +72,7 @@ geo = ["dep:geoutils"]
 semver = ["dep:semver_crate"]
 network = ["dep:ipnetwork"]
 ids = ["dep:nanoid", "dep:ulid"]
-text = []
+text = ["dep:rust-stemmers", "dep:stop-words", "dep:unicode-normalization"]
 duration = []
 color = []
 computing = []
