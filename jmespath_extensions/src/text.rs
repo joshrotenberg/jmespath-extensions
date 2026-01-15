@@ -40,6 +40,21 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("trigrams", Box::new(TrigramsFn::new()));
     runtime.register_function("tokens", Box::new(TokensFn::new()));
     runtime.register_function("tokenize", Box::new(TokenizeFn::new()));
+    #[cfg(feature = "text")]
+    runtime.register_function("stem", Box::new(StemFn::new()));
+    #[cfg(feature = "text")]
+    runtime.register_function("stems", Box::new(StemsFn::new()));
+    #[cfg(feature = "text")]
+    runtime.register_function("stopwords", Box::new(StopwordsFn::new()));
+    #[cfg(feature = "text")]
+    runtime.register_function("remove_stopwords", Box::new(RemoveStopwordsFn::new()));
+    #[cfg(feature = "text")]
+    runtime.register_function("is_stopword", Box::new(IsStopwordFn::new()));
+    #[cfg(feature = "text")]
+    runtime.register_function("normalize_unicode", Box::new(NormalizeUnicodeFn::new()));
+    #[cfg(feature = "text")]
+    runtime.register_function("remove_accents", Box::new(RemoveAccentsFn::new()));
+    runtime.register_function("collapse_whitespace", Box::new(CollapseWhitespaceFn::new()));
 }
 
 // Average reading speed in words per minute
@@ -659,6 +674,540 @@ impl Function for TokenizeFn {
     }
 }
 
+// =============================================================================
+// stem(word, lang?) -> string
+// Stem a single word using Porter/Snowball stemmer
+// =============================================================================
+
+#[cfg(feature = "text")]
+pub struct StemFn {
+    signature: Signature,
+}
+
+#[cfg(feature = "text")]
+impl Default for StemFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "text")]
+impl StemFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], Some(ArgumentType::String)),
+        }
+    }
+}
+
+#[cfg(feature = "text")]
+impl Function for StemFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        use rust_stemmers::{Algorithm, Stemmer};
+
+        self.signature.validate(args, ctx)?;
+        let word = args[0].as_string().unwrap();
+
+        let lang = if args.len() > 1 {
+            args[1].as_string().map(|s| s.to_string())
+        } else {
+            None
+        };
+
+        let algorithm = match lang.as_deref() {
+            Some("ar" | "arabic") => Algorithm::Arabic,
+            Some("da" | "danish") => Algorithm::Danish,
+            Some("nl" | "dutch") => Algorithm::Dutch,
+            Some("fi" | "finnish") => Algorithm::Finnish,
+            Some("fr" | "french") => Algorithm::French,
+            Some("de" | "german") => Algorithm::German,
+            Some("el" | "greek") => Algorithm::Greek,
+            Some("hu" | "hungarian") => Algorithm::Hungarian,
+            Some("it" | "italian") => Algorithm::Italian,
+            Some("no" | "norwegian") => Algorithm::Norwegian,
+            Some("pt" | "portuguese") => Algorithm::Portuguese,
+            Some("ro" | "romanian") => Algorithm::Romanian,
+            Some("ru" | "russian") => Algorithm::Russian,
+            Some("es" | "spanish") => Algorithm::Spanish,
+            Some("sv" | "swedish") => Algorithm::Swedish,
+            Some("ta" | "tamil") => Algorithm::Tamil,
+            Some("tr" | "turkish") => Algorithm::Turkish,
+            _ => Algorithm::English, // Default to English
+        };
+
+        let stemmer = Stemmer::create(algorithm);
+        let stemmed = stemmer.stem(word).to_string();
+
+        Ok(Rc::new(Variable::String(stemmed)))
+    }
+}
+
+// =============================================================================
+// stems(tokens, lang?) -> array
+// Stem an array of tokens
+// =============================================================================
+
+#[cfg(feature = "text")]
+pub struct StemsFn {
+    signature: Signature,
+}
+
+#[cfg(feature = "text")]
+impl Default for StemsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "text")]
+impl StemsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::Array], Some(ArgumentType::String)),
+        }
+    }
+}
+
+#[cfg(feature = "text")]
+impl Function for StemsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        use rust_stemmers::{Algorithm, Stemmer};
+
+        self.signature.validate(args, ctx)?;
+        let tokens = args[0].as_array().unwrap();
+
+        let lang = if args.len() > 1 {
+            args[1].as_string().map(|s| s.to_string())
+        } else {
+            None
+        };
+
+        let algorithm = match lang.as_deref() {
+            Some("ar" | "arabic") => Algorithm::Arabic,
+            Some("da" | "danish") => Algorithm::Danish,
+            Some("nl" | "dutch") => Algorithm::Dutch,
+            Some("fi" | "finnish") => Algorithm::Finnish,
+            Some("fr" | "french") => Algorithm::French,
+            Some("de" | "german") => Algorithm::German,
+            Some("el" | "greek") => Algorithm::Greek,
+            Some("hu" | "hungarian") => Algorithm::Hungarian,
+            Some("it" | "italian") => Algorithm::Italian,
+            Some("no" | "norwegian") => Algorithm::Norwegian,
+            Some("pt" | "portuguese") => Algorithm::Portuguese,
+            Some("ro" | "romanian") => Algorithm::Romanian,
+            Some("ru" | "russian") => Algorithm::Russian,
+            Some("es" | "spanish") => Algorithm::Spanish,
+            Some("sv" | "swedish") => Algorithm::Swedish,
+            Some("ta" | "tamil") => Algorithm::Tamil,
+            Some("tr" | "turkish") => Algorithm::Turkish,
+            _ => Algorithm::English,
+        };
+
+        let stemmer = Stemmer::create(algorithm);
+
+        let result: Vec<Rcvar> = tokens
+            .iter()
+            .filter_map(|t| {
+                t.as_string()
+                    .map(|s| Rc::new(Variable::String(stemmer.stem(s).to_string())))
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// stopwords(lang?) -> array
+// Get stopwords list for a language
+// =============================================================================
+
+#[cfg(feature = "text")]
+pub struct StopwordsFn {
+    signature: Signature,
+}
+
+#[cfg(feature = "text")]
+impl Default for StopwordsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "text")]
+impl StopwordsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![], Some(ArgumentType::String)),
+        }
+    }
+}
+
+#[cfg(feature = "text")]
+impl Function for StopwordsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        use stop_words::{LANGUAGE, get};
+
+        self.signature.validate(args, ctx)?;
+
+        let lang = if !args.is_empty() {
+            args[0].as_string().map(|s| s.to_string())
+        } else {
+            None
+        };
+
+        let language = match lang.as_deref() {
+            Some("ar" | "arabic") => LANGUAGE::Arabic,
+            Some("bg" | "bulgarian") => LANGUAGE::Bulgarian,
+            Some("ca" | "catalan") => LANGUAGE::Catalan,
+            Some("cs" | "czech") => LANGUAGE::Czech,
+            Some("da" | "danish") => LANGUAGE::Danish,
+            Some("nl" | "dutch") => LANGUAGE::Dutch,
+            Some("fi" | "finnish") => LANGUAGE::Finnish,
+            Some("fr" | "french") => LANGUAGE::French,
+            Some("de" | "german") => LANGUAGE::German,
+            Some("he" | "hebrew") => LANGUAGE::Hebrew,
+            Some("hi" | "hindi") => LANGUAGE::Hindi,
+            Some("hu" | "hungarian") => LANGUAGE::Hungarian,
+            Some("id" | "indonesian") => LANGUAGE::Indonesian,
+            Some("it" | "italian") => LANGUAGE::Italian,
+            Some("ja" | "japanese") => LANGUAGE::Japanese,
+            Some("ko" | "korean") => LANGUAGE::Korean,
+            Some("lv" | "latvian") => LANGUAGE::Latvian,
+            Some("no" | "norwegian") => LANGUAGE::Norwegian,
+            Some("fa" | "persian") => LANGUAGE::Persian,
+            Some("pl" | "polish") => LANGUAGE::Polish,
+            Some("pt" | "portuguese") => LANGUAGE::Portuguese,
+            Some("ro" | "romanian") => LANGUAGE::Romanian,
+            Some("ru" | "russian") => LANGUAGE::Russian,
+            Some("sk" | "slovak") => LANGUAGE::Slovak,
+            Some("es" | "spanish") => LANGUAGE::Spanish,
+            Some("sv" | "swedish") => LANGUAGE::Swedish,
+            Some("th" | "thai") => LANGUAGE::Thai,
+            Some("tr" | "turkish") => LANGUAGE::Turkish,
+            Some("uk" | "ukrainian") => LANGUAGE::Ukrainian,
+            Some("vi" | "vietnamese") => LANGUAGE::Vietnamese,
+            Some("zh" | "chinese") => LANGUAGE::Chinese,
+            _ => LANGUAGE::English,
+        };
+
+        let words = get(language);
+        let result: Vec<Rcvar> = words
+            .iter()
+            .map(|w| Rc::new(Variable::String(w.to_string())))
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// remove_stopwords(tokens, lang?) -> array
+// Remove stopwords from token array
+// =============================================================================
+
+#[cfg(feature = "text")]
+pub struct RemoveStopwordsFn {
+    signature: Signature,
+}
+
+#[cfg(feature = "text")]
+impl Default for RemoveStopwordsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "text")]
+impl RemoveStopwordsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::Array], Some(ArgumentType::String)),
+        }
+    }
+}
+
+#[cfg(feature = "text")]
+impl Function for RemoveStopwordsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        use stop_words::{LANGUAGE, get};
+
+        self.signature.validate(args, ctx)?;
+        let tokens = args[0].as_array().unwrap();
+
+        let lang = if args.len() > 1 {
+            args[1].as_string().map(|s| s.to_string())
+        } else {
+            None
+        };
+
+        let language = match lang.as_deref() {
+            Some("ar" | "arabic") => LANGUAGE::Arabic,
+            Some("bg" | "bulgarian") => LANGUAGE::Bulgarian,
+            Some("ca" | "catalan") => LANGUAGE::Catalan,
+            Some("cs" | "czech") => LANGUAGE::Czech,
+            Some("da" | "danish") => LANGUAGE::Danish,
+            Some("nl" | "dutch") => LANGUAGE::Dutch,
+            Some("fi" | "finnish") => LANGUAGE::Finnish,
+            Some("fr" | "french") => LANGUAGE::French,
+            Some("de" | "german") => LANGUAGE::German,
+            Some("he" | "hebrew") => LANGUAGE::Hebrew,
+            Some("hi" | "hindi") => LANGUAGE::Hindi,
+            Some("hu" | "hungarian") => LANGUAGE::Hungarian,
+            Some("id" | "indonesian") => LANGUAGE::Indonesian,
+            Some("it" | "italian") => LANGUAGE::Italian,
+            Some("ja" | "japanese") => LANGUAGE::Japanese,
+            Some("ko" | "korean") => LANGUAGE::Korean,
+            Some("lv" | "latvian") => LANGUAGE::Latvian,
+            Some("no" | "norwegian") => LANGUAGE::Norwegian,
+            Some("fa" | "persian") => LANGUAGE::Persian,
+            Some("pl" | "polish") => LANGUAGE::Polish,
+            Some("pt" | "portuguese") => LANGUAGE::Portuguese,
+            Some("ro" | "romanian") => LANGUAGE::Romanian,
+            Some("ru" | "russian") => LANGUAGE::Russian,
+            Some("sk" | "slovak") => LANGUAGE::Slovak,
+            Some("es" | "spanish") => LANGUAGE::Spanish,
+            Some("sv" | "swedish") => LANGUAGE::Swedish,
+            Some("th" | "thai") => LANGUAGE::Thai,
+            Some("tr" | "turkish") => LANGUAGE::Turkish,
+            Some("uk" | "ukrainian") => LANGUAGE::Ukrainian,
+            Some("vi" | "vietnamese") => LANGUAGE::Vietnamese,
+            Some("zh" | "chinese") => LANGUAGE::Chinese,
+            _ => LANGUAGE::English,
+        };
+
+        let stopwords = get(language);
+        let stopwords_set: std::collections::HashSet<String> =
+            stopwords.iter().map(|s| s.to_string()).collect();
+
+        let result: Vec<Rcvar> = tokens
+            .iter()
+            .filter_map(|t| {
+                t.as_string().and_then(|s| {
+                    if stopwords_set.contains(&s.to_lowercase()) {
+                        None
+                    } else {
+                        Some(Rc::new(Variable::String(s.to_string())))
+                    }
+                })
+            })
+            .collect();
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// is_stopword(word, lang?) -> boolean
+// Check if word is a stopword
+// =============================================================================
+
+#[cfg(feature = "text")]
+pub struct IsStopwordFn {
+    signature: Signature,
+}
+
+#[cfg(feature = "text")]
+impl Default for IsStopwordFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "text")]
+impl IsStopwordFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], Some(ArgumentType::String)),
+        }
+    }
+}
+
+#[cfg(feature = "text")]
+impl Function for IsStopwordFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        use stop_words::{LANGUAGE, get};
+
+        self.signature.validate(args, ctx)?;
+        let word = args[0].as_string().unwrap();
+
+        let lang = if args.len() > 1 {
+            args[1].as_string().map(|s| s.to_string())
+        } else {
+            None
+        };
+
+        let language = match lang.as_deref() {
+            Some("ar" | "arabic") => LANGUAGE::Arabic,
+            Some("bg" | "bulgarian") => LANGUAGE::Bulgarian,
+            Some("ca" | "catalan") => LANGUAGE::Catalan,
+            Some("cs" | "czech") => LANGUAGE::Czech,
+            Some("da" | "danish") => LANGUAGE::Danish,
+            Some("nl" | "dutch") => LANGUAGE::Dutch,
+            Some("fi" | "finnish") => LANGUAGE::Finnish,
+            Some("fr" | "french") => LANGUAGE::French,
+            Some("de" | "german") => LANGUAGE::German,
+            Some("he" | "hebrew") => LANGUAGE::Hebrew,
+            Some("hi" | "hindi") => LANGUAGE::Hindi,
+            Some("hu" | "hungarian") => LANGUAGE::Hungarian,
+            Some("id" | "indonesian") => LANGUAGE::Indonesian,
+            Some("it" | "italian") => LANGUAGE::Italian,
+            Some("ja" | "japanese") => LANGUAGE::Japanese,
+            Some("ko" | "korean") => LANGUAGE::Korean,
+            Some("lv" | "latvian") => LANGUAGE::Latvian,
+            Some("no" | "norwegian") => LANGUAGE::Norwegian,
+            Some("fa" | "persian") => LANGUAGE::Persian,
+            Some("pl" | "polish") => LANGUAGE::Polish,
+            Some("pt" | "portuguese") => LANGUAGE::Portuguese,
+            Some("ro" | "romanian") => LANGUAGE::Romanian,
+            Some("ru" | "russian") => LANGUAGE::Russian,
+            Some("sk" | "slovak") => LANGUAGE::Slovak,
+            Some("es" | "spanish") => LANGUAGE::Spanish,
+            Some("sv" | "swedish") => LANGUAGE::Swedish,
+            Some("th" | "thai") => LANGUAGE::Thai,
+            Some("tr" | "turkish") => LANGUAGE::Turkish,
+            Some("uk" | "ukrainian") => LANGUAGE::Ukrainian,
+            Some("vi" | "vietnamese") => LANGUAGE::Vietnamese,
+            Some("zh" | "chinese") => LANGUAGE::Chinese,
+            _ => LANGUAGE::English,
+        };
+
+        let stopwords = get(language);
+        let is_stop = stopwords.iter().any(|sw| sw.eq_ignore_ascii_case(word));
+
+        Ok(Rc::new(Variable::Bool(is_stop)))
+    }
+}
+
+// =============================================================================
+// normalize_unicode(s, form?) -> string
+// Unicode normalization (NFC, NFD, NFKC, NFKD)
+// =============================================================================
+
+#[cfg(feature = "text")]
+pub struct NormalizeUnicodeFn {
+    signature: Signature,
+}
+
+#[cfg(feature = "text")]
+impl Default for NormalizeUnicodeFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "text")]
+impl NormalizeUnicodeFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], Some(ArgumentType::String)),
+        }
+    }
+}
+
+#[cfg(feature = "text")]
+impl Function for NormalizeUnicodeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        use unicode_normalization::UnicodeNormalization;
+
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+
+        let form = if args.len() > 1 {
+            args[1].as_string().map(|s| s.to_uppercase())
+        } else {
+            None
+        };
+
+        let normalized = match form.as_deref() {
+            Some("NFD") => s.nfd().collect::<String>(),
+            Some("NFKC") => s.nfkc().collect::<String>(),
+            Some("NFKD") => s.nfkd().collect::<String>(),
+            _ => s.nfc().collect::<String>(), // Default to NFC
+        };
+
+        Ok(Rc::new(Variable::String(normalized)))
+    }
+}
+
+// =============================================================================
+// remove_accents(s) -> string
+// Strip diacritics/accents from text
+// =============================================================================
+
+#[cfg(feature = "text")]
+pub struct RemoveAccentsFn {
+    signature: Signature,
+}
+
+#[cfg(feature = "text")]
+impl Default for RemoveAccentsFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "text")]
+impl RemoveAccentsFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], None),
+        }
+    }
+}
+
+#[cfg(feature = "text")]
+impl Function for RemoveAccentsFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        use unicode_normalization::UnicodeNormalization;
+
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+
+        // NFD normalize then filter out combining marks (diacritics)
+        let result: String = s
+            .nfd()
+            .filter(|c| !unicode_normalization::char::is_combining_mark(*c))
+            .collect();
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
+// =============================================================================
+// collapse_whitespace(s) -> string
+// Normalize whitespace (multiple spaces -> single, trim)
+// =============================================================================
+
+pub struct CollapseWhitespaceFn {
+    signature: Signature,
+}
+
+impl Default for CollapseWhitespaceFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CollapseWhitespaceFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String], None),
+        }
+    }
+}
+
+impl Function for CollapseWhitespaceFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        let s = args[0].as_string().unwrap();
+
+        let result: String = s.split_whitespace().collect::<Vec<_>>().join(" ");
+
+        Ok(Rc::new(Variable::String(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1002,5 +1551,142 @@ mod tests {
         assert_eq!(arr.len(), 2);
         assert_eq!(arr[0].as_string().unwrap(), "Hello,");
         assert_eq!(arr[1].as_string().unwrap(), "World!");
+    }
+
+    // =========================================================================
+    // stem tests
+    // =========================================================================
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_stem_basic() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""running""#).unwrap();
+        let expr = runtime.compile("stem(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "run");
+    }
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_stem_plural() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""cats""#).unwrap();
+        let expr = runtime.compile("stem(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "cat");
+    }
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_stems_array() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"["running", "cats", "quickly"]"#).unwrap();
+        let expr = runtime.compile("stems(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_string().unwrap(), "run");
+        assert_eq!(arr[1].as_string().unwrap(), "cat");
+        assert_eq!(arr[2].as_string().unwrap(), "quick");
+    }
+
+    // =========================================================================
+    // stopwords tests
+    // =========================================================================
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_stopwords_english() {
+        let runtime = setup();
+        let data = Variable::Null;
+        let expr = runtime.compile("stopwords()").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // English stopwords should include common words
+        let words: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_string().map(|s| s.to_string()))
+            .collect();
+        assert!(words.contains(&"the".to_string()));
+        assert!(words.contains(&"is".to_string()));
+        assert!(words.contains(&"a".to_string()));
+    }
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_remove_stopwords() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"["the", "quick", "brown", "fox"]"#).unwrap();
+        let expr = runtime.compile("remove_stopwords(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // "the" should be removed
+        let words: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_string().map(|s| s.to_string()))
+            .collect();
+        assert!(!words.contains(&"the".to_string()));
+        assert!(words.contains(&"quick".to_string()));
+        assert!(words.contains(&"brown".to_string()));
+        assert!(words.contains(&"fox".to_string()));
+    }
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_is_stopword() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""the""#).unwrap();
+        let expr = runtime.compile("is_stopword(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap());
+
+        let data = Variable::from_json(r#""elephant""#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(!result.as_boolean().unwrap());
+    }
+
+    // =========================================================================
+    // text normalization tests
+    // =========================================================================
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_normalize_unicode_default() {
+        let runtime = setup();
+        // café with combining acute accent (e + ́)
+        let data = Variable::from_json(r#""cafe\u0301""#).unwrap();
+        let expr = runtime.compile("normalize_unicode(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        // NFC should compose to é
+        assert_eq!(result.as_string().unwrap(), "café");
+    }
+
+    #[test]
+    #[cfg(feature = "text")]
+    fn test_remove_accents() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""café naïve résumé""#).unwrap();
+        let expr = runtime.compile("remove_accents(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "cafe naive resume");
+    }
+
+    #[test]
+    fn test_collapse_whitespace() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""  hello   world  ""#).unwrap();
+        let expr = runtime.compile("collapse_whitespace(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_collapse_whitespace_tabs_newlines() {
+        let runtime = setup();
+        let data = Variable::from_json(r#""hello\t\n\nworld""#).unwrap();
+        let expr = runtime.compile("collapse_whitespace(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), "hello world");
     }
 }

@@ -4391,6 +4391,97 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "stem"
+category = "text"
+description = "Stem a word using Snowball stemmer (Porter algorithm)"
+signature = "string, string? -> string"
+examples = [
+    { code = "stem('running') -> 'run'", description = "Basic stemming" },
+    { code = "stem('cats') -> 'cat'", description = "Plural stemming" },
+    { code = "stem('quickly') -> 'quick'", description = "Adverb stemming" },
+    { code = "stem('laufen', 'de') -> 'lauf'", description = "German stemming" },
+]
+features = ["text"]
+
+[[functions]]
+name = "stems"
+category = "text"
+description = "Stem an array of tokens"
+signature = "array, string? -> array"
+examples = [
+    { code = "stems(\\['running', 'cats'\\]) -> \\['run', 'cat'\\]", description = "Stem multiple words" },
+    { code = "tokens('The cats are running') | stems(@) -> \\['the', 'cat', 'are', 'run'\\]", description = "Pipeline with tokens" },
+]
+features = ["text"]
+
+[[functions]]
+name = "stopwords"
+category = "text"
+description = "Get stopwords list for a language (default: English)"
+signature = "string? -> array"
+examples = [
+    { code = "stopwords() | length(@) > `100`", description = "English has many stopwords" },
+    { code = "stopwords('es') | contains(@, 'el') -> true", description = "Spanish stopwords" },
+]
+features = ["text"]
+
+[[functions]]
+name = "remove_stopwords"
+category = "text"
+description = "Remove stopwords from token array"
+signature = "array, string? -> array"
+examples = [
+    { code = "remove_stopwords(\\['the', 'quick', 'fox'\\]) -> \\['quick', 'fox'\\]", description = "Remove English stopwords" },
+    { code = "tokens('The quick brown fox') | remove_stopwords(@) -> \\['quick', 'brown', 'fox'\\]", description = "Pipeline" },
+]
+features = ["text"]
+
+[[functions]]
+name = "is_stopword"
+category = "text"
+description = "Check if word is a stopword"
+signature = "string, string? -> boolean"
+examples = [
+    { code = "is_stopword('the') -> true", description = "Common stopword" },
+    { code = "is_stopword('elephant') -> false", description = "Not a stopword" },
+    { code = "is_stopword('el', 'es') -> true", description = "Spanish stopword" },
+]
+features = ["text"]
+
+[[functions]]
+name = "normalize_unicode"
+category = "text"
+description = "Unicode normalization (NFC, NFD, NFKC, NFKD)"
+signature = "string, string? -> string"
+examples = [
+    { code = "normalize_unicode('café') -> 'café'", description = "NFC normalization (default)" },
+    { code = "normalize_unicode('ﬁ', 'NFKC') -> 'fi'", description = "Compatibility decomposition" },
+]
+features = ["text"]
+
+[[functions]]
+name = "remove_accents"
+category = "text"
+description = "Strip diacritics/accents from text"
+signature = "string -> string"
+examples = [
+    { code = "remove_accents('café') -> 'cafe'", description = "Remove accent" },
+    { code = "remove_accents('naïve résumé') -> 'naive resume'", description = "Multiple accents" },
+]
+features = ["text"]
+
+[[functions]]
+name = "collapse_whitespace"
+category = "text"
+description = "Normalize whitespace (multiple spaces to single, trim)"
+signature = "string -> string"
+examples = [
+    { code = "collapse_whitespace('  hello   world  ') -> 'hello world'", description = "Collapse spaces" },
+    { code = "collapse_whitespace('hello\\t\\nworld') -> 'hello world'", description = "Collapse tabs and newlines" },
+]
+features = ["core"]
+
 # =============================================================================
 # TYPE FUNCTIONS
 # =============================================================================
