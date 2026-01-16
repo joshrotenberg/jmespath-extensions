@@ -138,7 +138,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run benchmarks
-        run: cargo bench --all-features --bench functions -- --noplot
+        run: cargo bench --all-features -p jmespath_extensions --bench functions -- --noplot
 
   # Python bindings CI
   python-test:
