@@ -385,6 +385,40 @@ echo '{"texts": ["running fast", "jumping high"]}' | jpx 'texts[*] | [*].tokens(
 
 ---
 
+## Using Query Libraries
+
+Save your NLP pipelines in a `.jpx` query library for reuse. See [examples/nlp.jpx](https://github.com/joshrotenberg/jmespath-extensions/blob/main/examples/nlp.jpx) for ready-to-use text processing queries:
+
+```bash
+# List available NLP queries
+jpx -Q examples/nlp.jpx --list-queries
+
+# Clean HTML from text
+echo '"<p>Hello <b>World</b>!</p>"' | jpx -Q examples/nlp.jpx:clean-html
+
+# Extract keywords
+echo '"The quick brown foxes are running quickly"' | jpx -Q examples/nlp.jpx:extract-keywords
+
+# Get reading statistics
+cat article.txt | jpx -Q examples/nlp.jpx:reading-stats
+```
+
+Create your own domain-specific library:
+
+```
+-- :name preprocess
+-- :desc Standard preprocessing pipeline
+tokens(@) | remove_stopwords(@) | stems(@)
+
+-- :name keyword-extract
+-- :desc Top 10 keywords from text
+tokens(@) | remove_stopwords(@) | stems(@) | frequencies(@) | to_entries(@) | sort_by(@, &value) | reverse(@) | [:10][*].key
+```
+
+See [Query Files](../../guide/query-files.md) for more on creating and using query libraries.
+
+---
+
 ## Related Functions
 
 - [Language Detection](../functions/language.md) - `detect_language`, `detect_script`

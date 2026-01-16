@@ -26,7 +26,7 @@ serde = { workspace = true, features = ["derive"] }
 
 [dependencies]
 jmespath.workspace = true
-jmespath_extensions = { workspace = true, features = ["full"] }
+jmespath_extensions = { workspace = true, features = ["full", "query-library"] }
 clap.workspace = true
 clap_complete.workspace = true
 serde.workspace = true

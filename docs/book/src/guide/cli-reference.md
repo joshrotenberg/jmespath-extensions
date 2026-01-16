@@ -21,7 +21,10 @@ jpx [OPTIONS] [EXPRESSIONS]...
 | Option | Description |
 |--------|-------------|
 | `-e, --expression <EXPR>` | Expression(s) to evaluate (can be repeated) |
-| `-Q, --query-file <FILE>` | Read JMESPath expression from file |
+| `-Q, --query-file <FILE>` | Read JMESPath expression from file (supports `.jpx` libraries with colon syntax: `file.jpx:query-name`) |
+| `--query <NAME>` | Select a named query from a `.jpx` library |
+| `--list-queries` | List all queries in a `.jpx` library file |
+| `--check` | Validate all queries in a `.jpx` library without running |
 | `-f, --file <FILE>` | Input JSON file (reads stdin if not provided) |
 | `-o, --output <FILE>` | Output file (writes to stdout if not provided) |
 | `-n, --null-input` | Don't read input, use null as input value |
@@ -255,6 +258,28 @@ jpx --repl -f data.json
 # Use only standard JMESPath functions (no extensions)
 jpx --strict 'length(items)' -f data.json
 ```
+
+### Query Libraries
+
+```bash
+# List queries in a .jpx library
+jpx -Q queries.jpx --list-queries
+
+# Run a named query (colon syntax)
+jpx -Q queries.jpx:active-users data.json
+
+# Run a named query (separate flag)
+jpx -Q queries.jpx --query active-users data.json
+
+# Validate all queries in a library
+jpx -Q queries.jpx --check
+
+# Simple query file (backwards compatible)
+echo 'users[?active]' > query.txt
+jpx -Q query.txt data.json
+```
+
+See [Query Files](./query-files.md) for detailed documentation on query libraries.
 
 ## Exit Codes
 

@@ -4,3 +4,5 @@
 
 #[cfg(feature = "mcp")]
 pub mod mcp;
+
+pub mod query_library;
