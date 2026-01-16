@@ -41,7 +41,7 @@ Output:
 
 ## Using Extension Functions
 
-Here's where jpx shines. Use any of the 360+ extension functions:
+Here's where jpx shines. Use any of the 400+ extension functions:
 
 ```bash
 # String manipulation
@@ -112,4 +112,4 @@ jpx --describe upper
 
 - [Basic Usage](./basic-usage.md) - Learn more CLI options
 - [CLI Reference](../guide/cli-reference.md) - Complete CLI documentation
-- [Function Reference](../functions/overview.md) - Browse all 360+ functions
+- [Function Reference](../functions/overview.md) - Browse all 400+ functions
