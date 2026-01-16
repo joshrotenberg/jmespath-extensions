@@ -18,6 +18,11 @@
 
 use std::rc::Rc;
 
+use heck::{
+    ToKebabCase, ToLowerCamelCase, ToShoutyKebabCase, ToShoutySnakeCase, ToSnakeCase, ToTitleCase,
+    ToTrainCase, ToUpperCamelCase,
+};
+
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
@@ -48,6 +53,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("camel_case", Box::new(CamelCaseFn::new()));
     runtime.register_function("snake_case", Box::new(SnakeCaseFn::new()));
     runtime.register_function("kebab_case", Box::new(KebabCaseFn::new()));
+    runtime.register_function("pascal_case", Box::new(PascalCaseFn::new()));
+    runtime.register_function("shouty_snake_case", Box::new(ShoutySnakeCaseFn::new()));
+    runtime.register_function("shouty_kebab_case", Box::new(ShoutyKebabCaseFn::new()));
+    runtime.register_function("train_case", Box::new(TrainCaseFn::new()));
     runtime.register_function("truncate", Box::new(TruncateFn::new()));
     runtime.register_function("wrap", Box::new(WrapFn::new()));
     runtime.register_function("format", Box::new(FormatFn::new()));
@@ -847,6 +856,7 @@ impl Function for LowerCaseFn {
 
 // =============================================================================
 // title_case(string) -> string (alias for title, snake_case style)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(TitleCaseFn, vec![ArgumentType::String], None);
@@ -863,26 +873,13 @@ impl Function for TitleCaseFn {
             )
         })?;
 
-        let result = s
-            .split_whitespace()
-            .map(|word| {
-                let mut chars = word.chars();
-                match chars.next() {
-                    None => String::new(),
-                    Some(first) => {
-                        first.to_uppercase().to_string() + &chars.as_str().to_lowercase()
-                    }
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        Ok(Rc::new(Variable::String(result)))
+        Ok(Rc::new(Variable::String(s.to_title_case())))
     }
 }
 
 // =============================================================================
 // camel_case(string) -> string (helloWorld)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(CamelCaseFn, vec![ArgumentType::String], None);
@@ -899,30 +896,13 @@ impl Function for CamelCaseFn {
             )
         })?;
 
-        let mut result = String::new();
-        let mut capitalize_next = false;
-        let mut first_word = true;
-
-        for c in s.chars() {
-            if c.is_alphanumeric() {
-                if capitalize_next && !first_word {
-                    result.push(c.to_ascii_uppercase());
-                    capitalize_next = false;
-                } else {
-                    result.push(c.to_ascii_lowercase());
-                }
-                first_word = false;
-            } else {
-                capitalize_next = true;
-            }
-        }
-
-        Ok(Rc::new(Variable::String(result)))
+        Ok(Rc::new(Variable::String(s.to_lower_camel_case())))
     }
 }
 
 // =============================================================================
 // snake_case(string) -> string (hello_world)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(SnakeCaseFn, vec![ArgumentType::String], None);
@@ -939,36 +919,13 @@ impl Function for SnakeCaseFn {
             )
         })?;
 
-        let mut result = String::new();
-        let mut prev_was_lower = false;
-
-        for c in s.chars() {
-            if c.is_uppercase() {
-                if prev_was_lower && !result.is_empty() {
-                    result.push('_');
-                }
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = false;
-            } else if c.is_alphanumeric() {
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = c.is_lowercase();
-            } else if !result.is_empty() && !result.ends_with('_') {
-                result.push('_');
-                prev_was_lower = false;
-            }
-        }
-
-        // Trim trailing underscore
-        if result.ends_with('_') {
-            result.pop();
-        }
-
-        Ok(Rc::new(Variable::String(result)))
+        Ok(Rc::new(Variable::String(s.to_snake_case())))
     }
 }
 
 // =============================================================================
 // kebab_case(string) -> string (hello-world)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(KebabCaseFn, vec![ArgumentType::String], None);
@@ -985,31 +942,99 @@ impl Function for KebabCaseFn {
             )
         })?;
 
-        let mut result = String::new();
-        let mut prev_was_lower = false;
+        Ok(Rc::new(Variable::String(s.to_kebab_case())))
+    }
+}
 
-        for c in s.chars() {
-            if c.is_uppercase() {
-                if prev_was_lower && !result.is_empty() {
-                    result.push('-');
-                }
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = false;
-            } else if c.is_alphanumeric() {
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = c.is_lowercase();
-            } else if !result.is_empty() && !result.ends_with('-') {
-                result.push('-');
-                prev_was_lower = false;
-            }
-        }
+// =============================================================================
+// pascal_case(string) -> string (HelloWorld)
+// Uses heck crate - also known as UpperCamelCase
+// =============================================================================
 
-        // Trim trailing hyphen
-        if result.ends_with('-') {
-            result.pop();
-        }
+define_function!(PascalCaseFn, vec![ArgumentType::String], None);
 
-        Ok(Rc::new(Variable::String(result)))
+impl Function for PascalCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_upper_camel_case())))
+    }
+}
+
+// =============================================================================
+// shouty_snake_case(string) -> string (HELLO_WORLD)
+// Uses heck crate - useful for constants
+// =============================================================================
+
+define_function!(ShoutySnakeCaseFn, vec![ArgumentType::String], None);
+
+impl Function for ShoutySnakeCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_shouty_snake_case())))
+    }
+}
+
+// =============================================================================
+// shouty_kebab_case(string) -> string (HELLO-WORLD)
+// Uses heck crate
+// =============================================================================
+
+define_function!(ShoutyKebabCaseFn, vec![ArgumentType::String], None);
+
+impl Function for ShoutyKebabCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_shouty_kebab_case())))
+    }
+}
+
+// =============================================================================
+// train_case(string) -> string (Hello-World)
+// Uses heck crate - like HTTP headers (Content-Type)
+// =============================================================================
+
+define_function!(TrainCaseFn, vec![ArgumentType::String], None);
+
+impl Function for TrainCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_train_case())))
     }
 }
 

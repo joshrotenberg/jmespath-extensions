@@ -45,6 +45,7 @@ whatlang = { workspace = true, optional = true }
 rust-stemmers = { workspace = true, optional = true }
 stop-words = { workspace = true, optional = true }
 unicode-normalization = { workspace = true, optional = true }
+heck.workspace = true
 
 [features]
 default = ["full"]

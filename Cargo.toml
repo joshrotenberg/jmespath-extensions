@@ -55,6 +55,7 @@ whatlang = "0.18"
 rust-stemmers = "1.2"
 stop-words = "0.9"
 unicode-normalization = "0.1"
+heck = "0.5"
 
 # MCP server dependencies
 rmcp = { version = "0.12", features = ["server", "transport-io", "macros"] }
