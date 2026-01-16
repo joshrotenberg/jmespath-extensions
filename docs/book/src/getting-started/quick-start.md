@@ -1,115 +1,80 @@
 # Quick Start
 
-This guide will get you up and running with jpx in just a few minutes.
+Five things to know to start using jpx.
 
-## Your First Query
-
-Let's start with a simple JSON object:
+## 1. Get a field
 
 ```bash
-echo '{"name": "Alice", "age": 30}' | jpx 'name'
+echo '{"name": "Alice", "city": "NYC"}' | jpx 'name'
+# "Alice"
 ```
 
-Output:
-```
-"Alice"
-```
-
-## Querying Arrays
-
-Access array elements and properties:
+Nested fields use dots:
 
 ```bash
-echo '{"users": [{"name": "Alice"}, {"name": "Bob"}]}' | jpx 'users[0].name'
+echo '{"user": {"name": "Alice"}}' | jpx 'user.name'
+# "Alice"
 ```
 
-Output:
-```
-"Alice"
-```
+## 2. Get all items from an array
 
-Get all names:
+Use `[*]` to get every element:
 
 ```bash
-echo '{"users": [{"name": "Alice"}, {"name": "Bob"}]}' | jpx 'users[*].name'
+echo '[{"name": "Alice"}, {"name": "Bob"}]' | jpx '[*].name'
+# ["Alice", "Bob"]
 ```
 
-Output:
-```
-["Alice", "Bob"]
-```
+## 3. Filter an array
 
-## Using Extension Functions
-
-Here's where jpx shines. Use any of the 400+ extension functions:
+Use `[?condition]` to filter:
 
 ```bash
-# String manipulation
-echo '{"name": "hello world"}' | jpx 'upper(name)'
-# "HELLO WORLD"
-
-# Array operations
-echo '{"nums": [3, 1, 4, 1, 5, 9, 2, 6]}' | jpx 'unique(nums) | sort(@)'
-# [1, 2, 3, 4, 5, 6, 9]
-
-# Math functions
-echo '{"values": [10, 20, 30, 40, 50]}' | jpx 'avg(values)'
-# 30
-
-# Current timestamp
-echo '{}' | jpx 'now()'
-# 1705312200
+echo '[{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]' | jpx '[?age > `28`]'
+# [{"name": "Alice", "age": 30}]
 ```
 
-## Raw Output
+Note: literal values use backticks (`` `28` ``).
 
-Use `-r` to output strings without quotes:
+## 4. Call a function
+
+jpx has 400+ functions. Pass data with `@` (current value):
 
 ```bash
-echo '{"greeting": "Hello, World!"}' | jpx -r 'greeting'
+echo '[3, 1, 4, 1, 5]' | jpx 'sort(@)'
+# [1, 1, 3, 4, 5]
+
+echo '[3, 1, 4, 1, 5]' | jpx 'unique(@)'
+# [3, 1, 4, 5]
+
+echo '{"name": "hello"}' | jpx 'upper(name)'
+# "HELLO"
 ```
 
-Output:
-```
-Hello, World!
-```
+## 5. Chain with pipes
 
-## Reading from Files
-
-Query a JSON file directly:
+Combine operations with `|`:
 
 ```bash
-jpx 'users[*].email' -f data.json
+echo '[{"n": "Alice"}, {"n": "Bob"}, {"n": "Alice"}]' | jpx '[*].n | unique(@) | sort(@)'
+# ["Alice", "Bob"]
 ```
 
-## Piping and Chaining
+---
 
-Chain multiple expressions with the pipe operator:
+That's it. You can do a lot with just these five patterns.
 
-```bash
-echo '{"items": ["apple", "banana", "cherry"]}' | jpx 'items | [0]'
-# "apple"
+## Finding Functions
 
-echo '{"name": "john doe"}' | jpx 'name | upper(@) | split(@, ` `)'
-# ["JOHN", "DOE"]
-```
-
-## Function Discovery
-
-Find functions by category:
+Don't memorize 400 functions. Search for what you need:
 
 ```bash
-jpx --list-category string
-```
-
-Get details about a specific function:
-
-```bash
-jpx --describe upper
+jpx --search "remove duplicates"
+jpx --describe unique
 ```
 
 ## Next Steps
 
-- [Basic Usage](./basic-usage.md) - Learn more CLI options
-- [CLI Reference](../guide/cli-reference.md) - Complete CLI documentation
-- [Function Reference](../functions/overview.md) - Browse all 400+ functions
+- [Cookbook](../guide/cookbook.md) - Common tasks and recipes
+- [Basic Usage](./basic-usage.md) - More CLI options
+- [Function Reference](../functions/overview.md) - All functions by category
