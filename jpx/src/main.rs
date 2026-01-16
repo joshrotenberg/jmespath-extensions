@@ -840,8 +840,7 @@ fn run() -> Result<()> {
             parse_slurp(&input)?
         } else {
             // Normal mode - parse single JSON value
-            Variable::from_json(&input)
-                .map_err(|e| anyhow::anyhow!("Failed to parse JSON input: {}", e))?
+            Variable::from_json(&input).map_err(|e| json_parse_error(&input, e))?
         }
     };
 
@@ -1003,6 +1002,59 @@ fn run() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Create a helpful error message for JSON parse failures
+fn json_parse_error(input: &str, err: impl std::fmt::Display) -> anyhow::Error {
+    let trimmed = input.trim();
+    let preview = if trimmed.len() > 40 {
+        format!("{}...", &trimmed[..40])
+    } else {
+        trimmed.to_string()
+    };
+
+    // Detect common issues and provide specific suggestions
+    let suggestion = if trimmed.is_empty() {
+        "Input is empty. Use --null-input (-n) if you don't need input data.".to_string()
+    } else if !trimmed.starts_with('{')
+        && !trimmed.starts_with('[')
+        && !trimmed.starts_with('"')
+        && !trimmed.starts_with('-')
+        && !trimmed
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        && trimmed != "true"
+        && trimmed != "false"
+        && trimmed != "null"
+    {
+        // Looks like plain text, not JSON
+        format!(
+            "Input appears to be plain text, not JSON.\n\n\
+             To pass a string value, wrap it in quotes:\n\
+               echo '\"{}\"' | jpx ...\n\n\
+             Or use --null-input (-n) if you don't need input data.",
+            preview.replace('\\', "\\\\").replace('"', "\\\"")
+        )
+    } else if trimmed.starts_with('\'') || trimmed.contains("': ") || trimmed.contains("':'") {
+        // Single quotes - common mistake
+        "JSON requires double quotes for strings, not single quotes.\n\
+         Replace ' with \" in your input."
+            .to_string()
+    } else {
+        // For other JSON parse errors, include the original error
+        format!(
+            "Parse error: {}\n\n\
+             Tip: Ensure your input is valid JSON. Common issues:\n\
+             - Strings must use double quotes (\"), not single quotes (')\n\
+             - Keys must be quoted: {{\"key\": \"value\"}}\n\
+             - No trailing commas in arrays or objects",
+            err
+        )
+    };
+
+    anyhow::anyhow!("Failed to parse JSON input\n\n{}", suggestion)
 }
 
 /// Parse multiple JSON values from input into an array
