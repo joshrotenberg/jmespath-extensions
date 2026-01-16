@@ -52,6 +52,7 @@
 - [Text](./functions/text.md)
 - [Language](./functions/language.md)
 - [Fuzzy](./functions/fuzzy.md)
+- [Discovery](./functions/discovery.md)
 - [Phonetic](./functions/phonetic.md)
 - [Network](./functions/network.md)
 - [Geo](./functions/geo.md)
