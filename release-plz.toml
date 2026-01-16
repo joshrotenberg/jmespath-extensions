@@ -21,8 +21,5 @@ publish = true
 git_release_enable = false
 git_tag_name = "jpx-v{{ version }}"
 
-# Python bindings - excluded from release-plz, uses separate python-release workflow
-[[package]]
-name = "jmespath-extensions-py"
-release = false
-publish = false
+# Note: jmespath-extensions-py is excluded from Cargo workspace and uses
+# a separate python-release workflow, so it's not listed here.
