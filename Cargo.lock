@@ -1080,6 +1080,7 @@ version = "0.1.17"
 dependencies = [
  "anyhow",
  "atty",
+ "chrono",
  "clap",
  "clap_complete",
  "colored",

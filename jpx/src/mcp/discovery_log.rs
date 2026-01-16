@@ -273,7 +273,10 @@ mod tests {
     #[test]
     fn test_logger_with_custom_dir() {
         let temp_dir = TempDir::new().unwrap();
-        std::env::set_var("JPX_DISCOVERY_LOG_DIR", temp_dir.path());
+        // SAFETY: This test runs in isolation and doesn't spawn threads that read this env var
+        unsafe {
+            std::env::set_var("JPX_DISCOVERY_LOG_DIR", temp_dir.path());
+        }
 
         let mut logger = DiscoveryLogger::new();
         assert!(logger.is_enabled());
@@ -296,6 +299,9 @@ mod tests {
         let log_path = temp_dir.path().join("discovery.jsonl");
         assert!(log_path.exists());
 
-        std::env::remove_var("JPX_DISCOVERY_LOG_DIR");
+        // SAFETY: This test runs in isolation and doesn't spawn threads that read this env var
+        unsafe {
+            std::env::remove_var("JPX_DISCOVERY_LOG_DIR");
+        }
     }
 }
