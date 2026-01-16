@@ -41,7 +41,7 @@ jpx 'features[*].{mag: properties.mag, place: properties.place}' quakes.json
 - `length` and counting patterns
 
 ### Geographic Calculations
-- `haversine` for distance calculations
+- `geo_distance_km` for distance calculations
 - Coordinate extraction and formatting
 - Distance-based sorting
 
