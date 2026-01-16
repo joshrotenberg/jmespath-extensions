@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.17](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.16...jpx-v0.1.17) - 2026-01-16
+
+### Added
+
+- *(discovery)* add search preprocessing for better BM25 indexing ([#333](https://github.com/joshrotenberg/jmespath-extensions/pull/333))
+- *(cli)* improve help discoverability and set default binary ([#315](https://github.com/joshrotenberg/jmespath-extensions/pull/315))
+- *(cli)* add two-tier help system (-h short, --help long) ([#313](https://github.com/joshrotenberg/jmespath-extensions/pull/313))
+
 ## [0.1.16](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.15...jpx-v0.1.16) - 2026-01-14
 
 ### Added

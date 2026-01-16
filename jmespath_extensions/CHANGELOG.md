@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.0...v0.8.1) - 2026-01-16
+
+### Added
+
+- *(discovery)* add search preprocessing for better BM25 indexing ([#333](https://github.com/joshrotenberg/jmespath-extensions/pull/333))
+- *(text)* add NLP toolkit functions ([#320](https://github.com/joshrotenberg/jmespath-extensions/pull/320))
+- *(cli)* improve help discoverability and set default binary ([#315](https://github.com/joshrotenberg/jmespath-extensions/pull/315))
+
+### Fixed
+
+- correct JMESPath literal syntax in function examples ([#334](https://github.com/joshrotenberg/jmespath-extensions/pull/334))
+
 ## [0.8.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.7.0...v0.8.0) - 2026-01-14
 
 ### Added
