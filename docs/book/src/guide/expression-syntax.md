@@ -159,6 +159,18 @@ echo '{"a": [1, 2], "b": [3, 4]}' | jpx 'merge(a, b)'
 # [1, 2, 3, 4]
 ```
 
+Functions can take literal JSON values as arguments using backticks:
+
+```bash
+# Apply default values to an object
+echo '{"name": "Alice"}' | jpx 'defaults(@, `{"role": "user", "active": true}`)'
+# {"name": "Alice", "role": "user", "active": true}
+
+# Build an object from key-value pairs
+echo 'null' | jpx 'from_items(`[["a", 1], ["b", 2]]`)'
+# {"a": 1, "b": 2}
+```
+
 ## Expression References
 
 Use `&` for expression references (used with higher-order functions):
