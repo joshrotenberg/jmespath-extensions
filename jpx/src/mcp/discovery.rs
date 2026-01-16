@@ -36,6 +36,149 @@ const STOP_WORDS: &[&str] = &[
     "into", "through", "during", "before", "under", "over",
 ];
 
+/// Preprocess text for search indexing.
+///
+/// This function cleans up text before indexing to improve search relevance:
+/// 1. Strips JMESPath literal syntax (backticks, escaped quotes)
+/// 2. Expands common regex patterns to natural language
+/// 3. Converts snake_case to separate words
+/// 4. Removes noise characters
+fn preprocess_for_search(text: &str) -> String {
+    let mut result = text.to_string();
+
+    // Strip JMESPath backtick literals: `"..."` -> ...
+    // This handles patterns like `"\n"` -> newline, `"\\d+"` -> digits
+    result = strip_jmespath_literals(&result);
+
+    // Expand common regex patterns to natural language
+    result = expand_regex_patterns(&result);
+
+    // Convert snake_case and camelCase to separate words
+    result = expand_identifiers(&result);
+
+    // Clean up extra whitespace
+    result.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Strip JMESPath backtick literal syntax from text.
+fn strip_jmespath_literals(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '`' {
+            // Skip backtick and its contents, but extract meaningful parts
+            let mut inner = String::new();
+            for inner_c in chars.by_ref() {
+                if inner_c == '`' {
+                    break;
+                }
+                inner.push(inner_c);
+            }
+            // Extract content from JSON string if it looks like `"..."`
+            let trimmed = inner.trim();
+            if trimmed.starts_with('"') && trimmed.ends_with('"') {
+                let content = &trimmed[1..trimmed.len() - 1];
+                // Expand escape sequences to words
+                let expanded = expand_escape_sequences(content);
+                result.push(' ');
+                result.push_str(&expanded);
+                result.push(' ');
+            } else {
+                // Just include the inner content
+                result.push(' ');
+                result.push_str(trimmed);
+                result.push(' ');
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+/// Expand escape sequences to natural language.
+fn expand_escape_sequences(text: &str) -> String {
+    text.replace("\\n", " newline linebreak ")
+        .replace("\\r", " return ")
+        .replace("\\t", " tab ")
+        .replace("\\s", " whitespace space ")
+        .replace("\\d", " digit number numeric ")
+        .replace("\\w", " word alphanumeric ")
+        .replace("\\b", " boundary ")
+        .replace("\\\\", " ")
+}
+
+/// Expand common regex patterns to natural language.
+fn expand_regex_patterns(text: &str) -> String {
+    text
+        // Common regex character classes
+        .replace("[0-9]", " digit number ")
+        .replace("[a-z]", " letter lowercase ")
+        .replace("[A-Z]", " letter uppercase ")
+        .replace("[a-zA-Z]", " letter alphabetic ")
+        .replace("[^>]", " ")
+        .replace(".*", " any anything ")
+        .replace(".+", " one more any ")
+        .replace("\\d+", " digits numbers numeric ")
+        .replace("\\w+", " words alphanumeric ")
+        .replace("\\s+", " whitespace spaces ")
+        .replace("\\S+", " nonwhitespace ")
+        // Clean up regex metacharacters
+        .replace(
+            ['[', ']', '(', ')', '{', '}', '*', '+', '?', '^', '$', '|'],
+            " ",
+        )
+}
+
+/// Expand snake_case and camelCase identifiers to separate words.
+fn expand_identifiers(text: &str) -> String {
+    let mut result = String::with_capacity(text.len() * 2);
+
+    for word in text.split_whitespace() {
+        // Handle snake_case
+        if word.contains('_') {
+            for part in word.split('_') {
+                if !part.is_empty() {
+                    result.push_str(part);
+                    result.push(' ');
+                }
+            }
+            // Also keep the original for exact matches
+            result.push_str(word);
+            result.push(' ');
+        }
+        // Handle camelCase (basic implementation)
+        else if word.chars().any(|c| c.is_uppercase()) && word.chars().any(|c| c.is_lowercase()) {
+            let mut prev_was_upper = false;
+            let mut current_word = String::new();
+
+            for c in word.chars() {
+                if c.is_uppercase() && !prev_was_upper && !current_word.is_empty() {
+                    result.push_str(&current_word.to_lowercase());
+                    result.push(' ');
+                    current_word.clear();
+                }
+                current_word.push(c);
+                prev_was_upper = c.is_uppercase();
+            }
+            if !current_word.is_empty() {
+                result.push_str(&current_word.to_lowercase());
+                result.push(' ');
+            }
+            // Also keep the original
+            result.push_str(word);
+            result.push(' ');
+        } else {
+            result.push_str(word);
+            result.push(' ');
+        }
+    }
+
+    result
+}
+
 /// Discovery spec - the schema MCP servers use to register their tools
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoverySpec {
@@ -289,11 +432,27 @@ impl DiscoveryRegistry {
             return;
         }
 
-        // Convert tools to indexable documents
+        // Convert tools to indexable documents with preprocessed text
         let docs: Vec<Value> = self
             .tools
             .iter()
             .map(|(id, (server, tool))| {
+                let summary = tool.summary.as_deref().unwrap_or("");
+                let description = tool.description.as_deref().unwrap_or("");
+
+                // Preprocess text fields for better search
+                let expanded_summary = preprocess_for_search(summary);
+                let expanded_description = preprocess_for_search(description);
+
+                // Also preprocess examples for searchable content
+                let examples_text: String = tool
+                    .examples
+                    .iter()
+                    .filter_map(|ex| ex.description.as_ref())
+                    .map(|d| preprocess_for_search(d))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
                 serde_json::json!({
                     "id": id,
                     "server": server,
@@ -301,9 +460,13 @@ impl DiscoveryRegistry {
                     "aliases": tool.aliases.join(" "),
                     "category": tool.category.as_deref().unwrap_or(""),
                     "tags": tool.tags.join(" "),
-                    "summary": tool.summary.as_deref().unwrap_or(""),
-                    "description": tool.description.as_deref().unwrap_or(""),
+                    "summary": summary,
+                    "description": description,
                     "params": tool.params.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(" "),
+                    // Expanded fields for better search
+                    "expanded_summary": expanded_summary,
+                    "expanded_description": expanded_description,
+                    "expanded_examples": examples_text,
                 })
             })
             .collect();
@@ -317,6 +480,10 @@ impl DiscoveryRegistry {
                 "summary".to_string(),
                 "description".to_string(),
                 "params".to_string(),
+                // Include expanded fields in search
+                "expanded_summary".to_string(),
+                "expanded_description".to_string(),
+                "expanded_examples".to_string(),
             ],
             id_field: Some("id".to_string()),
             stopwords: STOP_WORDS.iter().map(|s| s.to_string()).collect(),
@@ -736,5 +903,134 @@ mod tests {
         assert_eq!(stats.doc_count, 3);
         assert_eq!(stats.server_count, 1);
         assert!(stats.term_count > 0);
+    }
+
+    // Preprocessing tests
+
+    #[test]
+    fn test_strip_jmespath_literals() {
+        // Basic backtick literal with JSON string
+        assert!(strip_jmespath_literals(r#"split text on `"\n"` newlines"#).contains("newline"));
+
+        // Backtick with escaped regex
+        let result = strip_jmespath_literals(r#"match `"\\d+"` digits"#);
+        assert!(result.contains("digit"));
+
+        // Multiple backticks
+        let result = strip_jmespath_literals(r#"use `"\t"` for tabs and `"\n"` for lines"#);
+        assert!(result.contains("tab"));
+        assert!(result.contains("newline"));
+
+        // Non-string backtick content preserved
+        let result = strip_jmespath_literals(r#"literal `123` number"#);
+        assert!(result.contains("123"));
+    }
+
+    #[test]
+    fn test_expand_escape_sequences() {
+        assert!(expand_escape_sequences(r"\n").contains("newline"));
+        assert!(expand_escape_sequences(r"\t").contains("tab"));
+        assert!(expand_escape_sequences(r"\d").contains("digit"));
+        assert!(expand_escape_sequences(r"\w").contains("word"));
+        assert!(expand_escape_sequences(r"\s").contains("whitespace"));
+    }
+
+    #[test]
+    fn test_expand_regex_patterns() {
+        assert!(expand_regex_patterns(r"\d+").contains("digits"));
+        assert!(expand_regex_patterns(r"\w+").contains("words"));
+        assert!(expand_regex_patterns(r"[0-9]").contains("digit"));
+        assert!(expand_regex_patterns(r"[a-zA-Z]").contains("letter"));
+        assert!(expand_regex_patterns(r".*").contains("any"));
+
+        // Metacharacters should be stripped
+        let result = expand_regex_patterns(r"foo[bar]+baz");
+        assert!(!result.contains('['));
+        assert!(!result.contains(']'));
+        assert!(!result.contains('+'));
+    }
+
+    #[test]
+    fn test_expand_identifiers() {
+        // snake_case should expand
+        let result = expand_identifiers("get_user_info");
+        assert!(result.contains("get"));
+        assert!(result.contains("user"));
+        assert!(result.contains("info"));
+        // Original preserved for exact match
+        assert!(result.contains("get_user_info"));
+
+        // camelCase should expand
+        let result = expand_identifiers("getUserInfo");
+        assert!(result.contains("get"));
+        assert!(result.contains("user"));
+        assert!(result.contains("info"));
+        // Original preserved
+        assert!(result.contains("getUserInfo"));
+
+        // Simple words unchanged
+        let result = expand_identifiers("simple");
+        assert!(result.contains("simple"));
+    }
+
+    #[test]
+    fn test_preprocess_for_search_integration() {
+        // Full preprocessing pipeline
+        let input = r#"Split on `"\n"` to get lines, use regex_extract for \d+ numbers"#;
+        let result = preprocess_for_search(input);
+
+        // Should contain expanded terms
+        assert!(result.contains("newline") || result.contains("linebreak"));
+        assert!(result.contains("digit") || result.contains("number"));
+        assert!(result.contains("regex"));
+        assert!(result.contains("extract"));
+
+        // Should not have excess whitespace
+        assert!(!result.contains("  "));
+    }
+
+    #[test]
+    fn test_preprocess_preserves_search_terms() {
+        // Make sure useful search terms aren't lost
+        let input = "Create a new database connection";
+        let result = preprocess_for_search(input);
+
+        assert!(result.contains("Create"));
+        assert!(result.contains("database"));
+        assert!(result.contains("connection"));
+    }
+
+    #[test]
+    fn test_search_with_preprocessed_content() {
+        // Test that preprocessing improves search for escape-heavy descriptions
+        let spec: DiscoverySpec = serde_json::from_value(serde_json::json!({
+            "server": {"name": "text-tools"},
+            "tools": [
+                {
+                    "name": "split_lines",
+                    "summary": r#"Split text on newlines using `"\n"` delimiter"#,
+                    "description": r#"Splits input string on newline characters. Use split(@, `"\n"`) syntax."#
+                },
+                {
+                    "name": "extract_numbers",
+                    "summary": r#"Extract numeric patterns with regex `"\\d+"`"#,
+                    "description": r#"Uses regex_extract to find all \d+ digit sequences in text."#
+                }
+            ]
+        }))
+        .unwrap();
+
+        let mut registry = DiscoveryRegistry::new();
+        registry.register(spec, false);
+
+        // Search for "newline" should find split_lines due to preprocessing
+        let results = registry.query("newline", 10);
+        assert!(!results.is_empty());
+        assert_eq!(results[0].tool.name, "split_lines");
+
+        // Search for "digit" should find extract_numbers
+        let results = registry.query("digit", 10);
+        assert!(!results.is_empty());
+        assert_eq!(results[0].tool.name, "extract_numbers");
     }
 }
