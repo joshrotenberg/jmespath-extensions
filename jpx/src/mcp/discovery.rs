@@ -493,6 +493,11 @@ impl DiscoveryRegistry {
         self.index = Some(Bm25Index::build(&docs, options));
     }
 
+    /// Get the total number of tools in the registry
+    pub fn tool_count(&self) -> usize {
+        self.tools.len()
+    }
+
     /// Query tools across all registered servers
     pub fn query(&self, query: &str, top_k: usize) -> Vec<ToolQueryResult> {
         let Some(index) = &self.index else {

@@ -12,6 +12,7 @@ use serde_json::Value;
 use std::sync::{OnceLock, RwLock};
 
 use super::discovery::{DiscoveryRegistry, DiscoverySpec};
+use super::discovery_log::{self, DiscoveryFeedback, DiscoveryLogEntry};
 
 /// Global JMESPath runtime with all extensions registered
 static RUNTIME_FULL: OnceLock<Runtime> = OnceLock::new();
@@ -264,6 +265,25 @@ fn default_similar_k() -> usize {
 pub struct UnregisterDiscoveryParams {
     /// Server name to unregister
     pub server_name: String,
+}
+
+/// Parameters for the report_discovery_feedback tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ReportDiscoveryFeedbackParams {
+    /// The search query that was run
+    pub query: String,
+    /// Tool the user expected to find (optional)
+    #[serde(default)]
+    pub expected_tool: Option<String>,
+    /// Actual results returned by the query (optional)
+    #[serde(default)]
+    pub actual_results: Option<Vec<String>>,
+    /// Whether the results were useful (optional)
+    #[serde(default)]
+    pub useful: Option<bool>,
+    /// Free-form note about the search experience (optional)
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 // =============================================================================
@@ -1179,12 +1199,34 @@ impl JpxMcp {
         &self,
         Parameters(params): Parameters<QueryToolsParams>,
     ) -> Result<CallToolResult, McpError> {
-        let results = {
+        let start = std::time::Instant::now();
+
+        let (results, index_doc_count) = {
             let registry = discovery_registry()
                 .read()
                 .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
-            registry.query(&params.query, params.top_k)
+            let results = registry.query(&params.query, params.top_k);
+            let doc_count = registry.tool_count();
+            (results, doc_count)
         };
+
+        let duration = start.elapsed();
+
+        // Log the query for discovery analytics
+        if let Ok(mut logger) = discovery_log::logger().lock() {
+            let entry = DiscoveryLogEntry {
+                timestamp: chrono::Utc::now(),
+                session_id: None,
+                query: params.query.clone(),
+                top_k: params.top_k,
+                results: results.iter().map(|r| r.tool.name.clone()).collect(),
+                result_count: results.len(),
+                query_duration_ms: duration.as_millis() as u64,
+                index_doc_count,
+                appears_retry: None,
+            };
+            logger.log_query(entry);
+        }
 
         json_result(&results)
     }
@@ -1282,6 +1324,37 @@ impl JpxMcp {
                 "Server '{}' was not registered",
                 params.server_name
             )))
+        }
+    }
+
+    /// Report feedback on discovery search results
+    #[tool(
+        description = "Report feedback on discovery search results to help improve search quality. Use this when a search didn't return expected results or to note what worked well. Feedback is logged locally for analysis."
+    )]
+    async fn report_discovery_feedback(
+        &self,
+        Parameters(params): Parameters<ReportDiscoveryFeedbackParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let feedback = DiscoveryFeedback {
+            timestamp: chrono::Utc::now(),
+            session_id: None,
+            query: params.query.clone(),
+            expected_tool: params.expected_tool,
+            actual_results: params.actual_results,
+            useful: params.useful,
+            note: params.note,
+        };
+
+        if let Ok(mut logger) = discovery_log::logger().lock() {
+            logger.log_feedback(feedback);
+            Ok(text_result(format!(
+                "Feedback recorded for query '{}'. Thank you for helping improve discovery!",
+                params.query
+            )))
+        } else {
+            Ok(error_result(
+                "Failed to record feedback - logger unavailable",
+            ))
         }
     }
 }

@@ -5,6 +5,7 @@
 
 pub mod bm25;
 pub mod discovery;
+pub mod discovery_log;
 mod tools;
 
 use anyhow::Result;
