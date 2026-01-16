@@ -412,7 +412,7 @@ tokens(@) | remove_stopwords(@) | stems(@)
 
 -- :name keyword-extract
 -- :desc Top 10 keywords from text
-tokens(@) | remove_stopwords(@) | stems(@) | frequencies(@) | to_entries(@) | sort_by(@, &value) | reverse(@) | [:10][*].key
+tokens(@) | remove_stopwords(@) | stems(@) | frequencies(@) | items(@) | sort_by(@, &[1]) | reverse(@) | [:10][*][0]
 ```
 
 See [Query Files](../../guide/query-files.md) for more on creating and using query libraries.

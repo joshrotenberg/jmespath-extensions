@@ -249,12 +249,12 @@ jpx 'features[*].{
 
 ### Distance from a Reference Point
 
-Calculate distance from San Francisco (37.7749, -122.4194) using the `haversine` function:
+Calculate distance from San Francisco (37.7749, -122.4194) using the `geo_distance_km` function:
 
 ```bash
 jpx 'features[*].{
   place: properties.place,
-  distance_km: round(haversine(
+  distance_km: round(geo_distance_km(
     `37.7749`, `-122.4194`,
     geometry.coordinates[1], geometry.coordinates[0]
   ), `0`)
@@ -274,7 +274,7 @@ Output:
 ### Find Nearest Earthquake
 
 ```bash
-jpx 'min_by(features, &haversine(
+jpx 'min_by(features, &geo_distance_km(
   `37.7749`, `-122.4194`,
   geometry.coordinates[1], geometry.coordinates[0]
 )).properties.title' earthquakes.json
@@ -420,7 +420,7 @@ jpx 'features
 
 ## Related Functions
 
-- [`haversine`](../functions/geo.md#haversine) - Calculate distance between coordinates
+- [`geo_distance_km`](../functions/geo.md#geo_distance_km) - Calculate distance between coordinates
 - [`avg`](../functions/math.md#avg), [`median`](../functions/math.md#median), [`stddev`](../functions/math.md#stddev) - Statistical functions
 - [`from_unixtime`](../functions/datetime.md#from_unixtime) - Convert timestamps
 - [`sort_by`](../functions/standard.md#sort_by), [`min_by`](../functions/standard.md#min_by), [`max_by`](../functions/standard.md#max_by) - Sorting functions
