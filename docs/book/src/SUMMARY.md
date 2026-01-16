@@ -4,7 +4,6 @@
 
 # Getting Started
 
-- [Why jpx?](./getting-started/why-jpx.md)
 - [Installation](./getting-started/installation.md)
 - [Quick Start](./getting-started/quick-start.md)
 - [Basic Usage](./getting-started/basic-usage.md)
@@ -19,7 +18,7 @@
 - [Working with Files](./guide/working-with-files.md)
 - [Query Files](./guide/query-files.md)
 - [Strict Mode](./guide/strict-mode.md)
-- [jq Comparison](./examples/jq-comparison.md)
+- [Why jpx?](./guide/why-jpx.md)
 
 # MCP Server
 

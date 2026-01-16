@@ -52,14 +52,20 @@ That's 5 lines (plus saving to a file, making it executable, etc.) vs. a single 
 
 ## Composable One-Liners
 
-Shell pipelines are underrated. With jpx, you can chain transformations naturally:
+Shell pipelines are underrated. With jpx, you can do complex transformations in a single expression:
 
 ```bash
-# Fetch, filter, transform, and format in one line
+# Fetch, filter, transform, and sort in one line
+curl -s https://api.github.com/users/octocat/repos \
+  | jpx '[?stargazers_count > `100`] | sort_by(@, &stargazers_count) | reverse(@) | [*].{name: name, stars: stargazers_count}'
+```
+
+Or break it into multiple jpx calls when debugging:
+
+```bash
 curl -s https://api.github.com/users/octocat/repos \
   | jpx '[?stargazers_count > `100`]' \
-  | jpx '[*].{name: name, stars: stargazers_count}' \
-  | jpx 'sort_by(@, &stars) | reverse(@)'
+  | jpx 'sort_by(@, &stargazers_count) | reverse(@) | [*].{name: name, stars: stargazers_count}'
 ```
 
 Each step is independently testable. Add or remove transformations without rewriting a script.
@@ -183,6 +189,18 @@ result = jmespath_extensions.search('items[?active].{id: id, name: upper(name)}'
 # More Python logic...
 save_to_database(result)
 ```
+
+## Coming from jq?
+
+The key syntax differences:
+
+| jq | jpx |
+|----|-----|
+| `.[].name` | `[*].name` |
+| `select(.age > 30)` | `[?age > \`30\`]` |
+| `length` | `length(@)` |
+
+jpx has more built-in functions (400+). jq is better for complex recursive transformations.
 
 ## Summary
 

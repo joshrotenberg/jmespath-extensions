@@ -124,162 +124,33 @@ See [Output Formats](./output-formats.md) for detailed examples.
 
 Environment variables are overridden by command-line flags.
 
-## Examples
+## Quick Examples
 
-### Basic Usage
+A few examples showing common flag combinations. For comprehensive examples, see:
+- [Basic Usage](./basic-usage.md) - getting started with queries
+- [Cookbook](./cookbook.md) - task-oriented recipes
+- [Output Formats](./output-formats.md) - tables, CSV, YAML
+- [Query Files](./query-files.md) - reusable query libraries
 
 ```bash
-# Basic query from stdin
-echo '{"name": "Alice"}' | jpx 'name'
-
-# Query a file
-jpx 'users[*].email' -f data.json
-
-# Raw output for scripting
+# Query a file, raw output for scripting
 jpx -r 'config.api_key' -f settings.json
 
-# Use null input for functions that don't need data
-jpx -n 'now()'
-```
+# Chain expressions, table output
+jpx 'users' '[?active]' -t -f data.json
 
-### Expression Pipelines
+# Stream NDJSON, filter errors
+cat logs.ndjson | jpx --stream '[?level == `"error"`]'
 
-```bash
-# Chain multiple expressions (output of each feeds the next)
-jpx 'users' '[?active]' '[*].name' -f data.json
-
-# Same thing with -e flags
-jpx -e 'users' -e '[?active]' -e '[*].name' -f data.json
-```
-
-### Streaming and Slurping
-
-```bash
-# Slurp multiple JSON objects into an array
-cat *.json | jpx -s 'length(@)'
-
-# Stream NDJSON (process line by line with constant memory)
-cat logs.ndjson | jpx --stream '[?level == `error`]'
-```
-
-### Output Formats
-
-```bash
-# Table output for arrays of objects
-jpx -t '[*].{name, age, city}' -f users.json
-
-# Markdown table for documentation
-jpx -t --table-style markdown '[*].{name, email}' -f users.json
-
-# YAML output
-jpx -y 'config' -f settings.json
-
-# CSV for spreadsheets
-jpx --csv 'records[*]' -f data.json
-```
-
-### Function Discovery
-
-```bash
-# List string functions
-jpx --list-category string
-
-# Get function documentation
-jpx --describe median
-
-# Search for functions by keyword
-jpx --search "date format"
-
-# Find similar functions
-jpx --similar upper
-```
-
-### JSON Patch Operations
-
-```bash
-# Generate a patch between two files
-jpx --diff original.json modified.json > changes.patch
-
-# Apply a JSON Patch
-jpx --patch changes.patch -f document.json
-
-# Apply a JSON Merge Patch
-jpx --merge updates.json -f document.json
-```
-
-### Data Analysis
-
-```bash
-# Show statistics about JSON structure
-jpx --stats -f data.json
-
-# List all paths in the JSON
-jpx --paths -f data.json
-
-# Show paths with types
+# Analyze structure before querying
 jpx --paths --types -f data.json
 
-# Show paths with values
-jpx --paths --values -f data.json
+# Find functions by keyword
+jpx --search unique
+
+# Run a named query from a library
+jpx -Q queries.jpx:active-users -f data.json
 ```
-
-### Debugging and Development
-
-```bash
-# Explain how an expression is parsed
-jpx --explain 'users[?active].name'
-
-# Show diagnostic information
-jpx --debug -f data.json
-
-# Benchmark expression performance
-jpx --bench 'users[?active]' -f data.json
-
-# Benchmark with custom iterations and warmup
-jpx --bench 500 --warmup 10 'sort_by(items, &price)' -f data.json
-```
-
-### Interactive Mode
-
-```bash
-# Start the REPL
-jpx --repl
-
-# Start REPL with a demo dataset
-jpx --repl --demo users
-
-# Start REPL with your own file
-jpx --repl -f data.json
-```
-
-### Strict Mode
-
-```bash
-# Use only standard JMESPath functions (no extensions)
-jpx --strict 'length(items)' -f data.json
-```
-
-### Query Libraries
-
-```bash
-# List queries in a .jpx library
-jpx -Q queries.jpx --list-queries
-
-# Run a named query (colon syntax)
-jpx -Q queries.jpx:active-users data.json
-
-# Run a named query (separate flag)
-jpx -Q queries.jpx --query active-users data.json
-
-# Validate all queries in a library
-jpx -Q queries.jpx --check
-
-# Simple query file (backwards compatible)
-echo 'users[?active]' > query.txt
-jpx -Q query.txt data.json
-```
-
-See [Query Files](./query-files.md) for detailed documentation on query libraries.
 
 ## Exit Codes
 

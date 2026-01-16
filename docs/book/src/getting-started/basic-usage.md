@@ -8,6 +8,8 @@ jpx can read JSON from multiple sources:
 
 ```bash
 echo '{"name": "Alice"}' | jpx 'name'
+# "Alice"
+
 cat data.json | jpx 'users[*].name'
 curl -s https://api.example.com/data | jpx 'results[0]'
 ```
@@ -25,8 +27,13 @@ Use `-n` to start with null (useful for functions that don't need input):
 
 ```bash
 jpx -n 'now()'
+# 1705312200
+
 jpx -n 'uuid()'
-jpx -n 'range(`1`, `10`)'
+# "550e8400-e29b-41d4-a716-446655440000"
+
+jpx -n 'range(`1`, `5`)'
+# [1, 2, 3, 4]
 ```
 
 ## Output Options
@@ -79,6 +86,7 @@ Write results to a file:
 
 ```bash
 jpx 'users[*].email' -f data.json -o emails.json
+# (writes to emails.json)
 ```
 
 ## Slurp Mode
@@ -112,11 +120,20 @@ jpx -e 'users[*].name' -f data.json
 
 ## Chaining Expressions
 
-Chain multiple expressions (applied sequentially):
+Three ways to chain transformations:
 
 ```bash
+# 1. Pipes within a single expression (most common)
+jpx 'users | [*].name | sort(@)' -f data.json
+
+# 2. Multiple positional arguments
+jpx 'users' '[*].name' 'sort(@)' -f data.json
+
+# 3. Multiple -e flags
 jpx -e 'users' -e '[*].name' -e 'sort(@)' -f data.json
 ```
+
+All three are equivalent - each expression receives the output of the previous one.
 
 ## Verbose Mode
 
@@ -126,12 +143,25 @@ See expression details and timing:
 echo '{"x": 1}' | jpx -v 'x'
 ```
 
+Output:
+```
+Input: object (1 keys)
+
+[1] Expression: x
+[1] Result: number (1)
+[1] Time: 0.040ms
+
+Total time: 0.214ms
+1
+```
+
 ## Quiet Mode
 
 Suppress errors and warnings:
 
 ```bash
-jpx -q 'invalid[' -f data.json  # Won't show error output
+jpx -q 'invalid[' -f data.json
+# (no error output, exits with non-zero status)
 ```
 
 ## Color Control

@@ -1,3 +1,5 @@
+-- :name order-report
+-- :description Generate order summary with revenue and top orders
 {
   summary: {
     total_orders: length(@),

@@ -4,6 +4,8 @@ Common tasks and how to do them in jpx.
 
 ## Extracting Data
 
+Most JSON wrangling starts with pulling out the fields you care about.
+
 ### Get a nested field
 ```bash
 echo '{"user": {"profile": {"name": "Alice"}}}' | jpx 'user.profile.name'
@@ -29,6 +31,8 @@ echo '{"name": "Alice"}' | jpx 'get(@, `"email"`, `"no email"`)'
 ```
 
 ## Filtering
+
+Filter expressions (`[?condition]`) are one of JMESPath's most powerful features. They let you select array elements that match criteria without writing loops.
 
 ### Filter by a condition
 ```bash
@@ -57,6 +61,8 @@ echo '[{"name": "Alice", "email": "a@b.com"}, {"name": "Bob"}]' | jpx '[?email]'
 
 ## Transforming
 
+Reshape data to match the structure you need - rename fields, compute new values, or convert between formats.
+
 ### Rename fields
 ```bash
 echo '{"firstName": "Alice", "lastName": "Smith"}' | jpx '{first: firstName, last: lastName}'
@@ -82,6 +88,8 @@ echo '{"user": {"name": "Alice", "address": {"city": "NYC"}}}' | jpx 'flatten(@)
 ```
 
 ## Arrays
+
+Common operations on lists of items - sorting, deduplication, grouping, and slicing.
 
 ### Sort
 ```bash
@@ -125,6 +133,8 @@ echo '[1, 2, 3, 4, 5, 6, 7]' | jpx 'chunk(@, `3`)'
 
 ## Aggregation
 
+Reduce arrays to summary values - counts, sums, averages, and grouped statistics.
+
 ### Count
 ```bash
 echo '[1, 2, 3, 4, 5]' | jpx 'length(@)'
@@ -151,6 +161,8 @@ echo '[{"status": "active"}, {"status": "active"}, {"status": "inactive"}]' \
 ```
 
 ## Strings
+
+Text manipulation - case conversion, splitting, joining, and search/replace.
 
 ### Upper/lower case
 ```bash
@@ -181,6 +193,8 @@ echo '"  hello  "' | jpx 'trim(@)'
 
 ## Dates
 
+Working with timestamps - get current time, format for display, or calculate durations.
+
 ### Current time
 ```bash
 jpx -n 'now()'
@@ -207,6 +221,8 @@ jpx -n 'date_add(now(), `7`, `"days"`) | format_date(@, `"%Y-%m-%d"`)'
 ```
 
 ## Working with Objects
+
+Inspect and manipulate object structure - list keys, pick/omit fields, merge objects.
 
 ### Get all keys
 ```bash
@@ -240,6 +256,8 @@ echo '{}' | jpx 'merge({a: `1`}, {b: `2`})'
 
 ## Cleaning Data
 
+Real-world JSON is messy. These functions help you strip out nulls, empty strings, and other unwanted values.
+
 ### Remove nulls
 ```bash
 echo '{"a": 1, "b": null, "c": 3}' | jpx 'remove_nulls(@)'
@@ -259,6 +277,8 @@ echo '{"a": 1, "b": null, "c": "", "d": [], "e": {}}' | jpx 'remove_empty(@)'
 ```
 
 ## Putting It Together
+
+Chain these patterns together for real-world data processing tasks.
 
 ### Extract, filter, transform, sort
 ```bash
@@ -280,4 +300,140 @@ curl -s 'https://api.github.com/users/octocat/repos' \
 ```bash
 cat logs.json | jpx '[?level == `"error"`] | group_by(@, `"service"`) | map_values(`"length(@)"`, @)'
 # {"api": 12, "worker": 3, "scheduler": 1}
+```
+
+## Workflow Tips
+
+jpx has built-in tools to help you build and reuse queries.
+
+### Explore data structure first
+
+Before writing a query, see what you're working with:
+
+```bash
+jpx --paths -f data.json
+```
+```
+users (array)
+users.0 (object)
+users.0.name (string)
+users.0.email (string)
+users.0.role (string)
+```
+
+```bash
+jpx --stats -f data.json
+```
+```
+Type: object
+Size: 2 keys
+Depth: 3
+Array fields:
+  users: 150 items (object)
+    Fields: name (100%), email (98%), role (100%), last_login (85%)
+```
+
+### Find functions you need
+
+Don't memorize 400 functions - search for them:
+
+```bash
+jpx --search "date"
+```
+```
+✓ Found 12 functions matching 'date':
+
+  ▸ EXACT:
+    date_add [datetime] - Add time to timestamp
+    date_diff [datetime] - Difference between timestamps
+
+  ▸ PREFIX:
+    format_date [datetime] - Format timestamp as string
+    parse_date [datetime] - Parse string to timestamp
+    ...
+```
+
+```bash
+jpx --describe format_date
+```
+```
+format_date
+===========
+Category: datetime
+Signature: number, string -> string
+Description: Format a Unix timestamp as a string
+
+Example:
+  format_date(`1705312200`, '%Y-%m-%d') -> "2024-01-15"
+```
+
+### Save queries to files
+
+For complex or reusable queries, store them in a `.jpx` file:
+
+```sql
+-- queries.jpx
+
+-- :name active-users
+-- :description Get all active users with their email
+users[?status == `"active"`].{name: name, email: email}
+
+-- :name error-summary  
+-- :description Count errors by service
+[?level == `"error"`] | group_by(@, `"service"`) | map_values(`"length(@)"`, @)
+```
+
+Then run by name:
+
+```bash
+jpx -Q queries.jpx:active-users -f data.json
+
+# List available queries
+jpx -Q queries.jpx --list-queries
+```
+```
+Available queries in queries.jpx:
+
+  active-users
+    Get all active users with their email
+
+  error-summary
+    Count errors by service
+```
+
+### Debug complex expressions
+
+When a query isn't working, break it down:
+
+```bash
+jpx --explain 'users[?active].name | sort(@)'
+```
+```
+Expression AST:
+  Pipe
+  ├─ Projection
+  │  ├─ Field: users
+  │  └─ Filter: active
+  │     └─ Field: name
+  └─ Function: sort
+     └─ Current (@)
+```
+
+### Benchmark performance
+
+For queries you'll run often, check how fast they are:
+
+```bash
+jpx --bench 1000 '[*].{id: id, name: upper(name)}' -f users.json
+```
+```
+Benchmarking: [*].{id: id, name: upper(name)}
+Iterations: 1000
+
+  Mean:    0.234ms
+  Median:  0.215ms
+  p95:     0.312ms
+  p99:     0.456ms
+
+Throughput: 4,273 ops/sec
 ```
