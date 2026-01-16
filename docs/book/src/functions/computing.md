@@ -222,6 +222,6 @@ parse_bytes('1 GiB') -> 1073741824
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'parse_bytes('1.5 GB')'
+echo '{}' | jpx 'parse_bytes(`"1.5 GB"`)'
 ```
 

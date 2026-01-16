@@ -38,7 +38,7 @@ damerau_levenshtein('ca', 'abc') -> 2
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'damerau_levenshtein('ab', 'ba')'
+echo '{}' | jpx 'damerau_levenshtein(`"ab"`, `"ba"`)'
 ```
 
 ### hamming
@@ -61,7 +61,7 @@ hamming('hello', 'hi') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hamming('karolin', 'kathrin')'
+echo '{}' | jpx 'hamming(`"karolin"`, `"kathrin"`)'
 ```
 
 ### jaro
@@ -84,7 +84,7 @@ jaro('abc', 'xyz') -> 0.0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'jaro('hello', 'hallo')'
+echo '{}' | jpx 'jaro(`"hello"`, `"hallo"`)'
 ```
 
 ### jaro_winkler
@@ -107,7 +107,7 @@ jaro_winkler('abc', 'xyz') -> 0.0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'jaro_winkler('hello', 'hallo')'
+echo '{}' | jpx 'jaro_winkler(`"hello"`, `"hallo"`)'
 ```
 
 ### levenshtein
@@ -130,7 +130,7 @@ levenshtein('abc', 'def') -> 3
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'levenshtein('kitten', 'sitting')'
+echo '{}' | jpx 'levenshtein(`"kitten"`, `"sitting"`)'
 ```
 
 ### normalized_damerau_levenshtein
@@ -153,7 +153,7 @@ normalized_damerau_levenshtein('abc', 'xyz') -> 0.0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'normalized_damerau_levenshtein('hello', 'hello')'
+echo '{}' | jpx 'normalized_damerau_levenshtein(`"hello"`, `"hello"`)'
 ```
 
 ### normalized_levenshtein
@@ -176,7 +176,7 @@ normalized_levenshtein('abc', 'xyz') -> 1.0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'normalized_levenshtein('ab', 'abc')'
+echo '{}' | jpx 'normalized_levenshtein(`"ab"`, `"abc"`)'
 ```
 
 ### osa_distance
@@ -199,7 +199,7 @@ osa_distance('ca', 'abc') -> 3
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'osa_distance('ab', 'ba')'
+echo '{}' | jpx 'osa_distance(`"ab"`, `"ba"`)'
 ```
 
 ### sorensen_dice
@@ -222,6 +222,6 @@ sorensen_dice('abc', 'xyz') -> 0.0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'sorensen_dice('night', 'nacht')'
+echo '{}' | jpx 'sorensen_dice(`"night"`, `"nacht"`)'
 ```
 

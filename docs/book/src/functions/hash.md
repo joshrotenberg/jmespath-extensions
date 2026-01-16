@@ -38,7 +38,7 @@ crc32('test data') -> 2706273274
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'crc32('hello')'
+echo '{}' | jpx 'crc32(`"hello"`)'
 ```
 
 ### hmac_md5
@@ -59,7 +59,7 @@ hmac_md5('message', 'key') -> \"a24c903c3a7e7b741ea77bd467b98bca\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hmac_md5('hello', 'secret')'
+echo '{}' | jpx 'hmac_md5(`"hello"`, `"secret"`)'
 ```
 
 ### hmac_sha1
@@ -80,7 +80,7 @@ hmac_sha1('data', 'key') -> \"104152c5bfdca07bc633eebd46199f0255c9f49d\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hmac_sha1('hello', 'secret')'
+echo '{}' | jpx 'hmac_sha1(`"hello"`, `"secret"`)'
 ```
 
 ### hmac_sha256
@@ -101,7 +101,7 @@ hmac_sha256('data', 'key') -> \"5031fe3d989c6d1537a013fa6e739da23463fdaec3b70137
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hmac_sha256('hello', 'secret')'
+echo '{}' | jpx 'hmac_sha256(`"hello"`, `"secret"`)'
 ```
 
 ### hmac_sha512
@@ -122,7 +122,7 @@ hmac_sha512('data', 'key') -> \"3c5953a18...\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hmac_sha512('hello', 'secret')'
+echo '{}' | jpx 'hmac_sha512(`"hello"`, `"secret"`)'
 ```
 
 ### md5
@@ -145,7 +145,7 @@ md5('test') -> \"098f6bcd4621d373cade4e832627b4f6\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'md5('hello')'
+echo '{}' | jpx 'md5(`"hello"`)'
 ```
 
 ### sha1
@@ -168,7 +168,7 @@ sha1('test') -> \"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'sha1('hello')'
+echo '{}' | jpx 'sha1(`"hello"`)'
 ```
 
 ### sha256
@@ -191,7 +191,7 @@ sha256('test') -> \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'sha256('hello')'
+echo '{}' | jpx 'sha256(`"hello"`)'
 ```
 
 ### sha512
@@ -212,6 +212,6 @@ sha512('test') -> \"ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'sha512('hello')'
+echo '{}' | jpx 'sha512(`"hello"`)'
 ```
 

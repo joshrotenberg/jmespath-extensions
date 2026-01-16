@@ -147,7 +147,7 @@ ends_with('test.txt', '.txt') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'ends_with('hello', 'lo')'
+echo '{}' | jpx 'ends_with(`"hello"`, `"lo"`)'
 ```
 
 ### floor
@@ -193,7 +193,7 @@ join('', ['a', 'b', 'c']) -> \"abc\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'join(', ', ['a', 'b', 'c'])'
+echo '{}' | jpx 'join(`", "`, ['a', `"b"`, 'c'])'
 ```
 
 ### keys
@@ -400,7 +400,7 @@ not_null(`null`, `null`, `1`) -> 1
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'not_null(`null`, 'a', 'b')'
+echo '{}' | jpx 'not_null(`null`, `"a"`, `"b"`)'
 ```
 
 ### reverse
@@ -492,7 +492,7 @@ starts_with('https://example.com', 'https') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'starts_with('hello', 'he')'
+echo '{}' | jpx 'starts_with(`"hello"`, `"he"`)'
 ```
 
 ### sum
@@ -538,7 +538,7 @@ to_array(`5`) -> [5]
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'to_array('hello')'
+echo '{}' | jpx 'to_array(`"hello"`)'
 ```
 
 ### to_number
@@ -561,7 +561,7 @@ to_number(`5`) -> 5
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'to_number('42')'
+echo '{}' | jpx 'to_number(`"42"`)'
 ```
 
 ### to_string
@@ -609,7 +609,7 @@ type({a: 1}) -> \"object\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'type('hello')'
+echo '{}' | jpx 'type(`"hello"`)'
 ```
 
 ### values

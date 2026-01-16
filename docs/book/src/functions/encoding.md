@@ -37,7 +37,7 @@ base64_decode('') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'base64_decode('aGVsbG8=')'
+echo '{}' | jpx 'base64_decode(`"aGVsbG8="`)'
 ```
 
 ### base64_encode
@@ -60,7 +60,7 @@ base64_encode('') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'base64_encode('hello')'
+echo '{}' | jpx 'base64_encode(`"hello"`)'
 ```
 
 ### hex_decode
@@ -83,7 +83,7 @@ hex_decode('') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hex_decode('68656c6c6f')'
+echo '{}' | jpx 'hex_decode(`"68656c6c6f"`)'
 ```
 
 ### hex_encode
@@ -106,7 +106,7 @@ hex_encode('') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hex_encode('hello')'
+echo '{}' | jpx 'hex_encode(`"hello"`)'
 ```
 
 ### html_escape
@@ -131,7 +131,7 @@ html_escape(user_input) -> safe for HTML
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'html_escape('<div>')'
+echo '{}' | jpx 'html_escape(`"<div>"`)'
 ```
 
 ### html_unescape
@@ -156,7 +156,7 @@ html_unescape(escaped) -> original
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'html_unescape('&lt;div&gt;')'
+echo '{}' | jpx 'html_unescape(`"&lt;div&gt;"`)'
 ```
 
 ### jwt_decode
@@ -177,7 +177,7 @@ jwt_decode('eyJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoiSm9obiJ9.sig').name -> 'John'
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'jwt_decode('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyXzEyMyJ9.sig').sub'
+echo '{}' | jpx 'jwt_decode(`"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyXzEyMyJ9.sig"`).sub'
 ```
 
 ### jwt_header
@@ -198,6 +198,6 @@ jwt_header('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig').typ -> \"JWT\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'jwt_header('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig').alg'
+echo '{}' | jpx 'jwt_header(`"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig"`).alg'
 ```
 

@@ -34,7 +34,7 @@ url_decode('hello') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'url_decode('hello%20world')'
+echo '{}' | jpx 'url_decode(`"hello%20world"`)'
 ```
 
 ### url_encode
@@ -59,7 +59,7 @@ url_encode('hello') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'url_encode('hello world')'
+echo '{}' | jpx 'url_encode(`"hello world"`)'
 ```
 
 ### url_parse
@@ -84,6 +84,6 @@ url_parse('/path/to/file') -> relative path
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'url_parse('https://example.com/path')'
+echo '{}' | jpx 'url_parse(`"https://example.com/path"`)'
 ```
 

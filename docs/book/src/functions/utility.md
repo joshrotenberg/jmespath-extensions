@@ -42,7 +42,7 @@ coalesce(`null`, `null`) -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'coalesce(`null`, `null`, 'value')'
+echo '{}' | jpx 'coalesce(`null`, `null`, `"value"`)'
 ```
 
 ### default
@@ -67,7 +67,7 @@ default('', 'fallback') -> ''
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'default(`null`, 'fallback')'
+echo '{}' | jpx 'default(`null`, `"fallback"`)'
 ```
 
 ### env
@@ -115,7 +115,7 @@ default(get_env('PORT'), '8080') -> with fallback
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'get_env('HOME')'
+echo '{}' | jpx 'get_env(`"HOME"`)'
 ```
 
 ### if
@@ -140,7 +140,7 @@ if(is_empty(arr), 'none', first(arr)) -> value or none
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'if(`true`, 'yes', 'no')'
+echo '{}' | jpx 'if(`true`, `"yes"`, `"no"`)'
 ```
 
 ### json_decode
@@ -165,7 +165,7 @@ json_decode(json_field) -> parsed
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'json_decode('{\"a\": 1}')'
+echo '{}' | jpx 'json_decode(`"{\"a\": 1}"`)'
 ```
 
 ### json_encode
@@ -215,7 +215,7 @@ json_pointer(data, '/missing') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'json_pointer({foo: {bar: 1}}, '/foo/bar')'
+echo '{}' | jpx 'json_pointer({foo: {bar: 1}}, `"/foo/bar"`)'
 ```
 
 ### now

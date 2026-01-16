@@ -217,7 +217,7 @@ is_string([]) -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_string('hello')'
+echo '{}' | jpx 'is_string(`"hello"`)'
 ```
 
 ### parse_booleans
@@ -317,7 +317,7 @@ to_boolean(`0`) -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'to_boolean('true')'
+echo '{}' | jpx 'to_boolean(`"true"`)'
 ```
 
 ### type_of

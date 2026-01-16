@@ -82,7 +82,7 @@ date_add(`0`, `30`, 'minutes') -> 1800
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'date_add(`0`, `1`, 'days')'
+echo '{}' | jpx 'date_add(`0`, `1`, `"days"`)'
 ```
 
 ### date_diff
@@ -107,7 +107,7 @@ date_diff(`604800`, `0`, 'weeks') -> 1
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'date_diff(`86400`, `0`, 'days')'
+echo '{}' | jpx 'date_diff(`86400`, `0`, `"days"`)'
 ```
 
 ### duration_since
@@ -157,7 +157,7 @@ end_of_day(now()) -> today end
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'end_of_day('2023-12-13T15:30:00Z')'
+echo '{}' | jpx 'end_of_day(`"2023-12-13T15:30:00Z"`)'
 ```
 
 ### epoch_ms
@@ -205,7 +205,7 @@ format_date(ts, '%Y-%m-%dT%H:%M:%SZ') -> ISO string
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'format_date(`1705276800`, '%Y-%m-%d')'
+echo '{}' | jpx 'format_date(`1705276800`, `"%Y-%m-%d"`)'
 ```
 
 ### from_epoch
@@ -280,7 +280,7 @@ is_after('2024-01-01', '2024-01-01') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_after('2024-07-15', '2024-01-01')'
+echo '{}' | jpx 'is_after(`"2024-07-15"`, `"2024-01-01"`)'
 ```
 
 ### is_before
@@ -305,7 +305,7 @@ is_before('2024-01-01', '2024-01-01') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_before('2024-01-01', '2024-07-15')'
+echo '{}' | jpx 'is_before(`"2024-01-01"`, `"2024-07-15"`)'
 ```
 
 ### is_between
@@ -330,7 +330,7 @@ is_between('2024-01-01', '2024-01-01', '2024-12-31') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_between('2024-06-15', '2024-01-01', '2024-12-31')'
+echo '{}' | jpx 'is_between(`"2024-06-15"`, `"2024-01-01"`, `"2024-12-31"`)'
 ```
 
 ### is_same_day
@@ -355,7 +355,7 @@ is_same_day(now(), event_time) -> true/false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_same_day('2023-12-13T10:00:00Z', '2023-12-13T23:00:00Z')'
+echo '{}' | jpx 'is_same_day(`"2023-12-13T10:00:00Z"`, `"2023-12-13T23:00:00Z"`)'
 ```
 
 ### is_weekday
@@ -430,7 +430,7 @@ parse_date('2024-01-15T10:30:00', '%Y-%m-%dT%H:%M:%S') -> timestamp
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'parse_date('2024-01-15', '%Y-%m-%d')'
+echo '{}' | jpx 'parse_date(`"2024-01-15"`, `"%Y-%m-%d"`)'
 ```
 
 ### quarter
@@ -505,7 +505,7 @@ start_of_day('2024-01-15') -> midnight
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'start_of_day('2023-12-13T15:30:00Z')'
+echo '{}' | jpx 'start_of_day(`"2023-12-13T15:30:00Z"`)'
 ```
 
 ### start_of_month
@@ -530,7 +530,7 @@ start_of_month('2024-03-15') -> \"2024-03-01T00:00:00Z\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'start_of_month('2023-12-13T15:30:00Z')'
+echo '{}' | jpx 'start_of_month(`"2023-12-13T15:30:00Z"`)'
 ```
 
 ### start_of_week
@@ -555,7 +555,7 @@ start_of_week('2024-01-15') -> \"2024-01-15T00:00:00Z\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'start_of_week('2023-12-13T15:30:00Z')'
+echo '{}' | jpx 'start_of_week(`"2023-12-13T15:30:00Z"`)'
 ```
 
 ### start_of_year
@@ -580,7 +580,7 @@ start_of_year('2024-06-15') -> \"2024-01-01T00:00:00Z\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'start_of_year('2023-12-13T15:30:00Z')'
+echo '{}' | jpx 'start_of_year(`"2023-12-13T15:30:00Z"`)'
 ```
 
 ### time_ago
@@ -605,7 +605,7 @@ time_ago('2023-12-01') -> \"X months ago\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'time_ago('2020-01-01')'
+echo '{}' | jpx 'time_ago(`"2020-01-01"`)'
 ```
 
 ### timezone_convert
@@ -630,7 +630,7 @@ timezone_convert(time, 'Europe/Paris', 'America/Chicago') -> CST time
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'timezone_convert('2024-01-15T10:00:00', 'America/New_York', 'Europe/London')'
+echo '{}' | jpx 'timezone_convert(`"2024-01-15T10:00:00"`, `"America/New_York"`, `"Europe/London"`)'
 ```
 
 ### to_epoch
@@ -655,7 +655,7 @@ to_epoch('1970-01-01T00:00:00Z') -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'to_epoch('2023-12-13T16:00:00Z')'
+echo '{}' | jpx 'to_epoch(`"2023-12-13T16:00:00Z"`)'
 ```
 
 ### to_epoch_ms
@@ -680,6 +680,6 @@ to_epoch_ms('1970-01-01T00:00:00Z') -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'to_epoch_ms('2023-12-13T16:00:00Z')'
+echo '{}' | jpx 'to_epoch_ms(`"2023-12-13T16:00:00Z"`)'
 ```
 

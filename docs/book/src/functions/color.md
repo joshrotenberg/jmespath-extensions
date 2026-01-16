@@ -37,7 +37,7 @@ color_complement('#0000ff') -> \"#ffff00\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'color_complement('#ff0000')'
+echo '{}' | jpx 'color_complement(`"#ff0000"`)'
 ```
 
 ### color_grayscale
@@ -60,7 +60,7 @@ color_grayscale('#ffffff') -> \"#ffffff\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'color_grayscale('#ff0000')'
+echo '{}' | jpx 'color_grayscale(`"#ff0000"`)'
 ```
 
 ### color_invert
@@ -83,7 +83,7 @@ color_invert('#ffffff') -> \"#000000\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'color_invert('#ff0000')'
+echo '{}' | jpx 'color_invert(`"#ff0000"`)'
 ```
 
 ### color_mix
@@ -106,7 +106,7 @@ color_mix('#000000', '#ffffff', `50`) -> \"#808080\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'color_mix('#ff0000', '#0000ff', `50`)'
+echo '{}' | jpx 'color_mix(`"#ff0000"`, `"#0000ff"`, `50`)'
 ```
 
 ### darken
@@ -129,7 +129,7 @@ darken('#ffffff', `100`) -> \"#000000\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'darken('#3366cc', `20`)'
+echo '{}' | jpx 'darken(`"#3366cc"`, `20`)'
 ```
 
 ### hex_to_rgb
@@ -152,7 +152,7 @@ hex_to_rgb('#ffffff') -> {b: 255, g: 255, r: 255}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'hex_to_rgb('#ff5500')'
+echo '{}' | jpx 'hex_to_rgb(`"#ff5500"`)'
 ```
 
 ### lighten
@@ -175,7 +175,7 @@ lighten('#000000', `100`) -> \"#ffffff\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'lighten('#3366cc', `20`)'
+echo '{}' | jpx 'lighten(`"#3366cc"`, `20`)'
 ```
 
 ### rgb_to_hex

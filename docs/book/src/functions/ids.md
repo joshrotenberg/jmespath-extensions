@@ -72,6 +72,6 @@ ulid_timestamp('01BX5ZZKBKACTAV9WEVGEMMVRY') -> 1484581420610
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'ulid_timestamp('01ARZ3NDEKTSV4RRFFQ69G5FAV')'
+echo '{}' | jpx 'ulid_timestamp(`"01ARZ3NDEKTSV4RRFFQ69G5FAV"`)'
 ```
 

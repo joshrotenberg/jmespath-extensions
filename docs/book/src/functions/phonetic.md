@@ -36,7 +36,7 @@ caverphone('Thompson') -> \"TMPSN11111\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'caverphone('Smith')'
+echo '{}' | jpx 'caverphone(`"Smith"`)'
 ```
 
 ### caverphone2
@@ -57,7 +57,7 @@ caverphone2('Thompson') -> \"TMPSN11111\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'caverphone2('Smith')'
+echo '{}' | jpx 'caverphone2(`"Smith"`)'
 ```
 
 ### double_metaphone
@@ -78,7 +78,7 @@ double_metaphone('Schmidt') -> {primary: 'XMT', secondary: 'SMT'}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'double_metaphone('Smith')'
+echo '{}' | jpx 'double_metaphone(`"Smith"`)'
 ```
 
 ### match_rating_codex
@@ -99,7 +99,7 @@ match_rating_codex('Johnson') -> \"JHNSN\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'match_rating_codex('Smith')'
+echo '{}' | jpx 'match_rating_codex(`"Smith"`)'
 ```
 
 ### metaphone
@@ -120,7 +120,7 @@ metaphone('phone') -> \"FN\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'metaphone('Smith')'
+echo '{}' | jpx 'metaphone(`"Smith"`)'
 ```
 
 ### nysiis
@@ -141,7 +141,7 @@ nysiis('Johnson') -> \"JANSAN\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'nysiis('Smith')'
+echo '{}' | jpx 'nysiis(`"Smith"`)'
 ```
 
 ### phonetic_match
@@ -164,7 +164,7 @@ phonetic_match('John', 'Jane', 'soundex') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'phonetic_match('Smith', 'Smyth', 'soundex')'
+echo '{}' | jpx 'phonetic_match(`"Smith"`, `"Smyth"`, `"soundex"`)'
 ```
 
 ### soundex
@@ -187,7 +187,7 @@ soundex('Smith') -> \"S530\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'soundex('Robert')'
+echo '{}' | jpx 'soundex(`"Robert"`)'
 ```
 
 ### sounds_like
@@ -210,6 +210,6 @@ sounds_like('John', 'Mary') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'sounds_like('Robert', 'Rupert')'
+echo '{}' | jpx 'sounds_like(`"Robert"`, `"Rupert"`)'
 ```
 

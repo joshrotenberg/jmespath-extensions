@@ -321,7 +321,7 @@ delete_path({a: 1}, '/x') -> {a: 1}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'delete_path({a: 1, b: 2}, '/b')'
+echo '{}' | jpx 'delete_path({a: 1, b: 2}, `"/b"`)'
 ```
 
 ### estimate_size
@@ -469,7 +469,7 @@ get({a: {b: {c: 3}}}, 'a.b.c') -> 3
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'get({a: {b: 1}}, 'a.b')'
+echo '{}' | jpx 'get({a: {b: 1}}, `"a.b"`)'
 ```
 
 ### has
@@ -494,7 +494,7 @@ has({a: {b: 1}}, 'a.c') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'has({a: {b: 1}}, 'a.b')'
+echo '{}' | jpx 'has({a: {b: 1}}, `"a.b"`)'
 ```
 
 ### has_same_shape
@@ -993,7 +993,7 @@ set_path([1, 2], '/1', `5`) -> [1, 5]
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'set_path({a: 1}, '/b', `2`)'
+echo '{}' | jpx 'set_path({a: 1}, `"/b"`, `2`)'
 ```
 
 ### snake_keys
@@ -1200,6 +1200,6 @@ with_entries({a: 1, b: 2, c: 3}, 'if(@[1] > `1`, @, `null`)') -> {b: 2, c: 3}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'with_entries({a: 1, b: 2}, '[upper(@[0]), multiply(@[1], `2`)]')'
+echo '{}' | jpx 'with_entries({a: 1, b: 2}, `"[upper(@[0]), multiply(@[1], `2`)]"`)'
 ```
 
