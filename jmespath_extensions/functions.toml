@@ -3309,36 +3309,36 @@ features = ["core"]
 [[functions]]
 name = "regex_extract"
 category = "regex"
-description = "Extract regex matches"
+description = "Extract regex matches. Use backtick-JSON syntax: regex_extract(text, `\"\\\\w+\"`)"
 signature = "string, string -> array"
 examples = [
-    { code = '''regex_extract('a1b2', '\\\\d+') -> [\"1\", \"2\"]''', description = "Extract numbers" },
-    { code = '''regex_extract('hello world', '\\\\w+') -> [\"hello\", \"world\"]''', description = "Extract words" },
-    { code = "regex_extract('abc', '\\\\d+') -> []", description = "No matches" },
+    { code = '''regex_extract(`"a1b2"`, `"\\\\d+"`) -> [\"1\", \"2\"]''', description = "Extract numbers" },
+    { code = '''regex_extract(`"hello world"`, `"\\\\w+"`) -> [\"hello\", \"world\"]''', description = "Extract words" },
+    { code = '''regex_extract(`"abc"`, `"\\\\d+"`) -> []''', description = "No matches" },
 ]
 features = ["core"]
 
 [[functions]]
 name = "regex_match"
 category = "regex"
-description = "Test if string matches regex"
+description = "Test if string matches regex. Use backtick-JSON syntax: regex_match(text, `\"^\\\\d+$\"`)"
 signature = "string, string -> boolean"
 examples = [
-    { code = "regex_match('hello', '^h.*o$') -> true", description = "Full match" },
-    { code = "regex_match('test123', '\\\\d+') -> true", description = "Contains digits" },
-    { code = "regex_match('abc', '^\\\\d+$') -> false", description = "No match" },
+    { code = '''regex_match(`"hello"`, `"^h.*o$"`) -> true''', description = "Full match" },
+    { code = '''regex_match(`"test123"`, `"\\\\d+"`) -> true''', description = "Contains digits" },
+    { code = '''regex_match(`"abc"`, `"^\\\\d+$"`) -> false''', description = "No match" },
 ]
 features = ["core"]
 
 [[functions]]
 name = "regex_replace"
 category = "regex"
-description = "Replace regex matches"
+description = "Replace regex matches. Use backtick-JSON syntax: regex_replace(text, `\"\\\\d+\"`, `\"X\"`)"
 signature = "string, string, string -> string"
 examples = [
-    { code = '''regex_replace('a1b2', '\\\\d+', 'X') -> \"aXbX\"''', description = "Replace digits" },
-    { code = '''regex_replace('hello world', '\\\\s+', '-') -> \"hello-world\"''', description = "Replace spaces" },
-    { code = '''regex_replace('abc', 'x', 'y') -> \"abc\"''', description = "No match unchanged" },
+    { code = '''regex_replace(`"a1b2"`, `"\\\\d+"`, `"X"`) -> \"aXbX\"''', description = "Replace digits" },
+    { code = '''regex_replace(`"hello world"`, `"\\\\s+"`, `"-"`) -> \"hello-world\"''', description = "Replace spaces" },
+    { code = '''regex_replace(`"abc"`, `"x"`, `"y"`) -> \"abc\"''', description = "No match unchanged" },
 ]
 features = ["core"]
 
@@ -4049,12 +4049,12 @@ features = ["core"]
 [[functions]]
 name = "replace"
 category = "string"
-description = "Replace occurrences of a substring"
+description = "Replace occurrences of a substring. Use backtick-JSON syntax: replace(text, `\"\\n\"`, `\" \"`)"
 signature = "string, string, string -> string"
 examples = [
-    { code = '''replace('hello', 'l', 'L') -> \"heLLo\"''', description = "Replace all occurrences" },
-    { code = '''replace('hello', 'x', 'y') -> \"hello\"''', description = "No match" },
-    { code = '''replace('aaa', 'a', 'b') -> \"bbb\"''', description = "Replace all" },
+    { code = '''replace(`"hello"`, `"l"`, `"L"`) -> \"heLLo\"''', description = "Replace all occurrences" },
+    { code = '''replace(`"line1\\nline2"`, `"\\n"`, `" "`) -> \"line1 line2\"''', description = "Replace newlines" },
+    { code = '''replace(`"aaa"`, `"a"`, `"b"`) -> \"bbb\"''', description = "Replace all" },
 ]
 jep = "JEP-014"
 features = ["core", "jep"]
@@ -4113,13 +4113,13 @@ features = ["core"]
 [[functions]]
 name = "split"
 category = "string"
-description = "Split string by delimiter"
+description = "Split string by delimiter. Use backtick-JSON syntax for literals: split(text, `\"\\n\"`) to split on newlines"
 signature = "string, string -> array"
 examples = [
-    { code = '''split('a,b,c', ',') -> [\"a\", \"b\", \"c\"]''', description = "Basic split" },
-    { code = '''split('hello world', ' ') -> [\"hello\", \"world\"]''', description = "Split by space" },
-    { code = '''split('no-delim', ',') -> [\"no-delim\"]''', description = "No delimiter found" },
-    { code = '''split('', ',') -> [\"\"]''', description = "Empty string" },
+    { code = '''split(`"a,b,c"`, `","`) -> [\"a\", \"b\", \"c\"]''', description = "Basic split" },
+    { code = '''split(`"hello world"`, `" "`) -> [\"hello\", \"world\"]''', description = "Split by space" },
+    { code = '''split(`"line1\\nline2"`, `"\\n"`) -> [\"line1\", \"line2\"]''', description = "Split on newline" },
+    { code = '''split(`"no-delim"`, `","`) -> [\"no-delim\"]''', description = "No delimiter found" },
 ]
 jep = "JEP-014"
 features = ["core", "jep"]
