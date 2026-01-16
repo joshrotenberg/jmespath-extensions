@@ -1037,7 +1037,7 @@ dependencies = [
 
 [[package]]
 name = "jmespath_extensions"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "aho-corasick",
  "base64",
@@ -1076,7 +1076,7 @@ dependencies = [
 
 [[package]]
 name = "jpx"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anyhow",
  "atty",
