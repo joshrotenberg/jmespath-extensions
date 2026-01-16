@@ -569,7 +569,7 @@ impl Default for JpxMcp {
 impl JpxMcp {
     /// Evaluate a JMESPath expression against JSON input
     #[tool(
-        description = "Evaluate a JMESPath expression against JSON input. Returns the result of applying the expression to the input data. Supports 320+ extended functions beyond standard JMESPath."
+        description = "Evaluate a JMESPath expression against JSON input. Returns the result of applying the expression to the input data. Supports 400+ extended functions beyond standard JMESPath."
     )]
     async fn evaluate(
         &self,

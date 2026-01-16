@@ -1,6 +1,6 @@
 # Function Overview
 
-jpx provides 395 functions organized into 31 categories.
+jpx provides 400+ functions organized into 31 categories.
 
 ## Discovering Functions
 
