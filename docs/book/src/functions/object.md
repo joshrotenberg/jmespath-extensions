@@ -30,6 +30,7 @@ Functions for working with JSON objects: merging, filtering keys/values, and tra
 | [`items`](#items) | `object -> array` | Convert object to array of [key, value] pairs |
 | [`kebab_keys`](#kebab-keys) | `any -> any` | Recursively convert all keys to kebab-case |
 | [`leaves`](#leaves) | `any -> array` | Get all leaf values (non-object, non-array) |
+| [`pascal_keys`](#pascal-keys) | `any -> any` | Recursively convert all keys to PascalCase |
 | [`leaves_with_paths`](#leaves-with-paths) | `any -> array` | Get all leaf values with their JSON pointer paths |
 | [`mask`](#mask) | `string, number? -> string` | Mask a string, showing only the last N characters |
 | [`omit`](#omit) | `object, array -> object` | Remove specific keys from object |
@@ -45,7 +46,10 @@ Functions for working with JSON objects: merging, filtering keys/values, and tra
 | [`remove_nulls`](#remove-nulls) | `any -> any` | Recursively remove null values |
 | [`rename_keys`](#rename-keys) | `object, object -> object` | Rename object keys |
 | [`set_path`](#set-path) | `any, string, any -> any` | Set value at JSON pointer path (immutable) |
+| [`shouty_kebab_keys`](#shouty-kebab-keys) | `any -> any` | Recursively convert all keys to SHOUTY-KEBAB-CASE |
+| [`shouty_snake_keys`](#shouty-snake-keys) | `any -> any` | Recursively convert all keys to SHOUTY_SNAKE_CASE |
 | [`snake_keys`](#snake-keys) | `any -> any` | Recursively convert all keys to snake_case |
+| [`train_keys`](#train-keys) | `any -> any` | Recursively convert all keys to Train-Case |
 | [`structural_diff`](#structural-diff) | `any, any -> object` | Compare two values and return their structural differences |
 | [`template`](#template) | `object, string -> string` | Expand a template string with values from an object using {{key}} syntax |
 | [`template_strict`](#template-strict) | `object, string -> string \| null` | Expand a template string, returning null if any variable is missing |
@@ -643,6 +647,29 @@ leaves({a: 1, b: 2}) -> [1, 2]
 echo '{}' | jpx 'leaves({a: 1, b: [2, 3]})'
 ```
 
+### pascal_keys
+
+Recursively convert all keys to PascalCase
+
+**Signature:** `any -> any`
+
+**Examples:**
+
+```text
+# Camel to pascal
+pascal_keys({userName: "alice"}) -> {UserName: "alice"}
+# Snake to pascal
+pascal_keys({user_name: "bob"}) -> {UserName: "bob"}
+# Nested
+pascal_keys({userInfo: {firstName: "x"}}) -> {UserInfo: {FirstName: "x"}}
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'pascal_keys({user_name: "alice"})'
+```
+
 ### leaves_with_paths
 
 Get all leaf values with their JSON pointer paths
@@ -996,6 +1023,52 @@ set_path([1, 2], '/1', `5`) -> [1, 5]
 echo '{}' | jpx 'set_path({a: 1}, `"/b"`, `2`)'
 ```
 
+### shouty_kebab_keys
+
+Recursively convert all keys to SHOUTY-KEBAB-CASE
+
+**Signature:** `any -> any`
+
+**Examples:**
+
+```text
+# Camel to shouty kebab
+shouty_kebab_keys({userName: "alice"}) -> {"USER-NAME": "alice"}
+# Snake to shouty kebab
+shouty_kebab_keys({user_name: "bob"}) -> {"USER-NAME": "bob"}
+# Nested
+shouty_kebab_keys({userInfo: {firstName: "x"}}) -> {"USER-INFO": {"FIRST-NAME": "x"}}
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'shouty_kebab_keys({user_name: "alice"})'
+```
+
+### shouty_snake_keys
+
+Recursively convert all keys to SHOUTY_SNAKE_CASE
+
+**Signature:** `any -> any`
+
+**Examples:**
+
+```text
+# Camel to shouty snake
+shouty_snake_keys({userName: "alice"}) -> {USER_NAME: "alice"}
+# Kebab to shouty snake
+shouty_snake_keys({"user-name": "bob"}) -> {USER_NAME: "bob"}
+# Nested
+shouty_snake_keys({userInfo: {firstName: "x"}}) -> {USER_INFO: {FIRST_NAME: "x"}}
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'shouty_snake_keys({user_name: "alice"})'
+```
+
 ### snake_keys
 
 Recursively convert all keys to snake_case
@@ -1017,6 +1090,29 @@ snake_keys({userInfo: {firstName: "x"}}) -> {user_info: {first_name: "x"}}
 
 ```bash
 echo '{}' | jpx 'snake_keys({userName: "alice"})'
+```
+
+### train_keys
+
+Recursively convert all keys to Train-Case
+
+**Signature:** `any -> any`
+
+**Examples:**
+
+```text
+# Camel to train
+train_keys({userName: "alice"}) -> {"User-Name": "alice"}
+# Snake to train
+train_keys({user_name: "bob"}) -> {"User-Name": "bob"}
+# Nested
+train_keys({userInfo: {firstName: "x"}}) -> {"User-Info": {"First-Name": "x"}}
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'train_keys({user_name: "alice"})'
 ```
 
 ### structural_diff

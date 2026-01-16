@@ -11,6 +11,7 @@
 
 # User Guide
 
+- [Cookbook](./guide/cookbook.md)
 - [CLI Reference](./guide/cli-reference.md)
 - [Output Formats](./guide/output-formats.md)
 - [Expression Syntax](./guide/expression-syntax.md)

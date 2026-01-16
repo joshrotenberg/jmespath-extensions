@@ -142,7 +142,7 @@ echo '{"first": "John", "last": "Doe"}' | jpx '{fullName: join(` `, [first, last
 
 ## jpx Advantages
 
-### 1. Extended Function Library (250+)
+### 1. Extended Function Library (400+)
 jpx includes functions that jq doesn't have:
 
 ```bash

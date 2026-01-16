@@ -4,7 +4,7 @@ The jpx MCP server provides 25 tools organized into five categories.
 
 ## Function Discovery
 
-Tools for exploring the 360+ JMESPath extension functions.
+Tools for exploring the 400+ JMESPath extension functions.
 
 ### search
 

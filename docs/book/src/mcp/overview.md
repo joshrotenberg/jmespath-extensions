@@ -8,7 +8,7 @@ MCP is an open protocol that enables AI assistants to interact with external too
 
 - Query JSON data using JMESPath expressions
 - Transform and manipulate JSON structures
-- Use all 360+ extension functions
+- Use all 400+ extension functions
 - Explore available functions and their documentation
 
 ## Why Use jpx with Claude?
