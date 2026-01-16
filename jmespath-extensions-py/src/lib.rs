@@ -287,6 +287,202 @@ fn json_to_python(py: Python<'_>, value: &Value) -> PyResult<PyObject> {
     }
 }
 
+// ============================================================================
+// Query Library Support
+// ============================================================================
+
+/// A named query from a query library.
+#[pyclass]
+#[derive(Clone)]
+struct NamedQuery {
+    #[pyo3(get)]
+    name: String,
+    #[pyo3(get)]
+    description: Option<String>,
+    #[pyo3(get)]
+    expression: String,
+    #[pyo3(get)]
+    line_number: usize,
+}
+
+#[pymethods]
+impl NamedQuery {
+    fn __repr__(&self) -> String {
+        match &self.description {
+            Some(desc) => format!("NamedQuery(name={:?}, description={:?})", self.name, desc),
+            None => format!("NamedQuery(name={:?})", self.name),
+        }
+    }
+
+    fn __str__(&self) -> String {
+        self.expression.clone()
+    }
+}
+
+/// A collection of named queries parsed from a .jpx file.
+#[pyclass]
+#[derive(Clone)]
+struct QueryLibrary {
+    inner: jmespath_extensions::query_library::QueryLibrary,
+}
+
+#[pymethods]
+impl QueryLibrary {
+    /// Get a query by name.
+    ///
+    /// Args:
+    ///     name: The query name
+    ///
+    /// Returns:
+    ///     The NamedQuery if found, None otherwise
+    fn get(&self, name: &str) -> Option<NamedQuery> {
+        self.inner.get(name).map(|q| NamedQuery {
+            name: q.name.clone(),
+            description: q.description.clone(),
+            expression: q.expression.clone(),
+            line_number: q.line_number,
+        })
+    }
+
+    /// Get all query names.
+    ///
+    /// Returns:
+    ///     A list of query names
+    fn names(&self) -> Vec<String> {
+        self.inner.names().into_iter().map(String::from).collect()
+    }
+
+    /// Get all queries.
+    ///
+    /// Returns:
+    ///     A list of NamedQuery objects
+    fn list(&self) -> Vec<NamedQuery> {
+        self.inner
+            .list()
+            .iter()
+            .map(|q| NamedQuery {
+                name: q.name.clone(),
+                description: q.description.clone(),
+                expression: q.expression.clone(),
+                line_number: q.line_number,
+            })
+            .collect()
+    }
+
+    /// Get the number of queries in the library.
+    fn __len__(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Check if a query exists by name.
+    fn __contains__(&self, name: &str) -> bool {
+        self.inner.get(name).is_some()
+    }
+
+    /// Get a query by name (dict-like access).
+    fn __getitem__(&self, name: &str) -> PyResult<NamedQuery> {
+        self.get(name)
+            .ok_or_else(|| PyValueError::new_err(format!("Query '{}' not found", name)))
+    }
+
+    fn __repr__(&self) -> String {
+        let names = self.inner.names().join(", ");
+        format!("QueryLibrary([{}])", names)
+    }
+
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<QueryLibraryIter> {
+        Ok(QueryLibraryIter {
+            queries: slf.list(),
+            index: 0,
+        })
+    }
+}
+
+#[pyclass]
+struct QueryLibraryIter {
+    queries: Vec<NamedQuery>,
+    index: usize,
+}
+
+#[pymethods]
+impl QueryLibraryIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<NamedQuery> {
+        if slf.index < slf.queries.len() {
+            let query = slf.queries[slf.index].clone();
+            slf.index += 1;
+            Some(query)
+        } else {
+            None
+        }
+    }
+}
+
+/// Parse a query library from content.
+///
+/// Query libraries use the .jpx format with named queries:
+///
+/// ```text
+/// -- :name greet
+/// -- :desc Simple greeting
+/// `"hello"`
+///
+/// -- :name count
+/// length(@)
+/// ```
+///
+/// Args:
+///     content: The query library content as a string
+///
+/// Returns:
+///     A QueryLibrary object
+///
+/// Raises:
+///     ValueError: If the content is invalid
+///
+/// Example:
+///     >>> import jmespath_extensions as jpx
+///     >>> lib = jpx.parse_query_library('''
+///     ... -- :name count
+///     ... length(@)
+///     ...
+///     ... -- :name first
+///     ... @[0]
+///     ... ''')
+///     >>> lib.names()
+///     ['count', 'first']
+///     >>> lib['count'].expression
+///     'length(@)'
+#[pyfunction]
+fn parse_query_library(content: &str) -> PyResult<QueryLibrary> {
+    let inner = jmespath_extensions::query_library::QueryLibrary::parse(content)
+        .map_err(|e| PyValueError::new_err(format!("Parse error: {}", e)))?;
+
+    Ok(QueryLibrary { inner })
+}
+
+/// Check if content looks like a query library.
+///
+/// Args:
+///     content: The content to check
+///
+/// Returns:
+///     True if the content appears to be a query library (starts with -- :name)
+///
+/// Example:
+///     >>> import jmespath_extensions as jpx
+///     >>> jpx.is_query_library("-- :name foo\\nlength(@)")
+///     True
+///     >>> jpx.is_query_library("length(@)")
+///     False
+#[pyfunction]
+fn is_query_library(content: &str) -> bool {
+    jmespath_extensions::query_library::is_query_library(content)
+}
+
 /// jmespath_extensions Python module
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -295,7 +491,11 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_functions, m)?)?;
     m.add_function(wrap_pyfunction!(list_categories, m)?)?;
     m.add_function(wrap_pyfunction!(describe, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_query_library, m)?)?;
+    m.add_function(wrap_pyfunction!(is_query_library, m)?)?;
     m.add_class::<CompiledExpression>()?;
+    m.add_class::<QueryLibrary>()?;
+    m.add_class::<NamedQuery>()?;
 
     // Add version info
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;

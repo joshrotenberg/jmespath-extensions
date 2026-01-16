@@ -254,6 +254,10 @@ pub mod common;
 // Function registry for runtime control
 pub mod registry;
 
+// Query library parser (opt-in feature)
+#[cfg(feature = "query-library")]
+pub mod query_library;
+
 /// Complete function reference - auto-generated from `functions.toml`
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/function_docs.md"))]
 pub mod functions {}

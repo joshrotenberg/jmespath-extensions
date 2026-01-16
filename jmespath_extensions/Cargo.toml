@@ -50,6 +50,8 @@ unicode-normalization = { workspace = true, optional = true }
 default = ["full"]
 full = ["string", "array", "object", "math", "type", "utility", "validation", "path", "hash", "encoding", "regex", "url", "uuid", "rand", "datetime", "fuzzy", "expression", "phonetic", "geo", "semver", "network", "ids", "text", "duration", "color", "computing", "jsonpatch", "multi-match", "format", "language", "discovery"]
 core = ["string", "array", "object", "math", "type", "utility", "validation", "path", "expression"]
+# Query library parser for .jpx files (no dependencies, opt-in)
+query-library = []
 string = []
 array = []
 object = []
