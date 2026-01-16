@@ -36,7 +36,7 @@ semver_compare('1.0.0', '1.0.0') -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'semver_compare('1.0.0', '2.0.0')'
+echo '{}' | jpx 'semver_compare(`"1.0.0"`, `"2.0.0"`)'
 ```
 
 ### semver_is_valid
@@ -59,7 +59,7 @@ semver_is_valid('invalid') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'semver_is_valid('1.2.3')'
+echo '{}' | jpx 'semver_is_valid(`"1.2.3"`)'
 ```
 
 ### semver_major
@@ -82,7 +82,7 @@ semver_major('0.1.0') -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'semver_major('1.2.3')'
+echo '{}' | jpx 'semver_major(`"1.2.3"`)'
 ```
 
 ### semver_minor
@@ -105,7 +105,7 @@ semver_minor('1.0.0') -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'semver_minor('1.2.3')'
+echo '{}' | jpx 'semver_minor(`"1.2.3"`)'
 ```
 
 ### semver_parse
@@ -126,7 +126,7 @@ semver_parse('1.2.3-alpha').pre -> 'alpha'
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'semver_parse('1.2.3')'
+echo '{}' | jpx 'semver_parse(`"1.2.3"`)'
 ```
 
 ### semver_patch
@@ -149,7 +149,7 @@ semver_patch('1.2.0') -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'semver_patch('1.2.3')'
+echo '{}' | jpx 'semver_patch(`"1.2.3"`)'
 ```
 
 ### semver_satisfies
@@ -172,6 +172,6 @@ semver_satisfies('1.5.0', '>=1.0.0') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'semver_satisfies('1.2.3', '^1.0.0')'
+echo '{}' | jpx 'semver_satisfies(`"1.2.3"`, `"^1.0.0"`)'
 ```
 

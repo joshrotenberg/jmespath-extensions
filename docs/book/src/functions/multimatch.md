@@ -37,7 +37,7 @@ extract_all('abab', ['a', 'b']) -> [{pattern: 'a', match: 'a', start: 0, end: 1}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'extract_all('error warning', ['error', 'warning'])'
+echo '{}' | jpx 'extract_all(`"error warning"`, ['error', 'warning'])'
 ```
 
 ### extract_between
@@ -60,7 +60,7 @@ extract_between('no match', '[', ']') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'extract_between('<title>Page</title>', '<title>', '</title>')'
+echo '{}' | jpx 'extract_between(`"<title>Page</title>"`, `"<title>"`, `"</title>"`)'
 ```
 
 ### match_all
@@ -83,7 +83,7 @@ match_all('abc', []) -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'match_all('hello world', ['hello', 'world'])'
+echo '{}' | jpx 'match_all(`"hello world"`, ['hello', 'world'])'
 ```
 
 ### match_any
@@ -106,7 +106,7 @@ match_any('abc', []) -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'match_any('hello world', ['world', 'foo'])'
+echo '{}' | jpx 'match_any(`"hello world"`, ['world', 'foo'])'
 ```
 
 ### match_count
@@ -129,7 +129,7 @@ match_count('abc', ['x']) -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'match_count('abcabc', ['a', 'b'])'
+echo '{}' | jpx 'match_count(`"abcabc"`, ['a', 'b'])'
 ```
 
 ### match_positions
@@ -150,7 +150,7 @@ match_positions('abab', ['ab']) -> [{pattern: 'ab', start: 0, end: 2}, {pattern:
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'match_positions('The quick fox', ['quick', 'fox'])'
+echo '{}' | jpx 'match_positions(`"The quick fox"`, ['quick', 'fox'])'
 ```
 
 ### match_which
@@ -173,7 +173,7 @@ match_which('abc', ['x', 'y']) -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'match_which('hello world', ['hello', 'foo', 'world'])'
+echo '{}' | jpx 'match_which(`"hello world"`, ['hello', `"foo"`, 'world'])'
 ```
 
 ### replace_many
@@ -196,7 +196,7 @@ replace_many('abc', {x: 'y'}) -> \"abc\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'replace_many('hello world', {hello: 'hi', world: 'earth'})'
+echo '{}' | jpx 'replace_many(`"hello world"`, {hello: 'hi', world: 'earth'})'
 ```
 
 ### split_keep
@@ -219,7 +219,7 @@ split_keep('abc', '-') -> [\"abc\"]
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'split_keep('a-b-c', '-')'
+echo '{}' | jpx 'split_keep(`"a-b-c"`, `"-"`)'
 ```
 
 ### tokenize
@@ -242,6 +242,6 @@ tokenize('a bb ccc', {min_length: `2`}) -> [\"bb\", \"ccc\"]
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'tokenize('Hello, World!')'
+echo '{}' | jpx 'tokenize(`"Hello, World!"`)'
 ```
 

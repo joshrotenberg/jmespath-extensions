@@ -36,7 +36,7 @@ cidr_broadcast('172.16.0.0/16') -> \"172.16.255.255\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'cidr_broadcast('192.168.1.0/24')'
+echo '{}' | jpx 'cidr_broadcast(`"192.168.1.0/24"`)'
 ```
 
 ### cidr_contains
@@ -59,7 +59,7 @@ cidr_contains('0.0.0.0/0', '8.8.8.8') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'cidr_contains('192.168.0.0/16', '192.168.1.1')'
+echo '{}' | jpx 'cidr_contains(`"192.168.0.0/16"`, `"192.168.1.1"`)'
 ```
 
 ### cidr_network
@@ -82,7 +82,7 @@ cidr_network('192.168.1.100/24') -> \"192.168.1.0\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'cidr_network('192.168.1.0/24')'
+echo '{}' | jpx 'cidr_network(`"192.168.1.0/24"`)'
 ```
 
 ### cidr_prefix
@@ -105,7 +105,7 @@ cidr_prefix('0.0.0.0/0') -> 0
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'cidr_prefix('192.168.1.0/24')'
+echo '{}' | jpx 'cidr_prefix(`"192.168.1.0/24"`)'
 ```
 
 ### int_to_ip
@@ -151,7 +151,7 @@ ip_to_int('255.255.255.255') -> 4294967295
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'ip_to_int('192.168.1.1')'
+echo '{}' | jpx 'ip_to_int(`"192.168.1.1"`)'
 ```
 
 ### is_private_ip
@@ -174,6 +174,6 @@ is_private_ip('8.8.8.8') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_private_ip('192.168.1.1')'
+echo '{}' | jpx 'is_private_ip(`"192.168.1.1"`)'
 ```
 

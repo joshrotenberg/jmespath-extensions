@@ -42,7 +42,7 @@ is_base64('') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_base64('SGVsbG8=')'
+echo '{}' | jpx 'is_base64(`"SGVsbG8="`)'
 ```
 
 ### is_credit_card
@@ -65,7 +65,7 @@ is_credit_card('5500000000000004') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_credit_card('4111111111111111')'
+echo '{}' | jpx 'is_credit_card(`"4111111111111111"`)'
 ```
 
 ### is_email
@@ -88,7 +88,7 @@ is_email('user@sub.domain.com') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_email('user@example.com')'
+echo '{}' | jpx 'is_email(`"user@example.com"`)'
 ```
 
 ### is_hex
@@ -111,7 +111,7 @@ is_hex('ghijkl') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_hex('deadbeef')'
+echo '{}' | jpx 'is_hex(`"deadbeef"`)'
 ```
 
 ### is_ipv4
@@ -134,7 +134,7 @@ is_ipv4('10.0.0.1') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_ipv4('192.168.1.1')'
+echo '{}' | jpx 'is_ipv4(`"192.168.1.1"`)'
 ```
 
 ### is_ipv6
@@ -157,7 +157,7 @@ is_ipv6('192.168.1.1') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_ipv6('::1')'
+echo '{}' | jpx 'is_ipv6(`"::1"`)'
 ```
 
 ### is_iso_date
@@ -180,7 +180,7 @@ is_iso_date('12/13/2023') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_iso_date('2023-12-13T15:30:00Z')'
+echo '{}' | jpx 'is_iso_date(`"2023-12-13T15:30:00Z"`)'
 ```
 
 ### is_json
@@ -203,7 +203,7 @@ is_json('not json') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_json('{\"a\": 1}')'
+echo '{}' | jpx 'is_json(`"{\"a\": 1}"`)'
 ```
 
 ### is_jwt
@@ -228,7 +228,7 @@ is_jwt('invalid') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_jwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U')'
+echo '{}' | jpx 'is_jwt(`"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"`)'
 ```
 
 ### is_phone
@@ -253,7 +253,7 @@ is_phone('invalid') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_phone('+1-555-123-4567')'
+echo '{}' | jpx 'is_phone(`"+1-555-123-4567"`)'
 ```
 
 ### is_url
@@ -278,7 +278,7 @@ is_url('not a url') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_url('https://example.com')'
+echo '{}' | jpx 'is_url(`"https://example.com"`)'
 ```
 
 ### is_uuid
@@ -303,7 +303,7 @@ is_uuid('not-a-uuid') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_uuid('550e8400-e29b-41d4-a716-446655440000')'
+echo '{}' | jpx 'is_uuid(`"550e8400-e29b-41d4-a716-446655440000"`)'
 ```
 
 ### luhn_check
@@ -328,6 +328,6 @@ luhn_check('0') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'luhn_check('79927398713')'
+echo '{}' | jpx 'luhn_check(`"79927398713"`)'
 ```
 

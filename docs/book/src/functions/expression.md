@@ -118,7 +118,7 @@ apply(partial('contains', 'hello'), 'ell') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'apply(partial('join', `\"-\"`), `[\"a\", \"b\"]`)'
+echo '{}' | jpx 'apply(partial(`"join"`, `\"-\"`), `[\"a\", \"b\"]`)'
 ```
 
 ### count_by
@@ -143,7 +143,7 @@ count_by('category', []) -> {}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'count_by('type', [{type: 'a'}, {type: 'b'}, {type: 'a'}])'
+echo '{}' | jpx 'count_by(`"type"`, [{type: 'a'}, {type: 'b'}, {type: 'a'}])'
 ```
 
 ### count_expr
@@ -193,7 +193,7 @@ drop_while('length(@) < `3`', ['a', 'ab', 'abc', 'x']) -> ['abc', 'x']
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'drop_while('@ < `4`', [1, 2, 3, 5, 1])'
+echo '{}' | jpx 'drop_while(`"@ < `4`"`, [1, 2, 3, 5, 1])'
 ```
 
 ### every
@@ -218,7 +218,7 @@ every('@ > `0`', []) -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'every('@ > `0`', [1, 2, 3])'
+echo '{}' | jpx 'every(`"@ > `0`"`, [1, 2, 3])'
 ```
 
 ### filter_expr
@@ -395,7 +395,7 @@ map_keys('upper(@)', {}) -> {}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'map_keys('upper(@)', {a: 1})'
+echo '{}' | jpx 'map_keys(`"upper(@)"`, {a: 1})'
 ```
 
 ### map_values
@@ -420,7 +420,7 @@ map_values('@ * `2`', {}) -> {}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'map_values('@ * `2`', {a: 1, b: 2})'
+echo '{}' | jpx 'map_values(`"@ * `2`"`, {a: 1, b: 2})'
 ```
 
 ### max_by_expr
@@ -520,7 +520,7 @@ partial('multiply', `2`) -> partial multiply by 2
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'partial('contains', `\"hello\"`)'
+echo '{}' | jpx 'partial(`"contains"`, `\"hello\"`)'
 ```
 
 ### partition_expr
@@ -620,7 +620,7 @@ reduce_expr('concat(accumulator, current)', ['a', 'b'], '') -> 'ab'
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'reduce_expr('add(accumulator, current)', [1, 2, 3], `0`)'
+echo '{}' | jpx 'reduce_expr(`"add(accumulator, current)"`, [1, 2, 3], `0`)'
 ```
 
 ### reject
@@ -645,7 +645,7 @@ reject('@ > `0`', []) -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'reject('@ > `2`', [1, 2, 3, 4])'
+echo '{}' | jpx 'reject(`"@ > `2`"`, [1, 2, 3, 4])'
 ```
 
 ### scan_expr
@@ -670,7 +670,7 @@ scan_expr('add(accumulator, current)', [], `0`) -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'scan_expr('add(accumulator, current)', [1, 2, 3], `0`)'
+echo '{}' | jpx 'scan_expr(`"add(accumulator, current)"`, [1, 2, 3], `0`)'
 ```
 
 ### some
@@ -695,7 +695,7 @@ some('@ > `0`', []) -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'some('@ > `2`', [1, 2, 3])'
+echo '{}' | jpx 'some(`"@ > `2`"`, [1, 2, 3])'
 ```
 
 ### sort_by_expr
@@ -745,7 +745,7 @@ take_while('@ < `0`', [1, 2, 3]) -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'take_while('@ < `4`', [1, 2, 3, 5, 1])'
+echo '{}' | jpx 'take_while(`"@ < `4`"`, [1, 2, 3, 5, 1])'
 ```
 
 ### unique_by_expr
@@ -818,7 +818,7 @@ walk('keys(@)', {a: {b: 1}}) -> ['a']
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'walk('@', data)'
+echo '{}' | jpx 'walk(`"@"`, data)'
 ```
 
 ### while_expr
@@ -866,6 +866,6 @@ zip_with('add([0], [1])', [], []) -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'zip_with('add([0], [1])', [1, 2], [10, 20])'
+echo '{}' | jpx 'zip_with(`"add([0], [1])"`, [1, 2], [10, 20])'
 ```
 

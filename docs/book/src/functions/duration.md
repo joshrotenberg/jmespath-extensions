@@ -126,6 +126,6 @@ parse_duration('30s') -> 30
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'parse_duration('1h30m')'
+echo '{}' | jpx 'parse_duration(`"1h30m"`)'
 ```
 

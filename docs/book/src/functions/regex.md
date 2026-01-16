@@ -32,7 +32,7 @@ regex_extract('abc', '\\d+') -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'regex_extract('a1b2', '\\\\d+')'
+echo '{}' | jpx 'regex_extract(`"a1b2"`, `"\\\\d+"`)'
 ```
 
 ### regex_match
@@ -55,7 +55,7 @@ regex_match('abc', '^\\d+$') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'regex_match('hello', '^h.*o$')'
+echo '{}' | jpx 'regex_match(`"hello"`, `"^h.*o$"`)'
 ```
 
 ### regex_replace
@@ -78,6 +78,6 @@ regex_replace('abc', 'x', 'y') -> \"abc\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'regex_replace('a1b2', '\\\\d+', 'X')'
+echo '{}' | jpx 'regex_replace(`"a1b2"`, `"\\\\d+"`, `"X"`)'
 ```
 

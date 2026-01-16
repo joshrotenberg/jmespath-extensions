@@ -33,7 +33,7 @@ path_basename('file.txt') -> \"file.txt\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'path_basename('/foo/bar.txt')'
+echo '{}' | jpx 'path_basename(`"/foo/bar.txt"`)'
 ```
 
 ### path_dirname
@@ -56,7 +56,7 @@ path_dirname('file.txt') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'path_dirname('/foo/bar.txt')'
+echo '{}' | jpx 'path_dirname(`"/foo/bar.txt"`)'
 ```
 
 ### path_ext
@@ -79,7 +79,7 @@ path_ext('noext') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'path_ext('/foo/bar.txt')'
+echo '{}' | jpx 'path_ext(`"/foo/bar.txt"`)'
 ```
 
 ### path_join
@@ -102,6 +102,6 @@ path_join('a', 'b') -> \"a/b\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'path_join('/foo', 'bar', 'baz')'
+echo '{}' | jpx 'path_join(`"/foo"`, `"bar"`, `"baz"`)'
 ```
 

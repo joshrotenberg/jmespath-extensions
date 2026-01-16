@@ -65,7 +65,7 @@ abbreviate('hello world', `8`, '>>') -> \"hello >>\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'abbreviate('hello world', `8`)'
+echo '{}' | jpx 'abbreviate(`"hello world"`, `8`)'
 ```
 
 ### camel_case
@@ -88,7 +88,7 @@ camel_case('Hello World') -> \"helloWorld\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'camel_case('hello_world')'
+echo '{}' | jpx 'camel_case(`"hello_world"`)'
 ```
 
 ### capitalize
@@ -111,7 +111,7 @@ capitalize('') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'capitalize('hello')'
+echo '{}' | jpx 'capitalize(`"hello"`)'
 ```
 
 ### center
@@ -134,7 +134,7 @@ center('hello', `3`) -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'center('hi', `6`)'
+echo '{}' | jpx 'center(`"hi"`, `6`)'
 ```
 
 ### concat
@@ -157,7 +157,7 @@ concat('only') -> \"only\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'concat('hello', ' ', 'world')'
+echo '{}' | jpx 'concat(`"hello"`, `" "`, `"world"`)'
 ```
 
 ### explode
@@ -180,7 +180,7 @@ explode('') -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'explode('abc')'
+echo '{}' | jpx 'explode(`"abc"`)'
 ```
 
 ### find_first
@@ -205,7 +205,7 @@ find_first('hello', 'x') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'find_first('hello', 'l')'
+echo '{}' | jpx 'find_first(`"hello"`, `"l"`)'
 ```
 
 ### find_last
@@ -230,7 +230,7 @@ find_last('hello', 'x') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'find_last('hello', 'l')'
+echo '{}' | jpx 'find_last(`"hello"`, `"l"`)'
 ```
 
 ### implode
@@ -276,7 +276,7 @@ indices('hello', 'x') -> []
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'indices('hello', 'l')'
+echo '{}' | jpx 'indices(`"hello"`, `"l"`)'
 ```
 
 ### inside
@@ -299,7 +299,7 @@ inside('', 'hello') -> true
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'inside('world', 'hello world')'
+echo '{}' | jpx 'inside(`"world"`, `"hello world"`)'
 ```
 
 ### is_blank
@@ -322,7 +322,7 @@ is_blank('hello') -> false
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'is_blank('   ')'
+echo '{}' | jpx 'is_blank(`"   "`)'
 ```
 
 ### kebab_case
@@ -345,7 +345,7 @@ kebab_case('Hello World') -> \"hello-world\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'kebab_case('helloWorld')'
+echo '{}' | jpx 'kebab_case(`"helloWorld"`)'
 ```
 
 ### lower
@@ -370,7 +370,7 @@ lower('hello') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'lower('HELLO')'
+echo '{}' | jpx 'lower(`"HELLO"`)'
 ```
 
 ### ltrimstr
@@ -393,7 +393,7 @@ ltrimstr('hello', '') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'ltrimstr('foobar', 'foo')'
+echo '{}' | jpx 'ltrimstr(`"foobar"`, `"foo"`)'
 ```
 
 ### mask
@@ -416,7 +416,7 @@ mask('password', `4`, '#') -> \"####word\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'mask('4111111111111111', `4`)'
+echo '{}' | jpx 'mask(`"4111111111111111"`, `4`)'
 ```
 
 ### normalize_whitespace
@@ -439,7 +439,7 @@ normalize_whitespace('hello') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'normalize_whitespace('a  b  c')'
+echo '{}' | jpx 'normalize_whitespace(`"a  b  c"`)'
 ```
 
 ### pad_left
@@ -464,7 +464,7 @@ pad_left('hello', `3`, '0') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'pad_left('5', `3`, '0')'
+echo '{}' | jpx 'pad_left(`"5"`, `3`, `"0"`)'
 ```
 
 ### pad_right
@@ -489,7 +489,7 @@ pad_right('hello', `3`, '0') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'pad_right('5', `3`, '0')'
+echo '{}' | jpx 'pad_right(`"5"`, `3`, `"0"`)'
 ```
 
 ### redact
@@ -512,7 +512,7 @@ redact('no match', 'xyz', '[X]') -> \"no match\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'redact('email: test@example.com', '\\S+@\\S+', '[EMAIL]')'
+echo '{}' | jpx 'redact(`"email: test@example.com"`, `"\\S+@\\S+"`, `"[EMAIL]"`)'
 ```
 
 ### repeat
@@ -535,7 +535,7 @@ repeat('x', `0`) -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'repeat('ab', `3`)'
+echo '{}' | jpx 'repeat(`"ab"`, `3`)'
 ```
 
 ### replace
@@ -560,7 +560,7 @@ replace('aaa', 'a', 'b') -> \"bbb\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'replace('hello', 'l', 'L')'
+echo '{}' | jpx 'replace(`"hello"`, `"l"`, `"L"`)'
 ```
 
 ### reverse_string
@@ -583,7 +583,7 @@ reverse_string('') -> \"\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'reverse_string('hello')'
+echo '{}' | jpx 'reverse_string(`"hello"`)'
 ```
 
 ### rtrimstr
@@ -608,7 +608,7 @@ rtrimstr('barbar', 'bar') -> \"bar\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'rtrimstr('foobar', 'bar')'
+echo '{}' | jpx 'rtrimstr(`"foobar"`, `"bar"`)'
 ```
 
 ### shell_escape
@@ -633,7 +633,7 @@ shell_escape('it'\\''s') -> \"'it'\\\\''s'\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'shell_escape('hello')'
+echo '{}' | jpx 'shell_escape(`"hello"`)'
 ```
 
 ### slice
@@ -658,7 +658,7 @@ slice('abcdef', `2`, `4`) -> \"cd\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'slice('hello', `1`, `4`)'
+echo '{}' | jpx 'slice(`"hello"`, `1`, `4`)'
 ```
 
 ### snake_case
@@ -683,7 +683,7 @@ snake_case('HELLO_WORLD') -> \"hello_world\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'snake_case('helloWorld')'
+echo '{}' | jpx 'snake_case(`"helloWorld"`)'
 ```
 
 ### split
@@ -710,7 +710,7 @@ split('', ',') -> [\"\"]
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'split('a,b,c', ',')'
+echo '{}' | jpx 'split(`"a,b,c"`, `","`)'
 ```
 
 ### sprintf
@@ -735,7 +735,7 @@ sprintf('%s: %d', 'count', `5`) -> \"count: 5\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'sprintf('Pi is %.2f', `3.14159`)'
+echo '{}' | jpx 'sprintf(`"Pi is %.2f"`, `3.14159`)'
 ```
 
 ### substr
@@ -760,7 +760,7 @@ substr('hello', `4`, `1`) -> \"o\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'substr('hello', `1`, `3`)'
+echo '{}' | jpx 'substr(`"hello"`, `1`, `3`)'
 ```
 
 ### title
@@ -785,7 +785,7 @@ title('a b c') -> \"A B C\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'title('hello world')'
+echo '{}' | jpx 'title(`"hello world"`)'
 ```
 
 ### trim
@@ -812,7 +812,7 @@ trim('\t\nhello\t\n') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'trim('  hello  ')'
+echo '{}' | jpx 'trim(`"  hello  "`)'
 ```
 
 ### trim_left
@@ -839,7 +839,7 @@ trim_left('hello') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'trim_left('  hello')'
+echo '{}' | jpx 'trim_left(`"  hello"`)'
 ```
 
 ### trim_right
@@ -866,7 +866,7 @@ trim_right('hello') -> \"hello\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'trim_right('hello  ')'
+echo '{}' | jpx 'trim_right(`"hello  "`)'
 ```
 
 ### upper
@@ -893,7 +893,7 @@ upper('abc123') -> \"ABC123\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'upper('hello')'
+echo '{}' | jpx 'upper(`"hello"`)'
 ```
 
 ### wrap
@@ -918,6 +918,6 @@ wrap('one two three', `7`) -> \"one two\\nthree\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'wrap('hello world', `5`)'
+echo '{}' | jpx 'wrap(`"hello world"`, `5`)'
 ```
 

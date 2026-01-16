@@ -83,7 +83,7 @@ to_csv(['say "hello"', 'test']) -> "\"say \"\"hello\"\"\",test"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'to_csv(['a', 'b', 'c'])'
+echo '{}' | jpx 'to_csv(['a', `"b"`, 'c'])'
 ```
 
 ### to_csv_rows
@@ -152,6 +152,6 @@ to_tsv(['hello', `42`, `true`]) -> "hello\t42\ttrue"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'to_tsv(['a', 'b', 'c'])'
+echo '{}' | jpx 'to_tsv(['a', `"b"`, 'c'])'
 ```
 

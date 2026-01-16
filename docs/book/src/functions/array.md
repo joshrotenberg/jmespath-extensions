@@ -290,7 +290,7 @@ frequencies([]) -> {}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'frequencies(['a', 'b', 'a'])'
+echo '{}' | jpx 'frequencies(['a', `"b"`, 'a'])'
 ```
 
 ### group_by
@@ -313,7 +313,7 @@ group_by([], 'key') -> {}
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'group_by([{t: 'a'}, {t: 'b'}, {t: 'a'}], 't')'
+echo '{}' | jpx 'group_by([{t: 'a'}, {t: 'b'}, {t: 'a'}], `"t"`)'
 ```
 
 ### includes

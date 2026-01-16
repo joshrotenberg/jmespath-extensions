@@ -36,7 +36,7 @@ detect_language('') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'detect_language('This is English text.')'
+echo '{}' | jpx 'detect_language(`"This is English text."`)'
 ```
 
 ### detect_language_confidence
@@ -59,7 +59,7 @@ detect_language_confidence('') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'detect_language_confidence('This is definitely English text.')'
+echo '{}' | jpx 'detect_language_confidence(`"This is definitely English text."`)'
 ```
 
 ### detect_language_info
@@ -84,7 +84,7 @@ detect_language_info('') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'detect_language_info('This is a test.')'
+echo '{}' | jpx 'detect_language_info(`"This is a test."`)'
 ```
 
 ### detect_language_iso
@@ -109,7 +109,7 @@ detect_language_iso('') -> null
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'detect_language_iso('This is English text.')'
+echo '{}' | jpx 'detect_language_iso(`"This is English text."`)'
 ```
 
 ### detect_script
@@ -134,6 +134,6 @@ detect_script('こんにちは') -> \"Hiragana\"
 **CLI Usage:**
 
 ```bash
-echo '{}' | jpx 'detect_script('Hello world')'
+echo '{}' | jpx 'detect_script(`"Hello world"`)'
 ```
 
