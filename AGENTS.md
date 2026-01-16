@@ -4,7 +4,7 @@ This document provides guidance for AI agents using jpx as an MCP server.
 
 ## Overview
 
-jpx is a JMESPath processor with 360+ extension functions. As an MCP server, it provides tools for:
+jpx is a JMESPath processor with 400+ extension functions. As an MCP server, it provides tools for:
 
 - Querying and transforming JSON data
 - Discovering JMESPath functions

@@ -1,6 +1,8 @@
 # Quick Start
 
-Five things to know to start using jpx.
+jpx is a command-line JSON processor with 400+ built-in functions. Pipe JSON in, get transformed JSON out.
+
+Five things to know to start using it:
 
 ## 1. Get a field
 
@@ -69,7 +71,7 @@ That's it. You can do a lot with just these five patterns.
 Don't memorize 400 functions. Search for what you need:
 
 ```bash
-jpx --search "remove duplicates"
+jpx --search unique
 jpx --describe unique
 ```
 
@@ -78,3 +80,4 @@ jpx --describe unique
 - [Cookbook](../guide/cookbook.md) - Common tasks and recipes
 - [Basic Usage](./basic-usage.md) - More CLI options
 - [Function Reference](../functions/overview.md) - All functions by category
+- [Why jpx?](../guide/why-jpx.md) - Compare jpx to Python, jq, and other tools

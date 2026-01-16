@@ -4,7 +4,7 @@
 
 //! # JMESPath Extensions
 //!
-//! A comprehensive collection of 360+ extension functions for [JMESPath](https://jmespath.org/) queries.
+//! A comprehensive collection of 400+ extension functions for [JMESPath](https://jmespath.org/) queries.
 //!
 //! ## Built on jmespath.rs
 //!
