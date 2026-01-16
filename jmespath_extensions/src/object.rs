@@ -19,6 +19,11 @@
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
+use heck::{
+    ToKebabCase, ToLowerCamelCase, ToShoutyKebabCase, ToShoutySnakeCase, ToSnakeCase, ToTrainCase,
+    ToUpperCamelCase,
+};
+
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Signature,
     Variable,
@@ -76,6 +81,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("snake_keys", Box::new(SnakeKeysFn::new()));
     runtime.register_function("camel_keys", Box::new(CamelKeysFn::new()));
     runtime.register_function("kebab_keys", Box::new(KebabKeysFn::new()));
+    runtime.register_function("pascal_keys", Box::new(PascalKeysFn::new()));
+    runtime.register_function("shouty_snake_keys", Box::new(ShoutySnakeKeysFn::new()));
+    runtime.register_function("shouty_kebab_keys", Box::new(ShoutyKebabKeysFn::new()));
+    runtime.register_function("train_keys", Box::new(TrainKeysFn::new()));
     // Structural diff functions
     runtime.register_function("structural_diff", Box::new(StructuralDiffFn::new()));
     runtime.register_function("has_same_shape", Box::new(HasSameShapeFn::new()));
@@ -2418,6 +2427,7 @@ fn paths_to_recursive(value: &Variable, key: &str, current_path: String, paths: 
 
 // =============================================================================
 // snake_keys(any) -> any (recursively convert all keys to snake_case)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(SnakeKeysFn, vec![ArgumentType::Any], None);
@@ -2425,29 +2435,15 @@ define_function!(SnakeKeysFn, vec![ArgumentType::Any], None);
 impl Function for SnakeKeysFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
-        Ok(Rc::new(transform_keys_recursive(&args[0], to_snake_case)))
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_snake_case()
+        })))
     }
-}
-
-fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() {
-            if i > 0 {
-                result.push('_');
-            }
-            result.push(c.to_lowercase().next().unwrap());
-        } else if c == '-' || c == ' ' {
-            result.push('_');
-        } else {
-            result.push(c);
-        }
-    }
-    result
 }
 
 // =============================================================================
 // camel_keys(any) -> any (recursively convert all keys to camelCase)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(CamelKeysFn, vec![ArgumentType::Any], None);
@@ -2455,30 +2451,15 @@ define_function!(CamelKeysFn, vec![ArgumentType::Any], None);
 impl Function for CamelKeysFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
-        Ok(Rc::new(transform_keys_recursive(&args[0], to_camel_case)))
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_lower_camel_case()
+        })))
     }
-}
-
-fn to_camel_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = false;
-    for (i, c) in s.chars().enumerate() {
-        if c == '_' || c == '-' || c == ' ' {
-            capitalize_next = true;
-        } else if capitalize_next {
-            result.push(c.to_uppercase().next().unwrap());
-            capitalize_next = false;
-        } else if i == 0 {
-            result.push(c.to_lowercase().next().unwrap());
-        } else {
-            result.push(c);
-        }
-    }
-    result
 }
 
 // =============================================================================
 // kebab_keys(any) -> any (recursively convert all keys to kebab-case)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(KebabKeysFn, vec![ArgumentType::Any], None);
@@ -2486,25 +2467,74 @@ define_function!(KebabKeysFn, vec![ArgumentType::Any], None);
 impl Function for KebabKeysFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
-        Ok(Rc::new(transform_keys_recursive(&args[0], to_kebab_case)))
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_kebab_case()
+        })))
     }
 }
 
-fn to_kebab_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() {
-            if i > 0 {
-                result.push('-');
-            }
-            result.push(c.to_lowercase().next().unwrap());
-        } else if c == '_' || c == ' ' {
-            result.push('-');
-        } else {
-            result.push(c);
-        }
+// =============================================================================
+// pascal_keys(any) -> any (recursively convert all keys to PascalCase)
+// Uses heck crate - also known as UpperCamelCase
+// =============================================================================
+
+define_function!(PascalKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for PascalKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_upper_camel_case()
+        })))
     }
-    result
+}
+
+// =============================================================================
+// shouty_snake_keys(any) -> any (recursively convert all keys to SHOUTY_SNAKE_CASE)
+// Uses heck crate - useful for constants
+// =============================================================================
+
+define_function!(ShoutySnakeKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for ShoutySnakeKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_shouty_snake_case()
+        })))
+    }
+}
+
+// =============================================================================
+// shouty_kebab_keys(any) -> any (recursively convert all keys to SHOUTY-KEBAB-CASE)
+// Uses heck crate
+// =============================================================================
+
+define_function!(ShoutyKebabKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for ShoutyKebabKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_shouty_kebab_case()
+        })))
+    }
+}
+
+// =============================================================================
+// train_keys(any) -> any (recursively convert all keys to Train-Case)
+// Uses heck crate - like HTTP headers (Content-Type)
+// =============================================================================
+
+define_function!(TrainKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for TrainKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_train_case()
+        })))
+    }
 }
 
 fn transform_keys_recursive<F>(value: &Variable, transform: F) -> Variable
