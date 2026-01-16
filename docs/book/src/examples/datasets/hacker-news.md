@@ -399,6 +399,27 @@ jpx '{
 
 ---
 
+## Using Query Libraries
+
+Instead of typing these queries repeatedly, save them in a `.jpx` query library. See [examples/hacker-news.jpx](https://github.com/joshrotenberg/jmespath-extensions/blob/main/examples/hacker-news.jpx) for a ready-to-use library:
+
+```bash
+# List available queries
+jpx -Q examples/hacker-news.jpx --list-queries
+
+# Run common analyses
+jpx -Q examples/hacker-news.jpx:title-keywords hn_front.json
+jpx -Q examples/hacker-news.jpx:top-stories hn_front.json
+jpx -Q examples/hacker-news.jpx:summary hn_front.json
+
+# Output as table
+jpx -Q examples/hacker-news.jpx:most-discussed -t hn_front.json
+```
+
+See [Query Files](../../guide/query-files.md) for more on creating and using query libraries.
+
+---
+
 ## Tips for HN Data
 
 1. **HTML in story_text**: Always strip HTML tags before NLP processing

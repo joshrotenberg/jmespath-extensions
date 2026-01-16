@@ -1898,12 +1898,10 @@ fn check_queries(query_path: &str, color_mode: &ColorMode) -> Result<()> {
             println!("Validation failed.");
         }
         std::process::exit(1);
+    } else if use_color {
+        println!("{}", "All queries valid.".green().bold());
     } else {
-        if use_color {
-            println!("{}", "All queries valid.".green().bold());
-        } else {
-            println!("All queries valid.");
-        }
+        println!("All queries valid.");
     }
 
     Ok(())
