@@ -29,6 +29,7 @@ use crate::define_function;
 pub fn register(runtime: &mut Runtime) {
     runtime.register_function("items", Box::new(EntriesFn::new()));
     runtime.register_function("from_items", Box::new(FromEntriesFn::new()));
+    runtime.register_function("from_entries", Box::new(FromEntriesFn::new())); // alias for jq/lodash users
     runtime.register_function("with_entries", Box::new(WithEntriesFn::new()));
     runtime.register_function("pick", Box::new(PickFn::new()));
     runtime.register_function("omit", Box::new(OmitFn::new()));

@@ -2640,6 +2640,18 @@ jep = "JEP-013"
 features = ["core", "jep"]
 
 [[functions]]
+name = "from_entries"
+category = "object"
+description = "Alias for from_items. Convert array of [key, value] pairs to object. Familiar to jq/lodash users."
+signature = "array -> object"
+examples = [
+    { code = "from_entries([['a', 1], ['b', 2]]) -> {a: 1, b: 2}", description = "Multiple pairs" },
+    { code = "items({a: 1, b: 2}) | from_entries(@) -> {a: 1, b: 2}", description = "Round-trip with items" },
+]
+alias_of = "from_items"
+features = ["core"]
+
+[[functions]]
 name = "get"
 category = "object"
 description = "Get value at dot-separated path with optional default"
