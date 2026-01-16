@@ -13,6 +13,7 @@
 - [CLI Reference](./guide/cli-reference.md)
 - [Output Formats](./guide/output-formats.md)
 - [Expression Syntax](./guide/expression-syntax.md)
+- [String Literals & Escaping](./guide/escaping.md)
 - [Working with Files](./guide/working-with-files.md)
 - [Query Files](./guide/query-files.md)
 - [Strict Mode](./guide/strict-mode.md)
