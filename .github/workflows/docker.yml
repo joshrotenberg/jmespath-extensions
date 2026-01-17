@@ -2,8 +2,10 @@
 #
 # Triggers after the Release workflow completes successfully and builds
 # multi-arch images. AMD64 uses pre-built binaries, ARM64 builds from source.
+#
+# Images are published to ghcr.io/joshrotenberg/jpx
 
-name: Docker
+name: Docker CLI
 
 on:
   # Trigger after Release workflow completes
@@ -77,7 +79,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: ./docker/cli/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}-amd64
@@ -116,11 +118,11 @@ jobs:
         with:
           ref: ${{ steps.meta.outputs.tag }}
 
-      # Get Dockerfile.build from main (it may not exist in older tags)
+      # Get docker/cli/Dockerfile.build from main (it may not exist in older tags)
       - name: Fetch Dockerfile.build from main
         run: |
           git fetch origin main
-          git checkout origin/main -- Dockerfile.build
+          git checkout origin/main -- docker/cli/Dockerfile.build
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -139,7 +141,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.build
+          file: ./docker/cli/Dockerfile.build
           platforms: linux/arm64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}-arm64
