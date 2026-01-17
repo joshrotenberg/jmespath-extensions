@@ -225,8 +225,8 @@ pub struct GetDiscoverySchemaParams {
 /// Parameters for the register_discovery tool
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RegisterDiscoveryParams {
-    /// The discovery spec JSON
-    pub spec: Value,
+    /// The discovery spec containing server info and tool definitions
+    pub spec: DiscoverySpec,
     /// Replace existing registration if server already registered (default: false)
     #[serde(default)]
     pub replace: bool,
@@ -1195,17 +1195,12 @@ impl JpxMcp {
         &self,
         Parameters(params): Parameters<RegisterDiscoveryParams>,
     ) -> Result<CallToolResult, McpError> {
-        // Parse the spec
-        let spec: DiscoverySpec = serde_json::from_value(params.spec).map_err(|e| {
-            McpError::invalid_params(format!("Invalid discovery spec: {}", e), None)
-        })?;
-
         // Register with the global registry
         let result = {
             let mut registry = discovery_registry()
                 .write()
                 .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
-            registry.register(spec, params.replace)
+            registry.register(params.spec, params.replace)
         };
 
         json_result(&result)
