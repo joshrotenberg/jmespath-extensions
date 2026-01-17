@@ -9,7 +9,7 @@ pr_labels = ["release"]
 
 # Main library - release-plz creates GitHub release (no binaries needed)
 [[package]]
-name = "jmespath_extensions"
+name = "jmespath-extensions"
 publish = true
 git_release_enable = true
 git_tag_name = "v{{ version }}"
