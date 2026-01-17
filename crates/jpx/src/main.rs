@@ -1766,9 +1766,7 @@ fn print_ast(node: &Ast, indent: usize) {
 fn read_json_from(path: Option<&str>) -> Result<serde_json::Value> {
     // Auto-detect parquet files by extension
     #[cfg(feature = "parquet")]
-    if let Some(p) = path
-        && (p.ends_with(".parquet") || p.ends_with(".pq"))
-    {
+    if let Some(p) = path.filter(|p| p.ends_with(".parquet") || p.ends_with(".pq")) {
         return jpx::parquet_support::read_parquet_to_json(std::path::Path::new(p))
             .with_context(|| format!("Failed to read parquet file: {}", p));
     }
