@@ -1,5 +1,25 @@
 # Installation
 
+## Docker (Quickest)
+
+Try jpx instantly without installing anything:
+
+```bash
+# Pull the image
+docker pull ghcr.io/joshrotenberg/jpx
+
+# Run a query
+echo '{"name": "Alice", "age": 30}' | docker run -i ghcr.io/joshrotenberg/jpx 'name'
+# "Alice"
+
+# Fetch and transform data from an API
+curl -s 'https://hacker-news.firebaseio.com/v0/item/1.json' | \
+  docker run -i ghcr.io/joshrotenberg/jpx '{title: title, by: by, score: score}'
+# {"by": "pg", "score": 57, "title": "Y Combinator"}
+```
+
+Available for `linux/amd64` and `linux/arm64`.
+
 ## Homebrew (macOS/Linux)
 
 The easiest way to install jpx on macOS or Linux:
