@@ -16,12 +16,14 @@
 //! validation::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 #[cfg(feature = "regex")]
 use regex::Regex;
@@ -44,6 +46,36 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("is_json", Box::new(IsJsonFn::new()));
     runtime.register_function("is_base64", Box::new(IsBase64Fn::new()));
     runtime.register_function("is_hex", Box::new(IsHexFn::new()));
+}
+
+/// Register validation functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    #[cfg(feature = "regex")]
+    {
+        register_if_enabled!(runtime, enabled, "is_email", Box::new(IsEmailFn::new()));
+        register_if_enabled!(runtime, enabled, "is_url", Box::new(IsUrlFn::new()));
+        register_if_enabled!(runtime, enabled, "is_uuid", Box::new(IsUuidFn::new()));
+        register_if_enabled!(runtime, enabled, "is_phone", Box::new(IsPhoneFn::new()));
+    }
+    register_if_enabled!(runtime, enabled, "is_ipv4", Box::new(IsIpv4Fn::new()));
+    register_if_enabled!(runtime, enabled, "is_ipv6", Box::new(IsIpv6Fn::new()));
+    register_if_enabled!(runtime, enabled, "luhn_check", Box::new(LuhnCheckFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "is_credit_card",
+        Box::new(IsCreditCardFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "is_jwt", Box::new(IsJwtFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "is_iso_date",
+        Box::new(IsIsoDateFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "is_json", Box::new(IsJsonFn::new()));
+    register_if_enabled!(runtime, enabled, "is_base64", Box::new(IsBase64Fn::new()));
+    register_if_enabled!(runtime, enabled, "is_hex", Box::new(IsHexFn::new()));
 }
 
 // =============================================================================

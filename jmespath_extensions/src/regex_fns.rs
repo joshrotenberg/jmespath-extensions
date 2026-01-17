@@ -16,12 +16,14 @@
 //! regex_fns::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, Function, JmespathError, Rcvar, Runtime, Variable, custom_error,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 use regex::Regex;
 
@@ -30,6 +32,28 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("regex_match", Box::new(RegexMatchFn::new()));
     runtime.register_function("regex_extract", Box::new(RegexExtractFn::new()));
     runtime.register_function("regex_replace", Box::new(RegexReplaceFn::new()));
+}
+
+/// Register only the regex functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "regex_match",
+        Box::new(RegexMatchFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "regex_extract",
+        Box::new(RegexExtractFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "regex_replace",
+        Box::new(RegexReplaceFn::new())
+    );
 }
 
 // =============================================================================

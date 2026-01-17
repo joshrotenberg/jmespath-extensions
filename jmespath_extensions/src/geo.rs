@@ -16,11 +16,13 @@
 //! geo::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use geoutils::Location;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Signature, Variable};
 
 /// Register all geo functions with the runtime.
@@ -29,6 +31,34 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("geo_distance_km", Box::new(GeoDistanceKmFn::new()));
     runtime.register_function("geo_distance_miles", Box::new(GeoDistanceMilesFn::new()));
     runtime.register_function("geo_bearing", Box::new(GeoBearingFn::new()));
+}
+
+/// Register geo functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "geo_distance",
+        Box::new(GeoDistanceFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "geo_distance_km",
+        Box::new(GeoDistanceKmFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "geo_distance_miles",
+        Box::new(GeoDistanceMilesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "geo_bearing",
+        Box::new(GeoBearingFn::new())
+    );
 }
 
 // =============================================================================

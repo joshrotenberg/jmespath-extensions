@@ -16,9 +16,11 @@
 //! expression::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{
     ArgumentType, Context, ErrorReason, JmespathError, Rcvar, Runtime, Signature, Variable,
 };
@@ -72,6 +74,57 @@ pub fn register(runtime: &mut Runtime) {
     // Loop functions (jq parity)
     runtime.register_function("while_expr", Box::new(WhileExprFn::new()));
     runtime.register_function("until_expr", Box::new(UntilExprFn::new()));
+}
+
+/// Register only the expression functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "map_expr", Box::new(MapExprFn::new()));
+    register_if_enabled!(runtime, enabled, "filter_expr", Box::new(FilterExprFn::new()));
+    register_if_enabled!(runtime, enabled, "any_expr", Box::new(AnyExprFn::new()));
+    register_if_enabled!(runtime, enabled, "all_expr", Box::new(AllExprFn::new()));
+    register_if_enabled!(runtime, enabled, "find_expr", Box::new(FindExprFn::new()));
+    register_if_enabled!(runtime, enabled, "find_index_expr", Box::new(FindIndexExprFn::new()));
+    register_if_enabled!(runtime, enabled, "count_expr", Box::new(CountExprFn::new()));
+    register_if_enabled!(runtime, enabled, "sort_by_expr", Box::new(SortByExprFn::new()));
+    register_if_enabled!(runtime, enabled, "group_by_expr", Box::new(GroupByExprFn::new()));
+    register_if_enabled!(runtime, enabled, "partition_expr", Box::new(PartitionExprFn::new()));
+    register_if_enabled!(runtime, enabled, "min_by_expr", Box::new(MinByExprFn::new()));
+    register_if_enabled!(runtime, enabled, "max_by_expr", Box::new(MaxByExprFn::new()));
+    register_if_enabled!(runtime, enabled, "unique_by_expr", Box::new(UniqueByExprFn::new()));
+    register_if_enabled!(runtime, enabled, "flat_map_expr", Box::new(FlatMapExprFn::new()));
+
+    // Lodash-style aliases
+    register_if_enabled!(runtime, enabled, "some", Box::new(AnyExprFn::new()));
+    register_if_enabled!(runtime, enabled, "every", Box::new(AllExprFn::new()));
+    register_if_enabled!(runtime, enabled, "reject", Box::new(RejectFn::new()));
+    register_if_enabled!(runtime, enabled, "map_keys", Box::new(MapKeysFn::new()));
+    register_if_enabled!(runtime, enabled, "map_values", Box::new(MapValuesFn::new()));
+    register_if_enabled!(runtime, enabled, "order_by", Box::new(OrderByFn::new()));
+    register_if_enabled!(runtime, enabled, "reduce_expr", Box::new(ReduceExprFn::new()));
+    register_if_enabled!(runtime, enabled, "scan_expr", Box::new(ScanExprFn::new()));
+    // Alias for reduce_expr (lodash-style)
+    register_if_enabled!(runtime, enabled, "fold", Box::new(ReduceExprFn::new()));
+    register_if_enabled!(runtime, enabled, "count_by", Box::new(CountByFn::new()));
+
+    // Partial application functions
+    register_if_enabled!(runtime, enabled, "partial", Box::new(PartialFn::new()));
+    register_if_enabled!(runtime, enabled, "apply", Box::new(ApplyFn::new()));
+
+    // Functional array operations
+    register_if_enabled!(runtime, enabled, "take_while", Box::new(TakeWhileFn::new()));
+    register_if_enabled!(runtime, enabled, "drop_while", Box::new(DropWhileFn::new()));
+    register_if_enabled!(runtime, enabled, "zip_with", Box::new(ZipWithFn::new()));
+
+    // Recursive transformation
+    register_if_enabled!(runtime, enabled, "walk", Box::new(WalkFn::new()));
+
+    // Recursive descent (jq parity)
+    register_if_enabled!(runtime, enabled, "recurse", Box::new(RecurseFn::new()));
+    register_if_enabled!(runtime, enabled, "recurse_with", Box::new(RecurseWithFn::new()));
+
+    // Loop functions (jq parity)
+    register_if_enabled!(runtime, enabled, "while_expr", Box::new(WhileExprFn::new()));
+    register_if_enabled!(runtime, enabled, "until_expr", Box::new(UntilExprFn::new()));
 }
 
 // =============================================================================

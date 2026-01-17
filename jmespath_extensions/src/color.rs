@@ -16,11 +16,14 @@
 //! color::register(&mut runtime);
 //! ```
 
+use std::collections::BTreeMap;
+use std::collections::HashSet;
+
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Variable, rcvar,
 };
 use crate::define_function;
-use std::collections::BTreeMap;
+use crate::register_if_enabled;
 
 define_function!(HexToRgbFn, vec![ArgumentType::String], None);
 
@@ -426,6 +429,33 @@ pub fn register(runtime: &mut crate::Runtime) {
     runtime.register_function("color_invert", Box::new(ColorInvertFn::new()));
     runtime.register_function("color_grayscale", Box::new(ColorGrayscaleFn::new()));
     runtime.register_function("color_complement", Box::new(ColorComplementFn::new()));
+}
+
+/// Register color functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut crate::Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "hex_to_rgb", Box::new(HexToRgbFn::new()));
+    register_if_enabled!(runtime, enabled, "rgb_to_hex", Box::new(RgbToHexFn::new()));
+    register_if_enabled!(runtime, enabled, "lighten", Box::new(LightenFn::new()));
+    register_if_enabled!(runtime, enabled, "darken", Box::new(DarkenFn::new()));
+    register_if_enabled!(runtime, enabled, "color_mix", Box::new(ColorMixFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "color_invert",
+        Box::new(ColorInvertFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "color_grayscale",
+        Box::new(ColorGrayscaleFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "color_complement",
+        Box::new(ColorComplementFn::new())
+    );
 }
 
 #[cfg(test)]

@@ -16,12 +16,14 @@
 //! math::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all math functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -72,6 +74,107 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("trend_slope", Box::new(TrendSlopeFn::new()));
     runtime.register_function("rate_of_change", Box::new(RateOfChangeFn::new()));
     runtime.register_function("cumulative_sum", Box::new(CumulativeSumFn::new()));
+}
+
+/// Register only the math functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "round", Box::new(RoundFn::new()));
+    register_if_enabled!(runtime, enabled, "floor_fn", Box::new(FloorFn::new()));
+    register_if_enabled!(runtime, enabled, "ceil_fn", Box::new(CeilFn::new()));
+    register_if_enabled!(runtime, enabled, "abs_fn", Box::new(AbsFn::new()));
+    register_if_enabled!(runtime, enabled, "mod_fn", Box::new(ModFn::new()));
+    register_if_enabled!(runtime, enabled, "pow", Box::new(PowFn::new()));
+    register_if_enabled!(runtime, enabled, "sqrt", Box::new(SqrtFn::new()));
+    register_if_enabled!(runtime, enabled, "log", Box::new(LogFn::new()));
+    register_if_enabled!(runtime, enabled, "clamp", Box::new(ClampFn::new()));
+    register_if_enabled!(runtime, enabled, "median", Box::new(MedianFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "percentile",
+        Box::new(PercentileFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "variance", Box::new(VarianceFn::new()));
+    register_if_enabled!(runtime, enabled, "stddev", Box::new(StddevFn::new()));
+    register_if_enabled!(runtime, enabled, "sin", Box::new(SinFn::new()));
+    register_if_enabled!(runtime, enabled, "cos", Box::new(CosFn::new()));
+    register_if_enabled!(runtime, enabled, "tan", Box::new(TanFn::new()));
+    register_if_enabled!(runtime, enabled, "asin", Box::new(AsinFn::new()));
+    register_if_enabled!(runtime, enabled, "acos", Box::new(AcosFn::new()));
+    register_if_enabled!(runtime, enabled, "atan", Box::new(AtanFn::new()));
+    register_if_enabled!(runtime, enabled, "atan2", Box::new(Atan2Fn::new()));
+    register_if_enabled!(runtime, enabled, "deg_to_rad", Box::new(DegToRadFn::new()));
+    register_if_enabled!(runtime, enabled, "rad_to_deg", Box::new(RadToDegFn::new()));
+    register_if_enabled!(runtime, enabled, "sign", Box::new(SignFn::new()));
+    register_if_enabled!(runtime, enabled, "add", Box::new(AddFn::new()));
+    register_if_enabled!(runtime, enabled, "subtract", Box::new(SubtractFn::new()));
+    register_if_enabled!(runtime, enabled, "multiply", Box::new(MultiplyFn::new()));
+    register_if_enabled!(runtime, enabled, "divide", Box::new(DivideFn::new()));
+    register_if_enabled!(runtime, enabled, "mode", Box::new(ModeFn::new()));
+    register_if_enabled!(runtime, enabled, "to_fixed", Box::new(ToFixedFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "format_number",
+        Box::new(FormatNumberFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "histogram", Box::new(HistogramFn::new()));
+    register_if_enabled!(runtime, enabled, "normalize", Box::new(NormalizeFn::new()));
+    register_if_enabled!(runtime, enabled, "z_score", Box::new(ZScoreFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "correlation",
+        Box::new(CorrelationFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "quantile", Box::new(QuantileFn::new()));
+    register_if_enabled!(runtime, enabled, "moving_avg", Box::new(MovingAvgFn::new()));
+    register_if_enabled!(runtime, enabled, "ewma", Box::new(EwmaFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "covariance",
+        Box::new(CovarianceFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "standardize",
+        Box::new(StandardizeFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "quartiles", Box::new(QuartilesFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "outliers_iqr",
+        Box::new(OutliersIqrFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "outliers_zscore",
+        Box::new(OutliersZscoreFn::new())
+    );
+    // Time series functions
+    register_if_enabled!(runtime, enabled, "trend", Box::new(TrendFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "trend_slope",
+        Box::new(TrendSlopeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "rate_of_change",
+        Box::new(RateOfChangeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "cumulative_sum",
+        Box::new(CumulativeSumFn::new())
+    );
 }
 
 // =============================================================================

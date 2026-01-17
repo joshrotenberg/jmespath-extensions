@@ -542,7 +542,7 @@ impl FunctionRegistry {
 
     #[allow(unused_variables)]
     fn apply_category(&self, runtime: &mut Runtime, category: Category) {
-        // Check which functions in this category are enabled
+        // Check which functions in this category are enabled (not disabled)
         let enabled_in_category: HashSet<&str> = self
             .functions_in_category(category)
             .map(|f| f.name)
@@ -552,72 +552,83 @@ impl FunctionRegistry {
             return;
         }
 
-        // Register the category, but we need to handle disabled functions
-        // For now, we register all and rely on a wrapper for disabled check
-        // TODO: More granular registration
+        // Pass the enabled set to each category's register function
+        // Only functions in this set will be registered
         match category {
             #[cfg(feature = "string")]
-            Category::String => crate::string::register(runtime),
+            Category::String => crate::string::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "array")]
-            Category::Array => crate::array::register(runtime),
+            Category::Array => crate::array::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "object")]
-            Category::Object => crate::object::register(runtime),
+            Category::Object => crate::object::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "math")]
-            Category::Math => crate::math::register(runtime),
+            Category::Math => crate::math::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "type")]
-            Category::Type => crate::type_conv::register(runtime),
+            Category::Type => crate::type_conv::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "utility")]
-            Category::Utility => crate::utility::register(runtime),
+            Category::Utility => crate::utility::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "validation")]
-            Category::Validation => crate::validation::register(runtime),
+            Category::Validation => {
+                crate::validation::register_filtered(runtime, &enabled_in_category)
+            }
             #[cfg(feature = "path")]
-            Category::Path => crate::path::register(runtime),
+            Category::Path => crate::path::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "expression")]
-            Category::Expression => crate::expression::register(runtime),
+            Category::Expression => {
+                crate::expression::register_filtered(runtime, &enabled_in_category)
+            }
             #[cfg(feature = "text")]
-            Category::Text => crate::text::register(runtime),
+            Category::Text => crate::text::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "hash")]
-            Category::Hash => crate::hash::register(runtime),
+            Category::Hash => crate::hash::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "encoding")]
-            Category::Encoding => crate::encoding::register(runtime),
+            Category::Encoding => crate::encoding::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "regex")]
-            Category::Regex => crate::regex_fns::register(runtime),
+            Category::Regex => crate::regex_fns::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "url")]
-            Category::Url => crate::url_fns::register(runtime),
+            Category::Url => crate::url_fns::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "uuid")]
-            Category::Uuid => crate::random::register(runtime),
+            Category::Uuid => crate::random::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "rand")]
-            Category::Rand => crate::random::register(runtime),
+            Category::Rand => crate::random::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "datetime")]
-            Category::Datetime => crate::datetime::register(runtime),
+            Category::Datetime => crate::datetime::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "fuzzy")]
-            Category::Fuzzy => crate::fuzzy::register(runtime),
+            Category::Fuzzy => crate::fuzzy::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "phonetic")]
-            Category::Phonetic => crate::phonetic::register(runtime),
+            Category::Phonetic => crate::phonetic::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "geo")]
-            Category::Geo => crate::geo::register(runtime),
+            Category::Geo => crate::geo::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "semver")]
-            Category::Semver => crate::semver_fns::register(runtime),
+            Category::Semver => crate::semver_fns::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "network")]
-            Category::Network => crate::network::register(runtime),
+            Category::Network => crate::network::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "ids")]
-            Category::Ids => crate::ids::register(runtime),
+            Category::Ids => crate::ids::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "duration")]
-            Category::Duration => crate::duration::register(runtime),
+            Category::Duration => crate::duration::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "color")]
-            Category::Color => crate::color::register(runtime),
+            Category::Color => crate::color::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "computing")]
-            Category::Computing => crate::computing::register(runtime),
+            Category::Computing => {
+                crate::computing::register_filtered(runtime, &enabled_in_category)
+            }
             #[cfg(feature = "multi-match")]
-            Category::MultiMatch => crate::multi_match::register(runtime),
+            Category::MultiMatch => {
+                crate::multi_match::register_filtered(runtime, &enabled_in_category)
+            }
             #[cfg(feature = "jsonpatch")]
-            Category::Jsonpatch => crate::jsonpatch::register(runtime),
+            Category::Jsonpatch => {
+                crate::jsonpatch::register_filtered(runtime, &enabled_in_category)
+            }
             #[cfg(feature = "format")]
-            Category::Format => crate::format::register(runtime),
+            Category::Format => crate::format::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "language")]
-            Category::Language => crate::language::register(runtime),
+            Category::Language => crate::language::register_filtered(runtime, &enabled_in_category),
             #[cfg(feature = "discovery")]
-            Category::Discovery => crate::discovery::register(runtime),
+            Category::Discovery => {
+                crate::discovery::register_filtered(runtime, &enabled_in_category)
+            }
             // Explicit no-op cases for when features are disabled.
             // This ensures compile errors if a new category is added without handling it here.
             Category::Standard => {} // Standard functions are registered via runtime.register_builtin_functions()

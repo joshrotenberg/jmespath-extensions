@@ -16,9 +16,11 @@
 //! fuzzy::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Variable, define_function};
 
 /// Register all fuzzy matching functions with the runtime.
@@ -38,6 +40,54 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("sorensen_dice", Box::new(SorensenDiceFn::new()));
     runtime.register_function("hamming", Box::new(HammingFn::new()));
     runtime.register_function("osa_distance", Box::new(OsaDistanceFn::new()));
+}
+
+/// Register fuzzy matching functions filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "levenshtein",
+        Box::new(LevenshteinFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "normalized_levenshtein",
+        Box::new(NormalizedLevenshteinFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "damerau_levenshtein",
+        Box::new(DamerauLevenshteinFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "normalized_damerau_levenshtein",
+        Box::new(NormalizedDamerauLevenshteinFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "jaro", Box::new(JaroFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "jaro_winkler",
+        Box::new(JaroWinklerFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "sorensen_dice",
+        Box::new(SorensenDiceFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "hamming", Box::new(HammingFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "osa_distance",
+        Box::new(OsaDistanceFn::new())
+    );
 }
 
 // levenshtein(s1, s2) -> number

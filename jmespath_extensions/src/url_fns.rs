@@ -17,18 +17,27 @@
 //! ```
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all URL functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
     runtime.register_function("url_encode", Box::new(UrlEncodeFn::new()));
     runtime.register_function("url_decode", Box::new(UrlDecodeFn::new()));
     runtime.register_function("url_parse", Box::new(UrlParseFn::new()));
+}
+
+/// Register only the URL functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "url_encode", Box::new(UrlEncodeFn::new()));
+    register_if_enabled!(runtime, enabled, "url_decode", Box::new(UrlDecodeFn::new()));
+    register_if_enabled!(runtime, enabled, "url_parse", Box::new(UrlParseFn::new()));
 }
 
 // =============================================================================

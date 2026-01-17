@@ -16,10 +16,13 @@
 //! duration::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
+
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Variable, rcvar,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 define_function!(ParseDurationFn, vec![ArgumentType::String], None);
 
@@ -226,6 +229,40 @@ pub fn register(runtime: &mut crate::Runtime) {
     runtime.register_function("duration_hours", Box::new(DurationHoursFn::new()));
     runtime.register_function("duration_minutes", Box::new(DurationMinutesFn::new()));
     runtime.register_function("duration_seconds", Box::new(DurationSecondsFn::new()));
+}
+
+/// Register duration functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut crate::Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "parse_duration",
+        Box::new(ParseDurationFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "format_duration",
+        Box::new(FormatDurationFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "duration_hours",
+        Box::new(DurationHoursFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "duration_minutes",
+        Box::new(DurationMinutesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "duration_seconds",
+        Box::new(DurationSecondsFn::new())
+    );
 }
 
 #[cfg(test)]

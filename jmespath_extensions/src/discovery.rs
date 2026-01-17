@@ -72,9 +72,11 @@
 //! ```
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Variable, define_function};
 
 /// Register all discovery functions with the runtime.
@@ -82,6 +84,28 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("fuzzy_search", Box::new(FuzzySearchFn::new()));
     runtime.register_function("fuzzy_match", Box::new(FuzzyMatchFn::new()));
     runtime.register_function("fuzzy_score", Box::new(FuzzyScoreFn::new()));
+}
+
+/// Register discovery functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "fuzzy_search",
+        Box::new(FuzzySearchFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "fuzzy_match",
+        Box::new(FuzzyMatchFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "fuzzy_score",
+        Box::new(FuzzyScoreFn::new())
+    );
 }
 
 /// Match types for scoring, in order of relevance
