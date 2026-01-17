@@ -40,9 +40,45 @@ jq '.name | ascii_upcase'               jpx 'upper(name)'
 
 **[Full comparison →](https://joshrotenberg.github.io/jmespath-extensions/examples/jq-comparison.html)**
 
+## Quick Start (Docker)
+
+Try jpx instantly without installing anything:
+
+```bash
+# Fetch recent earthquakes, filter mag 5.5+, sort by magnitude
+curl -s "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&limit=100&minmagnitude=4" | \
+  docker run -i ghcr.io/joshrotenberg/jpx \
+    'features | [?properties.mag >= `5.5`] | sort_by(@, &properties.mag) | reverse(@) | [*].{mag: properties.mag, where: properties.place}'
+# [{"mag": 6.2, "where": "133 km SE of Kuril'sk, Russia"}, ...]
+
+# Fetch a Hacker News story and extract fields
+curl -s 'https://hacker-news.firebaseio.com/v0/item/1.json' | \
+  docker run -i ghcr.io/joshrotenberg/jpx '{title: title, by: by, score: score}'
+# {"by": "pg", "score": 57, "title": "Y Combinator"}
+
+# Basic query
+echo '{"name": "Alice", "scores": [85, 92, 78]}' | docker run -i ghcr.io/joshrotenberg/jpx 'name'
+# "Alice"
+
+# Calculate average
+echo '{"scores": [85, 92, 78]}' | docker run -i ghcr.io/joshrotenberg/jpx 'avg(scores)'
+# 85.0
+
+# String manipulation
+echo '{"name": "hello world"}' | docker run -i ghcr.io/joshrotenberg/jpx 'upper(name)'
+# "HELLO WORLD"
+
+# Filter and transform
+echo '[{"name":"alice","age":30},{"name":"bob","age":25}]' | docker run -i ghcr.io/joshrotenberg/jpx '[?age > `28`].name'
+# ["alice"]
+```
+
 ## Installation
 
 ```bash
+# Docker (no install needed)
+docker pull ghcr.io/joshrotenberg/jpx
+
 # Homebrew (macOS/Linux)
 brew tap joshrotenberg/brew
 brew install jpx
@@ -134,6 +170,19 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
     "jpx": {
       "command": "/path/to/jpx",
       "args": ["mcp"]
+    }
+  }
+}
+```
+
+Or use Docker (no installation required):
+
+```json
+{
+  "mcpServers": {
+    "jpx": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/joshrotenberg/jpx", "mcp"]
     }
   }
 }

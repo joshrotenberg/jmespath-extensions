@@ -23,10 +23,10 @@
 # MCP Server
 
 - [Overview](./mcp/overview.md)
-- [Setup with Claude](./mcp/setup-claude.md)
-- [Available Tools](./mcp/tools.md)
-- [Multi-Server Discovery](./mcp/discovery.md)
-- [Examples](./mcp/examples.md)
+  - [Setup with Claude](./mcp/setup-claude.md)
+  - [Available Tools](./mcp/tools.md)
+  - [Multi-Server Discovery](./mcp/discovery.md)
+  - [Examples](./mcp/examples.md)
 
 # Function Reference
 

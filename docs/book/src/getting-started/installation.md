@@ -1,5 +1,26 @@
 # Installation
 
+## Docker (Quickest)
+
+Try jpx instantly without installing anything:
+
+```bash
+# Pull the image
+docker pull ghcr.io/joshrotenberg/jpx
+
+# Run a query
+echo '{"name": "Alice", "age": 30}' | docker run -i ghcr.io/joshrotenberg/jpx 'name'
+# "Alice"
+
+# Fetch recent earthquakes, filter mag 5.5+, sort by magnitude
+curl -s "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&limit=100&minmagnitude=4" | \
+  docker run -i ghcr.io/joshrotenberg/jpx \
+    'features | [?properties.mag >= `5.5`] | sort_by(@, &properties.mag) | reverse(@) | [*].{mag: properties.mag, where: properties.place}'
+# [{"mag": 6.2, "where": "133 km SE of Kuril'sk, Russia"}, ...]
+```
+
+Available for `linux/amd64` and `linux/arm64`.
+
 ## Homebrew (macOS/Linux)
 
 The easiest way to install jpx on macOS or Linux:
