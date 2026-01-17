@@ -53,3 +53,11 @@
   warnings: length([?level == `"warn"` || level == `"WARN"`]),
   info: length([?level == `"info"` || level == `"INFO"`])
 }
+
+-- :name dedupe-consecutive
+-- :desc Remove consecutive duplicate log messages (useful for repeated errors)
+dedupe([*].message)
+
+-- :name partition-by-level
+-- :desc Split logs into runs of consecutive entries by level (preserves order)
+partition_by(@, `"level"`)

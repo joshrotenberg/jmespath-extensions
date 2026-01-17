@@ -54,6 +54,13 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("mode", Box::new(ModeFn::new()));
     runtime.register_function("cartesian", Box::new(CartesianFn::new()));
     runtime.register_function("initial", Box::new(InitialFn::new()));
+    // Alias for initial (Clojure-style name)
+    runtime.register_function("butlast", Box::new(InitialFn::new()));
+    // Clojure-inspired functions
+    runtime.register_function("interpose", Box::new(InterposeFn::new()));
+    runtime.register_function("zipmap", Box::new(ZipmapFn::new()));
+    runtime.register_function("partition_by", Box::new(PartitionByFn::new()));
+    runtime.register_function("dedupe", Box::new(DedupeFn::new()));
     runtime.register_function("tail", Box::new(TailFn::new()));
     runtime.register_function("without", Box::new(WithoutFn::new()));
     runtime.register_function("xor", Box::new(XorFn::new()));
@@ -125,6 +132,18 @@ pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
     register_if_enabled!(runtime, enabled, "mode", Box::new(ModeFn::new()));
     register_if_enabled!(runtime, enabled, "cartesian", Box::new(CartesianFn::new()));
     register_if_enabled!(runtime, enabled, "initial", Box::new(InitialFn::new()));
+    // Alias for initial (Clojure-style name)
+    register_if_enabled!(runtime, enabled, "butlast", Box::new(InitialFn::new()));
+    // Clojure-inspired functions
+    register_if_enabled!(runtime, enabled, "interpose", Box::new(InterposeFn::new()));
+    register_if_enabled!(runtime, enabled, "zipmap", Box::new(ZipmapFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "partition_by",
+        Box::new(PartitionByFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "dedupe", Box::new(DedupeFn::new()));
     register_if_enabled!(runtime, enabled, "tail", Box::new(TailFn::new()));
     register_if_enabled!(runtime, enabled, "without", Box::new(WithoutFn::new()));
     register_if_enabled!(runtime, enabled, "xor", Box::new(XorFn::new()));
@@ -1361,6 +1380,271 @@ impl Function for InitialFn {
 }
 
 // =============================================================================
+// interpose(array, separator) -> array (insert separator between elements)
+// =============================================================================
+
+// Insert a separator value between each element of an array.
+//
+// # Arguments
+// * `array` - The input array
+// * `separator` - The value to insert between elements
+//
+// # Returns
+// A new array with the separator inserted between each element.
+//
+// # Example
+// interpose([1, 2, 3], 0) -> [1, 0, 2, 0, 3]
+// interpose(["a", "b", "c"], "-") -> ["a", "-", "b", "-", "c"]
+define_function!(
+    InterposeFn,
+    vec![ArgumentType::Array, ArgumentType::Any],
+    None
+);
+
+impl Function for InterposeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let separator = args[1].clone();
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        if arr.len() == 1 {
+            return Ok(Rc::new(Variable::Array(arr.clone())));
+        }
+
+        let mut result = Vec::with_capacity(arr.len() * 2 - 1);
+        for (i, item) in arr.iter().enumerate() {
+            if i > 0 {
+                result.push(separator.clone());
+            }
+            result.push(item.clone());
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// zipmap(keys, values) -> object (create object from parallel arrays)
+// =============================================================================
+
+// Create an object from two parallel arrays of keys and values.
+//
+// # Arguments
+// * `keys` - An array of strings to use as object keys
+// * `values` - An array of values
+//
+// # Returns
+// An object mapping each key to its corresponding value.
+// If arrays have different lengths, uses the shorter length.
+//
+// # Example
+// zipmap(["a", "b", "c"], [1, 2, 3]) -> {"a": 1, "b": 2, "c": 3}
+// zipmap(["x", "y"], [10, 20, 30]) -> {"x": 10, "y": 20}
+define_function!(
+    ZipmapFn,
+    vec![ArgumentType::Array, ArgumentType::Array],
+    None
+);
+
+impl Function for ZipmapFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let keys = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument for keys".to_owned()),
+            )
+        })?;
+
+        let values = args[1].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument for values".to_owned()),
+            )
+        })?;
+
+        let len = keys.len().min(values.len());
+        let mut result = std::collections::BTreeMap::new();
+
+        for i in 0..len {
+            let key = keys[i].as_string().ok_or_else(|| {
+                JmespathError::new(
+                    ctx.expression,
+                    0,
+                    ErrorReason::Parse("Keys must be strings".to_owned()),
+                )
+            })?;
+            result.insert(key.to_string(), values[i].clone());
+        }
+
+        Ok(Rc::new(Variable::Object(result)))
+    }
+}
+
+// =============================================================================
+// partition_by(array, field_name) -> array (split when field value changes)
+// =============================================================================
+
+// Split an array into partitions when the field value changes.
+//
+// Unlike `group_by` which groups all elements with the same key together,
+// `partition_by` creates a new partition each time the field value
+// changes, preserving the original order.
+//
+// # Arguments
+// * `array` - The input array of objects
+// * `field_name` - The field name to partition by
+//
+// # Returns
+// An array of arrays, each containing consecutive elements with the same
+// field value.
+//
+// # Example
+// partition_by([{type: "a"}, {type: "a"}, {type: "b"}], "type")
+//   -> [[{type: "a"}, {type: "a"}], [{type: "b"}]]
+define_function!(
+    PartitionByFn,
+    vec![ArgumentType::Array, ArgumentType::String],
+    None
+);
+
+impl Function for PartitionByFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let field_name = args[1].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected field name string".to_owned()),
+            )
+        })?;
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let mut result: Vec<Rcvar> = Vec::new();
+        let mut current_partition: Vec<Rcvar> = Vec::new();
+        let mut last_key: Option<String> = None;
+
+        for item in arr {
+            // Extract key from object field, or serialize the item itself for primitives
+            let key = if let Some(obj) = item.as_object() {
+                if let Some(field_value) = obj.get(field_name) {
+                    serde_json::to_string(&**field_value).unwrap_or_default()
+                } else {
+                    "null".to_string()
+                }
+            } else {
+                // For non-objects, use the value itself as the key
+                serde_json::to_string(&**item).unwrap_or_default()
+            };
+
+            match &last_key {
+                Some(prev_key) if *prev_key == key => {
+                    current_partition.push(item.clone());
+                }
+                _ => {
+                    if !current_partition.is_empty() {
+                        result.push(Rc::new(Variable::Array(current_partition)));
+                    }
+                    current_partition = vec![item.clone()];
+                    last_key = Some(key);
+                }
+            }
+        }
+
+        // Don't forget the last partition
+        if !current_partition.is_empty() {
+            result.push(Rc::new(Variable::Array(current_partition)));
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// dedupe(array) -> array (remove consecutive duplicates)
+// =============================================================================
+
+// Remove consecutive duplicate values from an array.
+//
+// Unlike `unique` which removes all duplicates, `dedupe` only removes
+// adjacent duplicates, preserving the relative order and allowing the
+// same value to appear multiple times if separated by other values.
+//
+// # Arguments
+// * `array` - The input array
+//
+// # Returns
+// A new array with consecutive duplicates removed.
+//
+// # Example
+// dedupe([1, 1, 2, 2, 1, 1]) -> [1, 2, 1]
+// dedupe(["a", "a", "b", "a"]) -> ["a", "b", "a"]
+define_function!(DedupeFn, vec![ArgumentType::Array], None);
+
+impl Function for DedupeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let mut result: Vec<Rcvar> = Vec::with_capacity(arr.len());
+        let mut last_key: Option<String> = None;
+
+        for item in arr {
+            let key = serde_json::to_string(&**item).unwrap_or_default();
+            match &last_key {
+                Some(prev_key) if *prev_key == key => {
+                    // Skip consecutive duplicate
+                }
+                _ => {
+                    result.push(item.clone());
+                    last_key = Some(key);
+                }
+            }
+        }
+
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
 // tail(array) -> array (all elements except the first)
 // =============================================================================
 
@@ -2190,6 +2474,367 @@ mod tests {
         let result = expr.search(&data).unwrap();
         let arr = result.as_array().unwrap();
         assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_butlast() {
+        // butlast is an alias for initial
+        let runtime = setup_runtime();
+        let expr = runtime.compile("butlast(@)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_interpose() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("interpose(@, `0`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[3].as_number().unwrap() as i64, 0);
+        assert_eq!(arr[4].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_interpose_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("interpose(@, `0`)").unwrap();
+        let data = Variable::Array(vec![]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_interpose_single() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("interpose(@, `0`)").unwrap();
+        let data = Variable::Array(vec![Rc::new(Variable::Number(serde_json::Number::from(1)))]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_interpose_string_separator() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("interpose(@, `\"-\"`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::String("a".to_string())),
+            Rc::new(Variable::String("b".to_string())),
+            Rc::new(Variable::String("c".to_string())),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+        assert_eq!(arr[0].as_string().unwrap(), "a");
+        assert_eq!(arr[1].as_string().unwrap(), "-");
+        assert_eq!(arr[2].as_string().unwrap(), "b");
+        assert_eq!(arr[3].as_string().unwrap(), "-");
+        assert_eq!(arr[4].as_string().unwrap(), "c");
+    }
+
+    #[test]
+    fn test_zipmap() {
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("zipmap(`[\"a\", \"b\", \"c\"]`, `[1, 2, 3]`)")
+            .unwrap();
+        let data = Variable::Null;
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 3);
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 1);
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap() as i64, 2);
+        assert_eq!(obj.get("c").unwrap().as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_zipmap_unequal_lengths() {
+        let runtime = setup_runtime();
+        // Keys shorter than values
+        let expr = runtime
+            .compile("zipmap(`[\"x\", \"y\"]`, `[10, 20, 30]`)")
+            .unwrap();
+        let data = Variable::Null;
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert_eq!(obj.get("x").unwrap().as_number().unwrap() as i64, 10);
+        assert_eq!(obj.get("y").unwrap().as_number().unwrap() as i64, 20);
+    }
+
+    #[test]
+    fn test_zipmap_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("zipmap(`[]`, `[]`)").unwrap();
+        let data = Variable::Null;
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 0);
+    }
+
+    #[test]
+    fn test_partition_by() {
+        let runtime = setup_runtime();
+        // Test with objects - partition by "type" field
+        let expr = runtime.compile(r#"partition_by(@, `"type"`)"#).unwrap();
+        let data: Variable = serde_json::from_str(
+            r#"[{"type": "a", "v": 1}, {"type": "a", "v": 2}, {"type": "b", "v": 3}, {"type": "a", "v": 4}]"#,
+        )
+        .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+
+        let partition1 = arr[0].as_array().unwrap();
+        assert_eq!(partition1.len(), 2); // Two "a" items
+
+        let partition2 = arr[1].as_array().unwrap();
+        assert_eq!(partition2.len(), 1); // One "b" item
+
+        let partition3 = arr[2].as_array().unwrap();
+        assert_eq!(partition3.len(), 1); // One more "a" item
+    }
+
+    #[test]
+    fn test_partition_by_primitives() {
+        let runtime = setup_runtime();
+        // For primitives, use any field name - it will use the value itself
+        let expr = runtime.compile(r#"partition_by(@, `"_"`)"#).unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+
+        let partition1 = arr[0].as_array().unwrap();
+        assert_eq!(partition1.len(), 2);
+        assert_eq!(partition1[0].as_number().unwrap() as i64, 1);
+
+        let partition2 = arr[1].as_array().unwrap();
+        assert_eq!(partition2.len(), 2);
+        assert_eq!(partition2[0].as_number().unwrap() as i64, 2);
+
+        let partition3 = arr[2].as_array().unwrap();
+        assert_eq!(partition3.len(), 2);
+        assert_eq!(partition3[0].as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_partition_by_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile(r#"partition_by(@, `"type"`)"#).unwrap();
+        let data = Variable::Array(vec![]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_partition_by_single() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile(r#"partition_by(@, `"type"`)"#).unwrap();
+        let data: Variable = serde_json::from_str(r#"[{"type": "a"}]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        let partition1 = arr[0].as_array().unwrap();
+        assert_eq!(partition1.len(), 1);
+    }
+
+    #[test]
+    fn test_dedupe() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("dedupe(@)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_dedupe_empty() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("dedupe(@)").unwrap();
+        let data = Variable::Array(vec![]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_dedupe_no_consecutive() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("dedupe(@)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+            Rc::new(Variable::Number(serde_json::Number::from(3))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_dedupe_strings() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("dedupe(@)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::String("a".to_string())),
+            Rc::new(Variable::String("a".to_string())),
+            Rc::new(Variable::String("b".to_string())),
+            Rc::new(Variable::String("a".to_string())),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_string().unwrap(), "a");
+        assert_eq!(arr[1].as_string().unwrap(), "b");
+        assert_eq!(arr[2].as_string().unwrap(), "a");
+    }
+
+    #[test]
+    fn test_dedupe_objects() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("dedupe(@)").unwrap();
+        let data: Variable =
+            serde_json::from_str(r#"[{"x": 1}, {"x": 1}, {"x": 2}, {"x": 1}]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_dedupe_all_same() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("dedupe(@)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_zipmap_duplicate_keys() {
+        // Later key should overwrite earlier one
+        let runtime = setup_runtime();
+        let expr = runtime
+            .compile("zipmap(`[\"a\", \"b\", \"a\"]`, `[1, 2, 3]`)")
+            .unwrap();
+        let data = Variable::Null;
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 3); // Last value wins
+        assert_eq!(obj.get("b").unwrap().as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_zipmap_values_longer() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("zipmap(`[\"a\"]`, `[1, 2, 3]`)").unwrap();
+        let data = Variable::Null;
+        let result = expr.search(&data).unwrap();
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.len(), 1);
+        assert_eq!(obj.get("a").unwrap().as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_partition_by_missing_field() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile(r#"partition_by(@, `"type"`)"#).unwrap();
+        // Some objects have type, some don't
+        let data: Variable =
+            serde_json::from_str(r#"[{"type": "a"}, {"name": "no-type"}, {"type": "a"}]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Should partition into 3: [type:a], [no type -> null], [type:a]
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_partition_by_all_same() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile(r#"partition_by(@, `"type"`)"#).unwrap();
+        let data: Variable =
+            serde_json::from_str(r#"[{"type": "a"}, {"type": "a"}, {"type": "a"}]"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        let partition = arr[0].as_array().unwrap();
+        assert_eq!(partition.len(), 3);
+    }
+
+    #[test]
+    fn test_interpose_null_separator() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile("interpose(@, `null`)").unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert!(arr[1].is_null());
+        assert_eq!(arr[2].as_number().unwrap() as i64, 2);
+    }
+
+    #[test]
+    fn test_interpose_object_separator() {
+        let runtime = setup_runtime();
+        let expr = runtime.compile(r#"interpose(@, `{"sep": true}`)"#).unwrap();
+        let data = Variable::Array(vec![
+            Rc::new(Variable::Number(serde_json::Number::from(1))),
+            Rc::new(Variable::Number(serde_json::Number::from(2))),
+        ]);
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert!(arr[1].as_object().is_some());
     }
 
     #[test]

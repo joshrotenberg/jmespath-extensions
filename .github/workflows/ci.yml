@@ -69,6 +69,7 @@ jobs:
           - multi-match
           - format
           - language
+          - discovery
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

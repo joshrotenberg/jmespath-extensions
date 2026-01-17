@@ -82,3 +82,23 @@ sort_by(@, &created_at) | reverse(@)
   count: length(@),
   total: sum([*].value)
 }
+
+-- :name headers-to-object
+-- :desc Create object from header row and data row using zipmap
+zipmap(headers, values)
+
+-- :name csv-row-to-objects
+-- :desc Convert CSV-style data (headers + rows) to array of objects
+rows | [*].zipmap(to_array($.headers), @)
+
+-- :name interpose-ids
+-- :desc Format IDs with separator for display
+[*].id | interpose(@, `" | "`)
+
+-- :name dedupe-status-changes
+-- :desc Keep only status changes (remove consecutive same-status entries)
+dedupe([*].status)
+
+-- :name partition-by-category
+-- :desc Split into runs by category (useful for detecting category changes in time-series)
+partition_by(@, `"category"`)
