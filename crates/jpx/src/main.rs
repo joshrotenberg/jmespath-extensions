@@ -367,6 +367,17 @@ struct Args {
     )]
     table_style: String,
 
+    /// Output as Parquet file (requires --output)
+    #[cfg(feature = "parquet")]
+    #[arg(
+        long = "parquet",
+        conflicts_with_all = ["yaml", "toml_output", "csv_output", "tsv_output", "lines_output", "table"],
+        requires = "output",
+        help = "Output as Parquet file",
+        long_help = "Output as Parquet file. Requires --output to specify the file path.\nBest for arrays of objects. Uses Snappy compression."
+    )]
+    parquet_output: bool,
+
     /// Use null as input
     #[arg(
         short = 'n',
@@ -798,26 +809,24 @@ fn run() -> Result<()> {
         // Null input mode - don't read anything
         Variable::Null
     } else {
-        // Read input JSON
-        let input = match &args.file {
-            Some(path) => std::fs::read_to_string(path)
-                .with_context(|| format!("Failed to read file: {}", path))?,
-            None => {
-                let mut buf = String::new();
-                io::stdin()
-                    .read_to_string(&mut buf)
-                    .context("Failed to read from stdin")?;
-                buf
+        // Check for parquet input
+        #[cfg(feature = "parquet")]
+        if let Some(path) = &args.file {
+            if path.ends_with(".parquet") || path.ends_with(".pq") {
+                let json_value =
+                    jpx::parquet_support::read_parquet_to_json(std::path::Path::new(path))
+                        .with_context(|| format!("Failed to read parquet file: {}", path))?;
+                let json_str = serde_json::to_string(&json_value)?;
+                Variable::from_json(&json_str).map_err(|e| json_parse_error(&json_str, e))?
+            } else {
+                read_input_as_variable(&args)?
             }
-        };
-
-        if args.slurp {
-            // Slurp mode - parse multiple JSON values into an array
-            parse_slurp(&input)?
         } else {
-            // Normal mode - parse single JSON value
-            Variable::from_json(&input).map_err(|e| json_parse_error(&input, e))?
+            read_input_as_variable(&args)?
         }
+
+        #[cfg(not(feature = "parquet"))]
+        read_input_as_variable(&args)?
     };
 
     // Create runtime with extensions (unless strict mode)
@@ -930,6 +939,15 @@ fn run() -> Result<()> {
     if args.lines_output {
         return output_as_lines(&json_value, &args.output);
     }
+    #[cfg(feature = "parquet")]
+    if args.parquet_output {
+        let output_path = args.output.as_ref().expect("--parquet requires --output");
+        return jpx::parquet_support::write_json_to_parquet(
+            &json_value,
+            std::path::Path::new(output_path),
+        )
+        .context("Failed to write parquet file");
+    }
     if args.table {
         return output_as_table(&json_value, &args.output, &args.table_style, &args.color);
     }
@@ -1031,6 +1049,27 @@ fn json_parse_error(input: &str, err: impl std::fmt::Display) -> anyhow::Error {
     };
 
     anyhow::anyhow!("Failed to parse JSON input\n\n{}", suggestion)
+}
+
+/// Read input (from file or stdin) and parse as Variable
+fn read_input_as_variable(args: &Args) -> Result<Variable> {
+    let input = match &args.file {
+        Some(path) => std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read file: {}", path))?,
+        None => {
+            let mut buf = String::new();
+            io::stdin()
+                .read_to_string(&mut buf)
+                .context("Failed to read from stdin")?;
+            buf
+        }
+    };
+
+    if args.slurp {
+        parse_slurp(&input)
+    } else {
+        Variable::from_json(&input).map_err(|e| json_parse_error(&input, e))
+    }
 }
 
 /// Parse multiple JSON values from input into an array
@@ -1725,6 +1764,15 @@ fn print_ast(node: &Ast, indent: usize) {
 
 /// Read JSON from a file or stdin
 fn read_json_from(path: Option<&str>) -> Result<serde_json::Value> {
+    // Auto-detect parquet files by extension
+    #[cfg(feature = "parquet")]
+    if let Some(p) = path
+        && (p.ends_with(".parquet") || p.ends_with(".pq"))
+    {
+        return jpx::parquet_support::read_parquet_to_json(std::path::Path::new(p))
+            .with_context(|| format!("Failed to read parquet file: {}", p));
+    }
+
     let content = if let Some(p) = path {
         std::fs::read_to_string(p).with_context(|| format!("Failed to read file: {}", p))?
     } else {

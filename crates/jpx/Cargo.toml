@@ -27,6 +27,7 @@ serde = { workspace = true, features = ["derive"] }
 [dependencies]
 jmespath.workspace = true
 jmespath-extensions = { workspace = true, features = ["full", "query-library"] }
+jpx-engine = { path = "../jpx-engine" }
 clap.workspace = true
 clap_complete.workspace = true
 serde.workspace = true
@@ -44,6 +45,13 @@ serde_yaml = "0.9"
 toml = "0.8"
 csv = "1.3"
 tabled = "0.17"
+
+# Parquet support (optional)
+parquet = { version = "54", optional = true, default-features = false, features = ["arrow", "snap"] }
+
+[features]
+default = []
+parquet = ["dep:parquet", "jpx-engine/arrow"]
 
 [dev-dependencies]
 tempfile = "3"

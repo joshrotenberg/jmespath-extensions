@@ -16,6 +16,13 @@
 //! | **Discovery** | Cross-server tool discovery with BM25 search indexing |
 //! | **Query Store** | Named queries for session-scoped reuse |
 //! | **JSON Utilities** | Format, diff, patch, merge, stats, paths, keys |
+//! | **Arrow** | Apache Arrow conversion (optional, via `arrow` feature) |
+//!
+//! ## Cargo Features
+//!
+//! - **`arrow`** - Enables Apache Arrow support for columnar data conversion.
+//!   This adds the [`arrow`] module with functions to convert between Arrow
+//!   RecordBatches and JSON Values. Used by the CLI for Parquet I/O.
 //!
 //! ## Quick Start
 //!
@@ -222,6 +229,9 @@ mod discovery;
 mod error;
 mod query_store;
 mod types;
+
+#[cfg(feature = "arrow")]
+pub mod arrow;
 
 pub use bm25::{Bm25Index, DocInfo, IndexOptions, SearchResult as Bm25SearchResult, TermInfo};
 pub use discovery::{
