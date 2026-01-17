@@ -1271,7 +1271,21 @@ examples = [
     { code = "flat_map_expr(users, &tags) -> all tags flattened", description = "Flatten object arrays" },
     { code = "flat_map_expr([], &@) -> []", description = "Empty array" },
 ]
+aliases = ["mapcat"]
 features = ["core"]
+
+[[functions]]
+name = "mapcat"
+category = "expression"
+description = "Apply expression to each element and concatenate all results (Clojure-style alias for flat_map_expr)"
+signature = "string, array -> array"
+examples = [
+    { code = "mapcat('tags', [{tags: ['a', 'b']}, {tags: ['c']}]) -> ['a', 'b', 'c']", description = "Flatten tags from objects" },
+    { code = "mapcat('@', [[1, 2], [3, 4]]) -> [1, 2, 3, 4]", description = "Flatten nested arrays" },
+    { code = "mapcat('children', tree_nodes) -> all children flattened", description = "Flatten tree children" },
+    { code = "mapcat('tags', []) -> []", description = "Empty array" },
+]
+features = ["core", "fp"]
 
 [[functions]]
 name = "group_by_expr"
@@ -1427,6 +1441,33 @@ examples = [
     { code = "scan_expr('multiply(accumulator, current)', [2, 3, 4], `1`) -> [2, 6, 24]", description = "Running product" },
     { code = "scan_expr('max(accumulator, current)', [3, 1, 4], `0`) -> [3, 3, 4]", description = "Running max" },
     { code = "scan_expr('add(accumulator, current)', [], `0`) -> []", description = "Empty array" },
+]
+aliases = ["reductions"]
+features = ["core", "fp"]
+
+[[functions]]
+name = "reductions"
+category = "expression"
+description = "Return array of intermediate values from reduction (Clojure-style alias for scan_expr)"
+signature = "string, array, any -> array"
+examples = [
+    { code = "reductions('sum([accumulator, current])', [1, 2, 3, 4], `0`) -> [1, 3, 6, 10]", description = "Running sum" },
+    { code = "reductions('max([accumulator, current])', [3, 1, 4, 1, 5], `0`) -> [3, 3, 4, 4, 5]", description = "Running max" },
+    { code = "reductions('sum([accumulator, current])', [], `0`) -> []", description = "Empty array" },
+    { code = "reductions('merge(accumulator, current)', objects, `{}`) -> accumulated merges", description = "Cumulative merge" },
+]
+features = ["core", "fp"]
+
+[[functions]]
+name = "none"
+category = "expression"
+description = "Return true if no elements satisfy the expression (opposite of any_expr/some)"
+signature = "string, array -> boolean"
+examples = [
+    { code = "none('@ > `5`', [1, 2, 3]) -> true", description = "No elements > 5" },
+    { code = "none('@ > `5`', [1, 2, 10]) -> false", description = "10 is > 5" },
+    { code = "none('active', [{active: false}, {active: false}]) -> true", description = "No active elements" },
+    { code = "none('@ > `0`', []) -> true", description = "Empty array is vacuously true" },
 ]
 features = ["core", "fp"]
 
