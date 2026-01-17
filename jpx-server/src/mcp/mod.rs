@@ -1,36 +1,33 @@
-//! MCP server for JMESPath evaluation and introspection
+//! MCP transport implementation for jpx-server.
 //!
-//! Provides tools for evaluating JMESPath expressions and discovering
-//! available functions.
+//! This module provides the MCP (Model Context Protocol) server implementation
+//! that exposes jpx_engine functionality over stdio.
 
-pub mod bm25;
-pub mod discovery;
-pub mod query_store;
 mod tools;
 
 use anyhow::Result;
 use rmcp::{ServiceExt, transport::stdio};
+use tools::JpxMcp;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
-pub use tools::JpxMcp;
-
-/// Run the MCP server on stdio
-///
-/// # Arguments
-/// * `strict` - If true, only standard JMESPath functions are available in evaluate tools
-pub async fn run(strict: bool) -> Result<()> {
+/// Run the MCP server.
+pub async fn run() -> Result<()> {
     // Initialize tracing to stderr (stdout is used for MCP protocol)
     tracing_subscriber::registry()
         .with(fmt::layer().with_writer(std::io::stderr))
-        .with(EnvFilter::from_default_env().add_directive("jpx_mcp=info".parse()?))
+        .with(EnvFilter::from_default_env().add_directive("jpx_server=info".parse()?))
         .init();
+
+    // Check for strict mode flag
+    let strict = std::env::args().any(|arg| arg == "--strict");
 
     info!(
         "Starting jpx MCP server{}",
         if strict { " (strict mode)" } else { "" }
     );
 
+    // Create MCP server and run
     let service = JpxMcp::new(strict);
     let server = service.serve(stdio()).await?;
 

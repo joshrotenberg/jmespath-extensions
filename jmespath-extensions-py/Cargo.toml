@@ -23,7 +23,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 jmespath = "0.4"
-jmespath_extensions = { path = "../jmespath_extensions", features = ["full", "query-library"] }
+jmespath-extensions = { path = "../jmespath-extensions", features = ["full", "query-library"] }
 pyo3 = { version = "0.23", features = ["extension-module"] }
 serde_json = "1.0"
 

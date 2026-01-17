@@ -2,7 +2,4 @@
 //!
 //! This module exposes internal components for integration testing.
 
-#[cfg(feature = "mcp")]
-pub mod mcp;
-
 pub mod query_library;
