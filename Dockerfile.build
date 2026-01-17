@@ -2,7 +2,7 @@
 # Used for platforms without pre-built binaries (e.g., linux/arm64)
 
 # Build stage
-FROM rust:1.85-alpine AS builder
+FROM rust:alpine AS builder
 
 RUN apk add --no-cache musl-dev
 
