@@ -228,8 +228,8 @@ pub struct GetDiscoverySchemaParams {
 /// Parameters for the register_discovery tool
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RegisterDiscoveryParams {
-    /// The discovery spec containing server info and tool definitions
-    pub spec: DiscoverySpec,
+    /// The discovery spec JSON
+    pub spec: Value,
     /// Replace existing registration if server already registered (default: false)
     #[serde(default)]
     pub replace: bool,
@@ -1289,12 +1289,45 @@ impl JpxMcp {
         &self,
         Parameters(params): Parameters<RegisterDiscoveryParams>,
     ) -> Result<CallToolResult, McpError> {
+        // Deserialize the spec with detailed error reporting
+        let spec: DiscoverySpec = serde_json::from_value(params.spec).map_err(|e| {
+            McpError::invalid_params(format!("Invalid discovery spec: {}", e), None)
+        })?;
+
+        // Validate required fields with specific error messages
+        if spec.server.name.is_empty() {
+            return Err(McpError::invalid_params(
+                "Invalid discovery spec: server.name is required and cannot be empty",
+                None,
+            ));
+        }
+
+        if spec.tools.is_empty() {
+            return Err(McpError::invalid_params(
+                "Invalid discovery spec: tools array is required and cannot be empty",
+                None,
+            ));
+        }
+
+        // Validate each tool has a name
+        for (i, tool) in spec.tools.iter().enumerate() {
+            if tool.name.is_empty() {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "Invalid discovery spec: tools[{}].name is required and cannot be empty",
+                        i
+                    ),
+                    None,
+                ));
+            }
+        }
+
         // Register with the global registry
         let result = {
             let mut registry = discovery_registry()
                 .write()
                 .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
-            registry.register(params.spec, params.replace)
+            registry.register(spec, params.replace)
         };
 
         json_result(&result)
@@ -3614,5 +3647,144 @@ mod tests {
         };
         let result = mcp.paths(Parameters(params)).await;
         assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // Register Discovery error handling tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_register_discovery_invalid_json() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterDiscoveryParams {
+            spec: serde_json::json!("not an object"),
+            replace: false,
+        };
+        let result = mcp.register_discovery(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = format!("{:?}", err);
+        assert!(
+            err_msg.contains("Invalid discovery spec"),
+            "Expected error message to contain 'Invalid discovery spec', got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_discovery_missing_server() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterDiscoveryParams {
+            spec: serde_json::json!({
+                "tools": [{"name": "test_tool"}]
+            }),
+            replace: false,
+        };
+        let result = mcp.register_discovery(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = format!("{:?}", err);
+        assert!(
+            err_msg.contains("Invalid discovery spec") && err_msg.contains("server"),
+            "Expected error message to mention 'server', got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_discovery_missing_tools() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterDiscoveryParams {
+            spec: serde_json::json!({
+                "server": {"name": "test-server"}
+            }),
+            replace: false,
+        };
+        let result = mcp.register_discovery(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = format!("{:?}", err);
+        assert!(
+            err_msg.contains("Invalid discovery spec") && err_msg.contains("tools"),
+            "Expected error message to mention 'tools', got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_discovery_empty_server_name() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterDiscoveryParams {
+            spec: serde_json::json!({
+                "server": {"name": ""},
+                "tools": [{"name": "test_tool"}]
+            }),
+            replace: false,
+        };
+        let result = mcp.register_discovery(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = format!("{:?}", err);
+        assert!(
+            err_msg.contains("server.name") && err_msg.contains("cannot be empty"),
+            "Expected error message to mention empty server.name, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_discovery_empty_tools_array() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterDiscoveryParams {
+            spec: serde_json::json!({
+                "server": {"name": "test-server"},
+                "tools": []
+            }),
+            replace: false,
+        };
+        let result = mcp.register_discovery(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = format!("{:?}", err);
+        assert!(
+            err_msg.contains("tools array") && err_msg.contains("cannot be empty"),
+            "Expected error message to mention empty tools array, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_discovery_empty_tool_name() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterDiscoveryParams {
+            spec: serde_json::json!({
+                "server": {"name": "test-server"},
+                "tools": [{"name": ""}]
+            }),
+            replace: false,
+        };
+        let result = mcp.register_discovery(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = format!("{:?}", err);
+        assert!(
+            err_msg.contains("tools[0].name") && err_msg.contains("cannot be empty"),
+            "Expected error message to mention empty tool name, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_discovery_valid_spec() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterDiscoveryParams {
+            spec: serde_json::json!({
+                "server": {"name": "test-server-valid"},
+                "tools": [{"name": "test_tool", "description": "A test tool"}]
+            }),
+            replace: false,
+        };
+        let result = mcp.register_discovery(Parameters(params)).await;
+        assert!(result.is_ok(), "Expected valid spec to succeed");
     }
 }
