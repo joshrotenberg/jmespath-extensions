@@ -14,7 +14,9 @@ use serde_json::Value;
 use std::sync::{OnceLock, RwLock};
 use strsim::jaro_winkler;
 
-use super::discovery::{DiscoveryRegistry, DiscoverySpec};
+use super::discovery::{
+    DiscoveryRegistry, DiscoverySpec, ServerInfo as DiscoveryServerInfo, ToolSpec,
+};
 use super::query_store::{self, StoredQuery};
 
 /// Global JMESPath runtime with all extensions registered
@@ -268,6 +270,31 @@ fn default_similar_k() -> usize {
 pub struct UnregisterDiscoveryParams {
     /// Server name to unregister
     pub server_name: String,
+}
+
+/// A simplified tool definition for easy registration
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct SimpleTool {
+    /// Tool name (required)
+    pub name: String,
+    /// Tool description (optional but recommended)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Tags for categorization and search (optional)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+}
+
+/// Parameters for the register_tools_simple tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RegisterToolsSimpleParams {
+    /// Server name (required)
+    pub server_name: String,
+    /// Server version (optional)
+    #[serde(default)]
+    pub version: Option<String>,
+    /// List of tools to register
+    pub tools: Vec<SimpleTool>,
 }
 
 // =============================================================================
@@ -1798,6 +1825,81 @@ impl JpxMcp {
                 .write()
                 .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
             registry.register(spec, params.replace)
+        };
+
+        json_result(&result)
+    }
+
+    /// Register tools with a simplified schema
+    #[tool(
+        description = "Register MCP server tools using a simplified schema. Takes just server_name and an array of tools with {name, description, tags}. Use this instead of register_discovery for simple use cases that don't need the full schema."
+    )]
+    async fn register_tools_simple(
+        &self,
+        Parameters(params): Parameters<RegisterToolsSimpleParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Validate server name
+        if params.server_name.is_empty() {
+            return Err(McpError::invalid_params(
+                "server_name is required and cannot be empty",
+                None,
+            ));
+        }
+
+        // Validate tools
+        if params.tools.is_empty() {
+            return Err(McpError::invalid_params(
+                "tools array is required and cannot be empty",
+                None,
+            ));
+        }
+
+        // Validate each tool has a name
+        for (i, tool) in params.tools.iter().enumerate() {
+            if tool.name.is_empty() {
+                return Err(McpError::invalid_params(
+                    format!("tools[{}].name is required and cannot be empty", i),
+                    None,
+                ));
+            }
+        }
+
+        // Convert to full DiscoverySpec
+        let spec = DiscoverySpec {
+            schema: None,
+            server: DiscoveryServerInfo {
+                name: params.server_name.clone(),
+                version: params.version,
+                description: None,
+            },
+            tools: params
+                .tools
+                .into_iter()
+                .map(|t| ToolSpec {
+                    name: t.name,
+                    aliases: vec![],
+                    category: None,
+                    subcategory: None,
+                    tags: t.tags,
+                    summary: None,
+                    description: t.description,
+                    params: vec![],
+                    returns: None,
+                    examples: vec![],
+                    related: vec![],
+                    since: None,
+                    stability: None,
+                })
+                .collect(),
+            categories: std::collections::HashMap::new(),
+        };
+
+        // Register with the global registry (always replace for simple registration)
+        let result = {
+            let mut registry = discovery_registry()
+                .write()
+                .map_err(|_| McpError::internal_error("Failed to acquire registry lock", None))?;
+            registry.register(spec, true)
         };
 
         json_result(&result)
@@ -4256,6 +4358,167 @@ mod tests {
         };
         let result = mcp.register_discovery(Parameters(params)).await;
         assert!(result.is_ok(), "Expected valid spec to succeed");
+    }
+
+    // =========================================================================
+    // Register tools simple tests
+    // =========================================================================
+
+    #[test]
+    fn test_simple_tool_serialization() {
+        let tool = SimpleTool {
+            name: "my_tool".to_string(),
+            description: Some("A test tool".to_string()),
+            tags: vec!["read".to_string(), "users".to_string()],
+        };
+        let json = serde_json::to_string(&tool).unwrap();
+        assert!(json.contains("\"name\":\"my_tool\""));
+        assert!(json.contains("\"description\":\"A test tool\""));
+        assert!(json.contains("\"tags\":[\"read\",\"users\"]"));
+    }
+
+    #[test]
+    fn test_simple_tool_minimal() {
+        // Only name is required
+        let tool: SimpleTool = serde_json::from_str(r#"{"name": "minimal_tool"}"#).unwrap();
+        assert_eq!(tool.name, "minimal_tool");
+        assert!(tool.description.is_none());
+        assert!(tool.tags.is_empty());
+    }
+
+    #[test]
+    fn test_register_tools_simple_params_parsing() {
+        let params: RegisterToolsSimpleParams = serde_json::from_str(
+            r#"{
+                "server_name": "my-server",
+                "tools": [
+                    {"name": "get_users", "description": "Fetch all users", "tags": ["read", "users"]},
+                    {"name": "create_user", "description": "Create a new user", "tags": ["write", "users"]}
+                ]
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(params.server_name, "my-server");
+        assert!(params.version.is_none());
+        assert_eq!(params.tools.len(), 2);
+        assert_eq!(params.tools[0].name, "get_users");
+        assert_eq!(params.tools[1].tags, vec!["write", "users"]);
+    }
+
+    #[test]
+    fn test_register_tools_simple_params_with_version() {
+        let params: RegisterToolsSimpleParams = serde_json::from_str(
+            r#"{
+                "server_name": "my-server",
+                "version": "1.0.0",
+                "tools": [{"name": "test_tool"}]
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(params.server_name, "my-server");
+        assert_eq!(params.version, Some("1.0.0".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_register_tools_simple_success() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterToolsSimpleParams {
+            server_name: "simple-test-server".to_string(),
+            version: Some("1.0.0".to_string()),
+            tools: vec![
+                SimpleTool {
+                    name: "get_users".to_string(),
+                    description: Some("Fetch all users".to_string()),
+                    tags: vec!["read".to_string(), "users".to_string()],
+                },
+                SimpleTool {
+                    name: "create_user".to_string(),
+                    description: Some("Create a new user".to_string()),
+                    tags: vec!["write".to_string(), "users".to_string()],
+                },
+            ],
+        };
+        let result = mcp.register_tools_simple(Parameters(params)).await;
+        assert!(result.is_ok(), "Expected simple registration to succeed");
+    }
+
+    #[tokio::test]
+    async fn test_register_tools_simple_empty_server_name() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterToolsSimpleParams {
+            server_name: "".to_string(),
+            version: None,
+            tools: vec![SimpleTool {
+                name: "test".to_string(),
+                description: None,
+                tags: vec![],
+            }],
+        };
+        let result = mcp.register_tools_simple(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.message.contains("server_name") && err.message.contains("cannot be empty"),
+            "Expected error about empty server_name, got: {}",
+            err.message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_tools_simple_empty_tools() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterToolsSimpleParams {
+            server_name: "test-server".to_string(),
+            version: None,
+            tools: vec![],
+        };
+        let result = mcp.register_tools_simple(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.message.contains("tools") && err.message.contains("cannot be empty"),
+            "Expected error about empty tools, got: {}",
+            err.message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_tools_simple_empty_tool_name() {
+        let mcp = JpxMcp::new(false);
+        let params = RegisterToolsSimpleParams {
+            server_name: "test-server".to_string(),
+            version: None,
+            tools: vec![SimpleTool {
+                name: "".to_string(),
+                description: Some("A tool with no name".to_string()),
+                tags: vec![],
+            }],
+        };
+        let result = mcp.register_tools_simple(Parameters(params)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.message.contains("tools[0].name") && err.message.contains("cannot be empty"),
+            "Expected error about empty tool name, got: {}",
+            err.message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_tools_simple_minimal() {
+        let mcp = JpxMcp::new(false);
+        // Minimal valid registration: just server_name and one tool with name
+        let params = RegisterToolsSimpleParams {
+            server_name: "minimal-server".to_string(),
+            version: None,
+            tools: vec![SimpleTool {
+                name: "minimal_tool".to_string(),
+                description: None,
+                tags: vec![],
+            }],
+        };
+        let result = mcp.register_tools_simple(Parameters(params)).await;
+        assert!(result.is_ok(), "Expected minimal registration to succeed");
     }
 
     // =========================================================================
