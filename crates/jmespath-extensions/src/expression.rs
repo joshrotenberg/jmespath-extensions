@@ -41,6 +41,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("max_by_expr", Box::new(MaxByExprFn::new()));
     runtime.register_function("unique_by_expr", Box::new(UniqueByExprFn::new()));
     runtime.register_function("flat_map_expr", Box::new(FlatMapExprFn::new()));
+    // Clojure-style alias for flat_map_expr
+    runtime.register_function("mapcat", Box::new(FlatMapExprFn::new()));
 
     // Lodash-style aliases
     runtime.register_function("some", Box::new(AnyExprFn::new()));
@@ -53,6 +55,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("scan_expr", Box::new(ScanExprFn::new()));
     // Alias for reduce_expr (lodash-style)
     runtime.register_function("fold", Box::new(ReduceExprFn::new()));
+    // Clojure-style alias for scan_expr
+    runtime.register_function("reductions", Box::new(ScanExprFn::new()));
+    // none - opposite of any_expr/some
+    runtime.register_function("none", Box::new(NoneFn::new()));
     runtime.register_function("count_by", Box::new(CountByFn::new()));
 
     // Partial application functions
@@ -154,6 +160,12 @@ pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
     register_if_enabled!(runtime, enabled, "scan_expr", Box::new(ScanExprFn::new()));
     // Alias for reduce_expr (lodash-style)
     register_if_enabled!(runtime, enabled, "fold", Box::new(ReduceExprFn::new()));
+    // Clojure-style alias for flat_map_expr
+    register_if_enabled!(runtime, enabled, "mapcat", Box::new(FlatMapExprFn::new()));
+    // Clojure-style alias for scan_expr
+    register_if_enabled!(runtime, enabled, "reductions", Box::new(ScanExprFn::new()));
+    // none - opposite of any_expr/some
+    register_if_enabled!(runtime, enabled, "none", Box::new(NoneFn::new()));
     register_if_enabled!(runtime, enabled, "count_by", Box::new(CountByFn::new()));
 
     // Partial application functions
@@ -364,6 +376,80 @@ impl Function for AnyExprFn {
         }
 
         Ok(Rc::new(Variable::Bool(false)))
+    }
+}
+
+// =============================================================================
+// none(expr, array) -> bool (opposite of any_expr/some)
+// =============================================================================
+
+/// Check if no elements in the array match the expression.
+///
+/// This is the logical opposite of `any_expr`/`some`. Returns `true` if
+/// the predicate returns falsy for every element.
+///
+/// # Arguments
+/// * `expr` - A JMESPath expression string that returns a truthy/falsy value
+/// * `array` - The array to check
+///
+/// # Returns
+/// `true` if no element produces a truthy result, `false` if any element does.
+/// Returns `true` for empty arrays (vacuously true).
+///
+/// # Example
+/// ```text
+/// none('@ > `5`', [1, 2, 3]) -> true
+/// none('@ > `5`', [1, 2, 10]) -> false
+/// none('active', [{"active": false}, {"active": false}]) -> true
+/// ```
+pub struct NoneFn {
+    signature: Signature,
+}
+
+impl Default for NoneFn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NoneFn {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(vec![ArgumentType::String, ArgumentType::Array], None),
+        }
+    }
+}
+
+impl Function for NoneFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let expr_str = args[0].as_string().unwrap();
+        let arr = args[1].as_array().unwrap();
+
+        // Empty array returns true (vacuously, no elements satisfy the predicate)
+        if arr.is_empty() {
+            return Ok(Rc::new(Variable::Bool(true)));
+        }
+
+        let compiled = ctx.runtime.compile(expr_str).map_err(|e| {
+            JmespathError::new(
+                ctx.expression,
+                ctx.offset,
+                ErrorReason::Parse(format!("Invalid expression in none: {}", e)),
+            )
+        })?;
+
+        // Return false as soon as any element satisfies the predicate
+        for item in arr {
+            let result = compiled.search(item.clone())?;
+            if is_truthy(&result) {
+                return Ok(Rc::new(Variable::Bool(false)));
+            }
+        }
+
+        // No element satisfied the predicate
+        Ok(Rc::new(Variable::Bool(true)))
     }
 }
 
@@ -3076,6 +3162,73 @@ mod tests {
         let expr = runtime.compile("every('@ > `0`', @)").unwrap();
         let result = expr.search(&data).unwrap();
         assert!(result.as_boolean().unwrap());
+    }
+
+    #[test]
+    fn test_none_true() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("none('@ > `5`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap()); // No element > 5
+    }
+
+    #[test]
+    fn test_none_false() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 10]"#).unwrap();
+        let expr = runtime.compile("none('@ > `5`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(!result.as_boolean().unwrap()); // 10 > 5
+    }
+
+    #[test]
+    fn test_none_empty() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("none('@ > `0`', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap()); // Vacuously true
+    }
+
+    #[test]
+    fn test_none_objects() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[{"active": false}, {"active": false}]"#).unwrap();
+        let expr = runtime.compile("none('active', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.as_boolean().unwrap()); // No active elements
+    }
+
+    #[test]
+    fn test_mapcat_alias() {
+        let runtime = setup();
+        let data =
+            Variable::from_json(r#"[{"tags": ["a", "b"]}, {"tags": ["c"]}, {"tags": ["d", "e"]}]"#)
+                .unwrap();
+        let expr = runtime.compile("mapcat('tags', @)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+        assert_eq!(arr[0].as_string().unwrap(), "a");
+        assert_eq!(arr[4].as_string().unwrap(), "e");
+    }
+
+    #[test]
+    fn test_reductions_alias() {
+        let runtime = setup();
+        let data = Variable::from_json(r#"[1, 2, 3, 4]"#).unwrap();
+        let expr = runtime
+            .compile("reductions('sum([accumulator, current])', @, `0`)")
+            .unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        // Running sum: [1, 3, 6, 10]
+        assert_eq!(arr.len(), 4);
+        assert_eq!(arr[0].as_number().unwrap(), 1.0);
+        assert_eq!(arr[1].as_number().unwrap(), 3.0);
+        assert_eq!(arr[2].as_number().unwrap(), 6.0);
+        assert_eq!(arr[3].as_number().unwrap(), 10.0);
     }
 
     #[test]
