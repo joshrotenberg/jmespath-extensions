@@ -1,19 +1,10 @@
-//! Runtime query storage for MCP sessions
+//! Runtime query storage for sessions
 //!
 //! Provides in-memory storage for named JMESPath queries that can be
-//! defined, retrieved, listed, deleted, and executed during an MCP session.
+//! defined, retrieved, listed, deleted, and executed during a session.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{OnceLock, RwLock};
-
-/// Global query store instance
-static QUERY_STORE: OnceLock<RwLock<QueryStore>> = OnceLock::new();
-
-/// Get the global query store
-pub fn query_store() -> &'static RwLock<QueryStore> {
-    QUERY_STORE.get_or_init(|| RwLock::new(QueryStore::new()))
-}
 
 /// A stored query with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]

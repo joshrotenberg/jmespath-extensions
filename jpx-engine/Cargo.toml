@@ -1,0 +1,29 @@
+[package]
+name = "jpx-engine"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "JMESPath query engine with introspection, discovery, and advanced features"
+keywords = ["jmespath", "json", "query", "engine"]
+categories = ["data-structures", "parsing"]
+
+[dependencies]
+# Core
+jmespath-extensions = { workspace = true }
+jmespath = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# Search and similarity
+strsim = { workspace = true }
+
+# JSON utilities
+json-patch = { workspace = true }
+
+# Error handling
+thiserror = "2"
+
+[dev-dependencies]
+tokio = { workspace = true }

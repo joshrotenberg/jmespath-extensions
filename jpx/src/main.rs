@@ -1,11 +1,9 @@
-#[cfg(feature = "mcp")]
-use jpx::mcp;
 mod repl;
 
 use jpx::query_library::{self, LoadResult};
 
 use anyhow::{Context, Result};
-use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueEnum, builder::styling};
+use clap::{ArgAction, CommandFactory, Parser, ValueEnum, builder::styling};
 use clap_complete::{Shell, generate};
 use colored::Colorize;
 use jmespath::ast::Ast;
@@ -170,18 +168,6 @@ enum ColorMode {
     Never,
 }
 
-/// Subcommands for jpx
-#[derive(Subcommand, Debug)]
-enum Commands {
-    /// Start MCP (Model Context Protocol) server for AI assistant integration
-    #[cfg(feature = "mcp")]
-    Mcp {
-        /// Strict mode - only use standard JMESPath functions (no extensions)
-        #[arg(long)]
-        strict: bool,
-    },
-}
-
 /// JMESPath CLI with extended functions
 ///
 /// A command-line tool for querying JSON data using JMESPath expressions
@@ -258,10 +244,6 @@ struct Args {
     /// Print detailed help with examples
     #[arg(long = "help", action = ArgAction::HelpLong, global = true)]
     help_long: (),
-
-    /// Subcommand to run
-    #[command(subcommand)]
-    command: Option<Commands>,
 
     /// JMESPath expression(s) to evaluate
     #[arg(
@@ -614,12 +596,6 @@ fn run() -> Result<()> {
     let config = load_config();
     apply_config_defaults(&mut args, &config);
     apply_env_defaults(&mut args);
-
-    // Handle subcommands
-    #[cfg(feature = "mcp")]
-    if let Some(Commands::Mcp { strict }) = args.command {
-        return tokio::runtime::Runtime::new()?.block_on(mcp::run(strict));
-    }
 
     // Handle shell completions
     if let Some(shell) = args.completions {
