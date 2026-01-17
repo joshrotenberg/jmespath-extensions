@@ -12,7 +12,7 @@ build-dir = "build"
 default-theme = "rust"
 preferred-dark-theme = "ayu"
 git-repository-url = "https://github.com/joshrotenberg/jmespath-extensions"
-edit-url-template = "https://github.com/joshrotenberg/jmespath-extensions/edit/main/docs/book/{path}"
+edit-url-template = "https://github.com/joshrotenberg/jmespath-extensions/edit/main/docs/{path}"
 site-url = "/jmespath-extensions/"
 
 [output.html.search]
