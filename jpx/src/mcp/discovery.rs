@@ -17,6 +17,7 @@
 //! ```
 
 use super::bm25::{Bm25Index, IndexOptions};
+use rmcp::schemars::{self, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -180,7 +181,7 @@ fn expand_identifiers(text: &str) -> String {
 }
 
 /// Discovery spec - the schema MCP servers use to register their tools
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DiscoverySpec {
     /// JSON Schema reference (optional)
     #[serde(rename = "$schema", skip_serializing_if = "Option::is_none")]
@@ -198,7 +199,7 @@ pub struct DiscoverySpec {
 }
 
 /// Server metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ServerInfo {
     /// Server name (required)
     pub name: String,
@@ -213,7 +214,7 @@ pub struct ServerInfo {
 }
 
 /// Tool specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolSpec {
     /// Tool name (required)
     pub name: String,
@@ -268,7 +269,7 @@ pub struct ToolSpec {
 }
 
 /// Parameter specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ParamSpec {
     /// Parameter name
     pub name: String,
@@ -295,7 +296,7 @@ pub struct ParamSpec {
 }
 
 /// Return type specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReturnSpec {
     /// Return type
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
@@ -307,7 +308,7 @@ pub struct ReturnSpec {
 }
 
 /// Example specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExampleSpec {
     /// Example description
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -323,7 +324,7 @@ pub struct ExampleSpec {
 }
 
 /// Category information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CategoryInfo {
     /// Category description
     #[serde(skip_serializing_if = "Option::is_none")]
