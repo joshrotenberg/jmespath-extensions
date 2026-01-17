@@ -40,9 +40,39 @@ jq '.name | ascii_upcase'               jpx 'upper(name)'
 
 **[Full comparison →](https://joshrotenberg.github.io/jmespath-extensions/examples/jq-comparison.html)**
 
+## Quick Start (Docker)
+
+Try jpx instantly without installing anything:
+
+```bash
+# Fetch a Hacker News story and extract fields
+curl -s 'https://hacker-news.firebaseio.com/v0/item/1.json' | \
+  docker run -i ghcr.io/joshrotenberg/jpx '{title: title, by: by, score: score}'
+# {"by": "pg", "score": 57, "title": "Y Combinator"}
+
+# Basic query
+echo '{"name": "Alice", "scores": [85, 92, 78]}' | docker run -i ghcr.io/joshrotenberg/jpx 'name'
+# "Alice"
+
+# Calculate average
+echo '{"scores": [85, 92, 78]}' | docker run -i ghcr.io/joshrotenberg/jpx 'avg(scores)'
+# 85.0
+
+# String manipulation
+echo '{"name": "hello world"}' | docker run -i ghcr.io/joshrotenberg/jpx 'upper(name)'
+# "HELLO WORLD"
+
+# Filter and transform
+echo '[{"name":"alice","age":30},{"name":"bob","age":25}]' | docker run -i ghcr.io/joshrotenberg/jpx '[?age > `28`].name'
+# ["alice"]
+```
+
 ## Installation
 
 ```bash
+# Docker (no install needed)
+docker pull ghcr.io/joshrotenberg/jpx
+
 # Homebrew (macOS/Linux)
 brew tap joshrotenberg/brew
 brew install jpx
