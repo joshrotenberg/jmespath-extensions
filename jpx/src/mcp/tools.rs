@@ -310,6 +310,19 @@ pub struct RunQueryParams {
 }
 
 // =============================================================================
+// Examples tool parameters
+// =============================================================================
+
+/// Parameters for the examples tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ExamplesParams {
+    /// Category of examples to show (e.g., "grouping", "filtering", "projection", "aggregation")
+    /// If not specified, lists all available categories
+    #[serde(default)]
+    pub category: Option<String>,
+}
+
+// =============================================================================
 // Response types
 // =============================================================================
 
@@ -461,6 +474,46 @@ pub struct PathInfo {
     pub value: Option<Value>,
 }
 
+/// A JMESPath example with sample data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JmespathExample {
+    /// Example title
+    pub title: String,
+    /// Description of what this example demonstrates
+    pub description: String,
+    /// Sample JSON input
+    pub input: Value,
+    /// JMESPath expression
+    pub expression: String,
+    /// Expected output
+    pub output: Value,
+    /// Additional notes or tips
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+}
+
+/// Category of examples
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExampleCategory {
+    /// Category name
+    pub name: String,
+    /// Category description
+    pub description: String,
+    /// Examples in this category
+    pub examples: Vec<JmespathExample>,
+}
+
+/// Response for the examples tool
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExamplesResponse {
+    /// Available categories (when no category specified)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub categories: Option<Vec<String>>,
+    /// Examples for the requested category
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<ExampleCategory>,
+}
+
 // =============================================================================
 // Helper functions
 // =============================================================================
@@ -531,6 +584,384 @@ fn json_result(value: &impl Serialize) -> Result<CallToolResult, McpError> {
 /// Create an error result
 fn error_result(message: impl Into<String>) -> CallToolResult {
     CallToolResult::error(vec![Content::text(message)])
+}
+
+/// Get all example categories with their examples
+fn get_example_categories() -> Vec<ExampleCategory> {
+    vec![
+        // Grouping examples
+        ExampleCategory {
+            name: "grouping".to_string(),
+            description: "Examples of grouping and organizing data by field values".to_string(),
+            examples: vec![
+                JmespathExample {
+                    title: "Group by field".to_string(),
+                    description: "Group array items by a specific field value".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "dept": "Engineering"},
+                        {"name": "Bob", "dept": "Sales"},
+                        {"name": "Carol", "dept": "Engineering"},
+                        {"name": "Dave", "dept": "Sales"}
+                    ]),
+                    expression: "group_by(@, &dept)".to_string(),
+                    output: serde_json::json!({
+                        "Engineering": [
+                            {"name": "Alice", "dept": "Engineering"},
+                            {"name": "Carol", "dept": "Engineering"}
+                        ],
+                        "Sales": [
+                            {"name": "Bob", "dept": "Sales"},
+                            {"name": "Dave", "dept": "Sales"}
+                        ]
+                    }),
+                    notes: Some("The second argument &dept is an expression reference that extracts the grouping key".to_string()),
+                },
+                JmespathExample {
+                    title: "Group with expression".to_string(),
+                    description: "Group using a computed expression as the key".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "score": 85},
+                        {"name": "Bob", "score": 92},
+                        {"name": "Carol", "score": 78},
+                        {"name": "Dave", "score": 95}
+                    ]),
+                    expression: "group_by_expr(@, &(score >= `90`))".to_string(),
+                    output: serde_json::json!({
+                        "true": [
+                            {"name": "Bob", "score": 92},
+                            {"name": "Dave", "score": 95}
+                        ],
+                        "false": [
+                            {"name": "Alice", "score": 85},
+                            {"name": "Carol", "score": 78}
+                        ]
+                    }),
+                    notes: Some("group_by_expr allows computed keys. Use backticks for literal values in comparisons.".to_string()),
+                },
+                JmespathExample {
+                    title: "Count by field".to_string(),
+                    description: "Count occurrences grouped by a field".to_string(),
+                    input: serde_json::json!([
+                        {"status": "active"},
+                        {"status": "inactive"},
+                        {"status": "active"},
+                        {"status": "active"},
+                        {"status": "pending"}
+                    ]),
+                    expression: "count_by(@, &status)".to_string(),
+                    output: serde_json::json!({
+                        "active": 3,
+                        "inactive": 1,
+                        "pending": 1
+                    }),
+                    notes: None,
+                },
+            ],
+        },
+        // Filtering examples
+        ExampleCategory {
+            name: "filtering".to_string(),
+            description: "Examples of filtering and selecting data based on conditions".to_string(),
+            examples: vec![
+                JmespathExample {
+                    title: "Filter by condition".to_string(),
+                    description: "Select items matching a condition".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "age": 30},
+                        {"name": "Bob", "age": 25},
+                        {"name": "Carol", "age": 35}
+                    ]),
+                    expression: "[?age > `28`]".to_string(),
+                    output: serde_json::json!([
+                        {"name": "Alice", "age": 30},
+                        {"name": "Carol", "age": 35}
+                    ]),
+                    notes: Some("Filter expressions use [?condition] syntax. Numeric literals need backticks.".to_string()),
+                },
+                JmespathExample {
+                    title: "Filter with contains".to_string(),
+                    description: "Filter items where a field contains a value".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "tags": ["admin", "user"]},
+                        {"name": "Bob", "tags": ["user"]},
+                        {"name": "Carol", "tags": ["admin", "moderator"]}
+                    ]),
+                    expression: "[?contains(tags, 'admin')]".to_string(),
+                    output: serde_json::json!([
+                        {"name": "Alice", "tags": ["admin", "user"]},
+                        {"name": "Carol", "tags": ["admin", "moderator"]}
+                    ]),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Filter with multiple conditions".to_string(),
+                    description: "Combine conditions with && (and) or || (or)".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "age": 30, "active": true},
+                        {"name": "Bob", "age": 25, "active": false},
+                        {"name": "Carol", "age": 35, "active": true}
+                    ]),
+                    expression: "[?age > `25` && active == `true`]".to_string(),
+                    output: serde_json::json!([
+                        {"name": "Alice", "age": 30, "active": true},
+                        {"name": "Carol", "age": 35, "active": true}
+                    ]),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Filter with negation".to_string(),
+                    description: "Use ! to negate a condition".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "verified": true},
+                        {"name": "Bob", "verified": false},
+                        {"name": "Carol", "verified": true}
+                    ]),
+                    expression: "[?!verified]".to_string(),
+                    output: serde_json::json!([
+                        {"name": "Bob", "verified": false}
+                    ]),
+                    notes: Some("!verified is shorthand for verified == `false`".to_string()),
+                },
+            ],
+        },
+        // Projection examples
+        ExampleCategory {
+            name: "projection".to_string(),
+            description: "Examples of selecting and reshaping data".to_string(),
+            examples: vec![
+                JmespathExample {
+                    title: "Select specific fields".to_string(),
+                    description: "Create new objects with only selected fields".to_string(),
+                    input: serde_json::json!([
+                        {"id": 1, "name": "Alice", "email": "alice@example.com", "age": 30},
+                        {"id": 2, "name": "Bob", "email": "bob@example.com", "age": 25}
+                    ]),
+                    expression: "[*].{name: name, email: email}".to_string(),
+                    output: serde_json::json!([
+                        {"name": "Alice", "email": "alice@example.com"},
+                        {"name": "Bob", "email": "bob@example.com"}
+                    ]),
+                    notes: Some("Multi-select hash {} creates new objects. Left side is the new key name.".to_string()),
+                },
+                JmespathExample {
+                    title: "Extract single field as array".to_string(),
+                    description: "Get just one field from each item".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "age": 30},
+                        {"name": "Bob", "age": 25},
+                        {"name": "Carol", "age": 35}
+                    ]),
+                    expression: "[*].name".to_string(),
+                    output: serde_json::json!(["Alice", "Bob", "Carol"]),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Rename fields".to_string(),
+                    description: "Create objects with renamed fields".to_string(),
+                    input: serde_json::json!({"first_name": "Alice", "last_name": "Smith"}),
+                    expression: "{firstName: first_name, lastName: last_name}".to_string(),
+                    output: serde_json::json!({"firstName": "Alice", "lastName": "Smith"}),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Flatten nested arrays".to_string(),
+                    description: "Use [] to flatten nested array structures".to_string(),
+                    input: serde_json::json!({
+                        "departments": [
+                            {"name": "Engineering", "members": ["Alice", "Bob"]},
+                            {"name": "Sales", "members": ["Carol", "Dave"]}
+                        ]
+                    }),
+                    expression: "departments[].members[]".to_string(),
+                    output: serde_json::json!(["Alice", "Bob", "Carol", "Dave"]),
+                    notes: Some("[] flattens one level of nesting. Use multiple [] to flatten deeper.".to_string()),
+                },
+            ],
+        },
+        // Aggregation examples
+        ExampleCategory {
+            name: "aggregation".to_string(),
+            description: "Examples of computing aggregate values (sum, avg, min, max)".to_string(),
+            examples: vec![
+                JmespathExample {
+                    title: "Sum values".to_string(),
+                    description: "Calculate the sum of numeric values".to_string(),
+                    input: serde_json::json!([
+                        {"item": "apple", "price": 1.50},
+                        {"item": "banana", "price": 0.75},
+                        {"item": "orange", "price": 2.00}
+                    ]),
+                    expression: "sum([*].price)".to_string(),
+                    output: serde_json::json!(4.25),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Average values".to_string(),
+                    description: "Calculate the average of numeric values".to_string(),
+                    input: serde_json::json!([85, 90, 78, 92, 88]),
+                    expression: "avg(@)".to_string(),
+                    output: serde_json::json!(86.6),
+                    notes: Some("@ refers to the current element (the entire array in this case)".to_string()),
+                },
+                JmespathExample {
+                    title: "Min and Max".to_string(),
+                    description: "Find minimum and maximum values".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Alice", "score": 85},
+                        {"name": "Bob", "score": 92},
+                        {"name": "Carol", "score": 78}
+                    ]),
+                    expression: "{min: min([*].score), max: max([*].score)}".to_string(),
+                    output: serde_json::json!({"min": 78, "max": 92}),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Count items".to_string(),
+                    description: "Count the number of items".to_string(),
+                    input: serde_json::json!([
+                        {"status": "active"},
+                        {"status": "inactive"},
+                        {"status": "active"}
+                    ]),
+                    expression: "length([?status == 'active'])".to_string(),
+                    output: serde_json::json!(2),
+                    notes: Some("Combine filter with length() to count matching items".to_string()),
+                },
+            ],
+        },
+        // Transformation examples
+        ExampleCategory {
+            name: "transformation".to_string(),
+            description: "Examples of transforming and mapping data".to_string(),
+            examples: vec![
+                JmespathExample {
+                    title: "Map with expression".to_string(),
+                    description: "Transform each element using an expression".to_string(),
+                    input: serde_json::json!([1, 2, 3, 4, 5]),
+                    expression: "map(&(@ * `2`), @)".to_string(),
+                    output: serde_json::json!([2, 4, 6, 8, 10]),
+                    notes: Some("map(expression, array) applies the expression to each element".to_string()),
+                },
+                JmespathExample {
+                    title: "Sort by field".to_string(),
+                    description: "Sort objects by a specific field".to_string(),
+                    input: serde_json::json!([
+                        {"name": "Carol", "age": 35},
+                        {"name": "Alice", "age": 30},
+                        {"name": "Bob", "age": 25}
+                    ]),
+                    expression: "sort_by(@, &age)".to_string(),
+                    output: serde_json::json!([
+                        {"name": "Bob", "age": 25},
+                        {"name": "Alice", "age": 30},
+                        {"name": "Carol", "age": 35}
+                    ]),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Reverse sort".to_string(),
+                    description: "Sort in descending order".to_string(),
+                    input: serde_json::json!([1, 5, 3, 2, 4]),
+                    expression: "reverse(sort(@))".to_string(),
+                    output: serde_json::json!([5, 4, 3, 2, 1]),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Unique values".to_string(),
+                    description: "Remove duplicate values".to_string(),
+                    input: serde_json::json!(["apple", "banana", "apple", "orange", "banana"]),
+                    expression: "unique(@)".to_string(),
+                    output: serde_json::json!(["apple", "banana", "orange"]),
+                    notes: None,
+                },
+            ],
+        },
+        // String examples
+        ExampleCategory {
+            name: "strings".to_string(),
+            description: "Examples of string manipulation".to_string(),
+            examples: vec![
+                JmespathExample {
+                    title: "Join strings".to_string(),
+                    description: "Concatenate array elements with a separator".to_string(),
+                    input: serde_json::json!(["apple", "banana", "orange"]),
+                    expression: "join(', ', @)".to_string(),
+                    output: serde_json::json!("apple, banana, orange"),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Split string".to_string(),
+                    description: "Split a string into an array".to_string(),
+                    input: serde_json::json!({"tags": "a,b,c"}),
+                    expression: "split(tags, ',')".to_string(),
+                    output: serde_json::json!(["a", "b", "c"]),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Case conversion".to_string(),
+                    description: "Convert string case".to_string(),
+                    input: serde_json::json!({"name": "Alice Smith"}),
+                    expression: "{upper: upper(name), lower: lower(name)}".to_string(),
+                    output: serde_json::json!({"upper": "ALICE SMITH", "lower": "alice smith"}),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "String matching".to_string(),
+                    description: "Check if string starts/ends with a pattern".to_string(),
+                    input: serde_json::json!([
+                        {"file": "report.pdf"},
+                        {"file": "image.png"},
+                        {"file": "document.pdf"}
+                    ]),
+                    expression: "[?ends_with(file, '.pdf')]".to_string(),
+                    output: serde_json::json!([
+                        {"file": "report.pdf"},
+                        {"file": "document.pdf"}
+                    ]),
+                    notes: None,
+                },
+            ],
+        },
+        // Date examples
+        ExampleCategory {
+            name: "dates".to_string(),
+            description: "Examples of date and time operations".to_string(),
+            examples: vec![
+                JmespathExample {
+                    title: "Current timestamp".to_string(),
+                    description: "Get the current date/time".to_string(),
+                    input: serde_json::json!({}),
+                    expression: "now()".to_string(),
+                    output: serde_json::json!("2024-01-15T10:30:00Z"),
+                    notes: Some("Returns current UTC time in ISO 8601 format. Actual value will vary.".to_string()),
+                },
+                JmespathExample {
+                    title: "Format date".to_string(),
+                    description: "Format a date string".to_string(),
+                    input: serde_json::json!({"created": "2024-01-15T10:30:00Z"}),
+                    expression: "format_date(created, '%Y-%m-%d')".to_string(),
+                    output: serde_json::json!("2024-01-15"),
+                    notes: Some("Uses strftime format codes".to_string()),
+                },
+                JmespathExample {
+                    title: "Parse date".to_string(),
+                    description: "Parse a date string into components".to_string(),
+                    input: serde_json::json!({"date": "2024-01-15"}),
+                    expression: "parse_date(date, '%Y-%m-%d')".to_string(),
+                    output: serde_json::json!("2024-01-15T00:00:00+00:00"),
+                    notes: None,
+                },
+                JmespathExample {
+                    title: "Date arithmetic".to_string(),
+                    description: "Add or subtract time from dates".to_string(),
+                    input: serde_json::json!({"start": "2024-01-15T10:00:00Z"}),
+                    expression: "date_add(start, 'P7D')".to_string(),
+                    output: serde_json::json!("2024-01-22T10:00:00Z"),
+                    notes: Some("Uses ISO 8601 duration format: P7D = 7 days, PT1H = 1 hour".to_string()),
+                },
+            ],
+        },
+    ]
 }
 
 // =============================================================================
@@ -677,6 +1108,45 @@ impl JpxMcp {
             .collect();
 
         json_result(&categories)
+    }
+
+    /// Get JMESPath examples by category
+    #[tool(
+        description = "Get practical JMESPath examples organized by category. Categories include: grouping, filtering, projection, aggregation, transformation, strings, dates. Without a category, lists all available categories. Examples include sample input, expression, and expected output."
+    )]
+    async fn examples(
+        &self,
+        Parameters(params): Parameters<ExamplesParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let all_categories = get_example_categories();
+
+        match params.category {
+            None => {
+                // List available categories
+                let category_names: Vec<String> =
+                    all_categories.iter().map(|c| c.name.clone()).collect();
+                json_result(&ExamplesResponse {
+                    categories: Some(category_names),
+                    category: None,
+                })
+            }
+            Some(cat_name) => {
+                let cat_lower = cat_name.to_lowercase();
+                match all_categories
+                    .into_iter()
+                    .find(|c| c.name.to_lowercase() == cat_lower)
+                {
+                    Some(category) => json_result(&ExamplesResponse {
+                        categories: None,
+                        category: Some(category),
+                    }),
+                    None => Ok(error_result(format!(
+                        "Unknown example category '{}'. Available categories: grouping, filtering, projection, aggregation, transformation, strings, dates",
+                        cat_name
+                    ))),
+                }
+            }
+        }
     }
 
     /// Validate a JMESPath expression without executing it
@@ -3786,5 +4256,279 @@ mod tests {
         };
         let result = mcp.register_discovery(Parameters(params)).await;
         assert!(result.is_ok(), "Expected valid spec to succeed");
+    }
+
+    // =========================================================================
+    // Examples tool tests
+    // =========================================================================
+
+    #[test]
+    fn test_get_example_categories_not_empty() {
+        let categories = get_example_categories();
+        assert!(!categories.is_empty(), "Should have example categories");
+        assert!(categories.len() >= 7, "Should have at least 7 categories");
+    }
+
+    #[test]
+    fn test_get_example_categories_all_have_examples() {
+        let categories = get_example_categories();
+        for cat in &categories {
+            assert!(!cat.name.is_empty(), "Category name should not be empty");
+            assert!(
+                !cat.description.is_empty(),
+                "Category description should not be empty"
+            );
+            assert!(
+                !cat.examples.is_empty(),
+                "Category '{}' should have examples",
+                cat.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_example_categories_examples_are_valid() {
+        let categories = get_example_categories();
+        for cat in &categories {
+            for example in &cat.examples {
+                assert!(
+                    !example.title.is_empty(),
+                    "Example title should not be empty"
+                );
+                assert!(
+                    !example.description.is_empty(),
+                    "Example description should not be empty"
+                );
+                assert!(
+                    !example.expression.is_empty(),
+                    "Example expression should not be empty"
+                );
+                // Input and output should be valid JSON (they are Values so this is guaranteed)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_examples_list_categories() {
+        let mcp = JpxMcp::new(false);
+        let params = ExamplesParams { category: None };
+        let result = mcp.examples(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let response: ExamplesResponse = serde_json::from_str(&text_content.text).unwrap();
+                assert!(response.categories.is_some(), "Should have categories list");
+                assert!(
+                    response.category.is_none(),
+                    "Should not have a specific category"
+                );
+
+                let cats = response.categories.unwrap();
+                assert!(cats.contains(&"grouping".to_string()));
+                assert!(cats.contains(&"filtering".to_string()));
+                assert!(cats.contains(&"projection".to_string()));
+                assert!(cats.contains(&"aggregation".to_string()));
+                assert!(cats.contains(&"transformation".to_string()));
+                assert!(cats.contains(&"strings".to_string()));
+                assert!(cats.contains(&"dates".to_string()));
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_examples_get_grouping_category() {
+        let mcp = JpxMcp::new(false);
+        let params = ExamplesParams {
+            category: Some("grouping".to_string()),
+        };
+        let result = mcp.examples(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let response: ExamplesResponse = serde_json::from_str(&text_content.text).unwrap();
+                assert!(
+                    response.categories.is_none(),
+                    "Should not have categories list"
+                );
+                assert!(
+                    response.category.is_some(),
+                    "Should have a specific category"
+                );
+
+                let cat = response.category.unwrap();
+                assert_eq!(cat.name, "grouping");
+                assert!(!cat.examples.is_empty(), "Should have examples");
+                // Check that the examples include group_by
+                assert!(
+                    cat.examples
+                        .iter()
+                        .any(|e| e.expression.contains("group_by")),
+                    "Grouping examples should include group_by"
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_examples_get_filtering_category() {
+        let mcp = JpxMcp::new(false);
+        let params = ExamplesParams {
+            category: Some("filtering".to_string()),
+        };
+        let result = mcp.examples(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let response: ExamplesResponse = serde_json::from_str(&text_content.text).unwrap();
+                assert!(
+                    response.category.is_some(),
+                    "Should have a specific category"
+                );
+
+                let cat = response.category.unwrap();
+                assert_eq!(cat.name, "filtering");
+                // Filtering examples should include filter syntax [?...]
+                assert!(
+                    cat.examples.iter().any(|e| e.expression.contains("[?")),
+                    "Filtering examples should include filter expressions"
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_examples_case_insensitive() {
+        let mcp = JpxMcp::new(false);
+        let params = ExamplesParams {
+            category: Some("GROUPING".to_string()),
+        };
+        let result = mcp.examples(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let response: ExamplesResponse = serde_json::from_str(&text_content.text).unwrap();
+                assert!(
+                    response.category.is_some(),
+                    "Should find category with case-insensitive match"
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_examples_unknown_category() {
+        let mcp = JpxMcp::new(false);
+        let params = ExamplesParams {
+            category: Some("nonexistent".to_string()),
+        };
+        let result = mcp.examples(Parameters(params)).await.unwrap();
+        // Should return error result (not Err)
+        assert_eq!(result.is_error, Some(true));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                assert!(
+                    text_content.text.contains("Unknown example category"),
+                    "Error should mention unknown category"
+                );
+                assert!(
+                    text_content.text.contains("grouping"),
+                    "Error should list available categories"
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_examples_response_serialization() {
+        // Test that ExamplesResponse serializes correctly with skip_serializing_if
+        let response_with_categories = ExamplesResponse {
+            categories: Some(vec!["grouping".to_string(), "filtering".to_string()]),
+            category: None,
+        };
+        let json = serde_json::to_string(&response_with_categories).unwrap();
+        assert!(json.contains("\"categories\""));
+        assert!(
+            !json.contains("\"category\""),
+            "None fields should be skipped"
+        );
+
+        let response_with_category = ExamplesResponse {
+            categories: None,
+            category: Some(ExampleCategory {
+                name: "test".to_string(),
+                description: "Test category".to_string(),
+                examples: vec![],
+            }),
+        };
+        let json = serde_json::to_string(&response_with_category).unwrap();
+        assert!(json.contains("\"category\""));
+        assert!(
+            !json.contains("\"categories\""),
+            "None fields should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_jmespath_example_serialization() {
+        let example = JmespathExample {
+            title: "Test".to_string(),
+            description: "A test example".to_string(),
+            input: serde_json::json!({"key": "value"}),
+            expression: "@".to_string(),
+            output: serde_json::json!({"key": "value"}),
+            notes: Some("A note".to_string()),
+        };
+        let json = serde_json::to_string(&example).unwrap();
+        assert!(json.contains("\"title\":\"Test\""));
+        assert!(json.contains("\"notes\":\"A note\""));
+
+        // Test with None notes
+        let example_no_notes = JmespathExample {
+            title: "Test".to_string(),
+            description: "A test example".to_string(),
+            input: serde_json::json!({}),
+            expression: "@".to_string(),
+            output: serde_json::json!({}),
+            notes: None,
+        };
+        let json = serde_json::to_string(&example_no_notes).unwrap();
+        assert!(!json.contains("\"notes\""), "None notes should be skipped");
+    }
+
+    #[test]
+    fn test_examples_params_default() {
+        let params: ExamplesParams = serde_json::from_str(r#"{}"#).unwrap();
+        assert!(params.category.is_none(), "Default category should be None");
+    }
+
+    #[test]
+    fn test_examples_params_with_category() {
+        let params: ExamplesParams = serde_json::from_str(r#"{"category": "grouping"}"#).unwrap();
+        assert_eq!(params.category, Some("grouping".to_string()));
     }
 }
