@@ -77,6 +77,62 @@ fn bench_array_functions(c: &mut Criterion) {
         b.iter(|| expr.search(black_box(data)))
     });
 
+    // Clojure-inspired functions
+    // dedupe - array with consecutive duplicates
+    let with_dupes = Variable::from_json("[1, 1, 2, 2, 2, 3, 3, 1, 1, 4, 4, 4, 4, 5]").unwrap();
+    let expr = runtime.compile("dedupe(@)").unwrap();
+    group.bench_with_input(BenchmarkId::new("dedupe", "14"), &with_dupes, |b, data| {
+        b.iter(|| expr.search(black_box(data)))
+    });
+
+    // dedupe on larger array with pattern
+    let large_dupes: Vec<i32> = (0..100).flat_map(|x| vec![x, x, x]).collect();
+    let large_dupes = Variable::from_json(&serde_json::to_string(&large_dupes).unwrap()).unwrap();
+    let expr = runtime.compile("dedupe(@)").unwrap();
+    group.bench_with_input(
+        BenchmarkId::new("dedupe", "300"),
+        &large_dupes,
+        |b, data| b.iter(|| expr.search(black_box(data))),
+    );
+
+    // interpose
+    let expr = runtime.compile("interpose(@, `0`)").unwrap();
+    group.bench_with_input(BenchmarkId::new("interpose", "100"), &medium, |b, data| {
+        b.iter(|| expr.search(black_box(data)))
+    });
+
+    // butlast
+    let expr = runtime.compile("butlast(@)").unwrap();
+    group.bench_with_input(BenchmarkId::new("butlast", "100"), &medium, |b, data| {
+        b.iter(|| expr.search(black_box(data)))
+    });
+
+    // zipmap
+    let keys: Vec<String> = (0..50).map(|i| format!("key{}", i)).collect();
+    let values: Vec<i32> = (0..50).collect();
+    let zipmap_data = Variable::from_json(&format!(
+        r#"{{"keys": {}, "values": {}}}"#,
+        serde_json::to_string(&keys).unwrap(),
+        serde_json::to_string(&values).unwrap()
+    ))
+    .unwrap();
+    let expr = runtime.compile("zipmap(keys, values)").unwrap();
+    group.bench_with_input(BenchmarkId::new("zipmap", "50"), &zipmap_data, |b, data| {
+        b.iter(|| expr.search(black_box(data)))
+    });
+
+    // partition_by - array of objects
+    let objects: Vec<serde_json::Value> = (0..100)
+        .map(|i| serde_json::json!({"type": format!("t{}", i / 10), "value": i}))
+        .collect();
+    let objects = Variable::from_json(&serde_json::to_string(&objects).unwrap()).unwrap();
+    let expr = runtime.compile(r#"partition_by(@, `"type"`)"#).unwrap();
+    group.bench_with_input(
+        BenchmarkId::new("partition_by", "100"),
+        &objects,
+        |b, data| b.iter(|| expr.search(black_box(data))),
+    );
+
     group.finish();
 }
 

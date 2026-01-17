@@ -18,3 +18,6 @@ crates/jmespath-extensions-py/Cargo.lock
 # Misc
 .tmp/
 docs/build/
+
+# Claude Code context
+CLAUDE.md

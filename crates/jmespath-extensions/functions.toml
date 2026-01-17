@@ -341,6 +341,71 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "butlast"
+category = "array"
+description = "Return all elements except the last (alias for initial)"
+signature = "array -> array"
+examples = [
+    { code = "butlast([1, 2, 3, 4]) -> [1, 2, 3]", description = "Remove last element" },
+    { code = "butlast(['a', 'b', 'c']) -> ['a', 'b']", description = "String values" },
+    { code = "butlast([1]) -> []", description = "Single element returns empty" },
+    { code = "butlast([]) -> []", description = "Empty array returns empty" },
+]
+aliases = ["initial"]
+features = ["core"]
+
+[[functions]]
+name = "interpose"
+category = "array"
+description = "Insert separator value between each element of array"
+signature = "array, any -> array"
+examples = [
+    { code = "interpose([1, 2, 3], `0`) -> [1, 0, 2, 0, 3]", description = "Insert zeros between numbers" },
+    { code = '''interpose(['a', 'b', 'c'], `"-"`) -> ['a', '-', 'b', '-', 'c']''', description = "Insert separator strings" },
+    { code = "interpose([1], `0`) -> [1]", description = "Single element unchanged" },
+    { code = "interpose([], `0`) -> []", description = "Empty array unchanged" },
+]
+features = ["core"]
+
+[[functions]]
+name = "zipmap"
+category = "array"
+description = "Create object from parallel arrays of keys and values"
+signature = "array, array -> object"
+examples = [
+    { code = '''zipmap(["a", "b", "c"], [1, 2, 3]) -> {"a": 1, "b": 2, "c": 3}''', description = "Basic zipmap" },
+    { code = '''zipmap(["x", "y"], [10, 20, 30]) -> {"x": 10, "y": 20}''', description = "Uses shorter length" },
+    { code = "zipmap([], []) -> {}", description = "Empty arrays return empty object" },
+    { code = '''zipmap(["name", "age"], ["alice", 30]) -> {"name": "alice", "age": 30}''', description = "Mixed value types" },
+]
+features = ["core"]
+
+[[functions]]
+name = "partition_by"
+category = "array"
+description = "Split array into partitions when field value changes (preserves order unlike group_by)"
+signature = "array, string -> array"
+examples = [
+    { code = '''partition_by([{t: "a"}, {t: "a"}, {t: "b"}, {t: "a"}], "t") -> [[{t: "a"}, {t: "a"}], [{t: "b"}], [{t: "a"}]]''', description = "Split on field change" },
+    { code = '''partition_by([{status: "ok"}, {status: "ok"}, {status: "err"}], "status") -> [[...ok...], [...err...]]''', description = "Group consecutive statuses" },
+    { code = '''partition_by([], "type") -> []''', description = "Empty array returns empty" },
+]
+features = ["core"]
+
+[[functions]]
+name = "dedupe"
+category = "array"
+description = "Remove consecutive duplicate values (unlike unique, allows non-adjacent duplicates)"
+signature = "array -> array"
+examples = [
+    { code = "dedupe([1, 1, 2, 2, 1, 1]) -> [1, 2, 1]", description = "Remove adjacent duplicates" },
+    { code = '''dedupe(['a', 'a', 'b', 'a']) -> ['a', 'b', 'a']''', description = "String values" },
+    { code = "dedupe([1, 2, 3]) -> [1, 2, 3]", description = "No consecutive duplicates" },
+    { code = "dedupe([]) -> []", description = "Empty array unchanged" },
+]
+features = ["core"]
+
 # =============================================================================
 # COLOR FUNCTIONS
 # =============================================================================
