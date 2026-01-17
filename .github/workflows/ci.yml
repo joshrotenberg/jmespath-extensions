@@ -152,18 +152,18 @@ jobs:
         with:
           python-version: "3.12"
       - name: Create venv and install dependencies
-        working-directory: jmespath-extensions-py
+        working-directory: crates/jmespath-extensions-py
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install maturin pytest
       - name: Build and install
-        working-directory: jmespath-extensions-py
+        working-directory: crates/jmespath-extensions-py
         run: |
           source .venv/bin/activate
           maturin develop
       - name: Run tests
-        working-directory: jmespath-extensions-py
+        working-directory: crates/jmespath-extensions-py
         run: |
           source .venv/bin/activate
           pytest tests/ -v
@@ -184,10 +184,10 @@ jobs:
       - name: Install maturin
         run: pip install maturin
       - name: Build wheels
-        working-directory: jmespath-extensions-py
+        working-directory: crates/jmespath-extensions-py
         run: maturin build --release
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
-          path: jmespath-extensions-py/target/wheels/*.whl
+          path: crates/jmespath-extensions-py/target/wheels/*.whl

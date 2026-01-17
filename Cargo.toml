@@ -1,10 +1,10 @@
 [workspace]
-members = ["jmespath-extensions", "jpx-engine", "jpx", "jpx-server", "xtask", "mock-mcp-server"]
+members = ["crates/jmespath-extensions", "crates/jpx-engine", "crates/jpx", "crates/jpx-server", "xtask", "mock-mcp-server"]
 # Python bindings are excluded from workspace to avoid PyO3 build issues in cargo-dist
 # The jmespath-extensions-py crate is built/released separately via the Python workflow
-exclude = ["jmespath-extensions-py"]
+exclude = ["crates/jmespath-extensions-py"]
 resolver = "2"
-default-members = ["jpx"]
+default-members = ["crates/jpx"]
 
 [workspace.package]
 edition = "2024"
@@ -71,8 +71,8 @@ criterion = { version = "0.5", features = ["html_reports"] }
 
 
 # Internal crates
-jmespath-extensions = { path = "jmespath-extensions", version = "0.8.2" }
-jpx-engine = { path = "jpx-engine", version = "0.1.0" }
+jmespath-extensions = { path = "crates/jmespath-extensions", version = "0.8.2" }
+jpx-engine = { path = "crates/jpx-engine", version = "0.1.0" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

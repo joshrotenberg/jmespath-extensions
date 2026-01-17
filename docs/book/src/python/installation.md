@@ -11,7 +11,7 @@ pip install jmespath-extensions
 ```bash
 # Clone the repository
 git clone https://github.com/joshrotenberg/jmespath-extensions
-cd jmespath-extensions/jmespath-extensions-py
+cd jmespath-extensions/crates/jmespath-extensions-py
 
 # Install maturin if needed
 pip install maturin

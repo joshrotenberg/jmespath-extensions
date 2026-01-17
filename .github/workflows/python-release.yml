@@ -25,13 +25,13 @@ jobs:
       - name: Install maturin
         run: pip install maturin
       - name: Build sdist
-        working-directory: jmespath-extensions-py
+        working-directory: crates/jmespath-extensions-py
         run: maturin sdist
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
           name: sdist
-          path: jmespath-extensions-py/target/wheels/*.tar.gz
+          path: crates/jmespath-extensions-py/target/wheels/*.tar.gz
 
   build-wheels:
     name: Build wheels (${{ matrix.os }} ${{ matrix.target }})
@@ -68,7 +68,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          working-directory: jmespath-extensions-py
+          working-directory: crates/jmespath-extensions-py
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release --out dist
@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.target }}
-          path: jmespath-extensions-py/dist/*.whl
+          path: crates/jmespath-extensions-py/dist/*.whl
 
   publish:
     name: Publish to PyPI

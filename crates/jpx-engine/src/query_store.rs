@@ -1,72 +1,160 @@
-//! Runtime query storage for sessions
+//! Session-scoped storage for named JMESPath queries.
 //!
-//! Provides in-memory storage for named JMESPath queries that can be
-//! defined, retrieved, listed, deleted, and executed during a session.
+//! The query store allows you to save JMESPath expressions with names for
+//! reuse during a session. This is particularly useful for:
+//!
+//! - Building up complex queries iteratively
+//! - Reusing common extraction patterns
+//! - Organizing queries with descriptions
+//!
+//! # Example
+//!
+//! ```rust
+//! use jpx_engine::QueryStore;
+//! use jpx_engine::StoredQuery;
+//!
+//! let mut store = QueryStore::new();
+//!
+//! // Define a query
+//! store.define(StoredQuery {
+//!     name: "active_users".to_string(),
+//!     expression: "users[?active].name".to_string(),
+//!     description: Some("Get names of active users".to_string()),
+//! });
+//!
+//! // Retrieve it later
+//! let query = store.get("active_users").unwrap();
+//! assert_eq!(query.expression, "users[?active].name");
+//! ```
+//!
+//! # Thread Safety
+//!
+//! The [`QueryStore`] itself is not thread-safe. When used through
+//! [`JpxEngine`](crate::JpxEngine), it's wrapped in `Arc<RwLock<...>>`
+//! for safe concurrent access.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// A stored query with metadata
+/// A named JMESPath query with optional description.
+///
+/// Stored queries can be defined, retrieved, and executed by name.
+///
+/// # Example
+///
+/// ```rust
+/// use jpx_engine::StoredQuery;
+///
+/// let query = StoredQuery {
+///     name: "count_items".to_string(),
+///     expression: "length(items)".to_string(),
+///     description: Some("Count the number of items".to_string()),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredQuery {
-    /// Query name (identifier)
+    /// Unique identifier for the query
     pub name: String,
-    /// JMESPath expression
+    /// The JMESPath expression
     pub expression: String,
-    /// Optional description
+    /// Human-readable description of what the query does
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
-/// In-memory store for named queries
+/// In-memory storage for named queries.
+///
+/// Provides CRUD operations for managing named JMESPath queries within a session.
+/// Queries are stored by name and can be listed alphabetically.
+///
+/// # Example
+///
+/// ```rust
+/// use jpx_engine::{QueryStore, StoredQuery};
+///
+/// let mut store = QueryStore::new();
+///
+/// // Add some queries
+/// store.define(StoredQuery {
+///     name: "first".to_string(),
+///     expression: "@[0]".to_string(),
+///     description: None,
+/// });
+///
+/// store.define(StoredQuery {
+///     name: "last".to_string(),
+///     expression: "@[-1]".to_string(),
+///     description: None,
+/// });
+///
+/// // List them (alphabetically sorted)
+/// let queries = store.list();
+/// assert_eq!(queries[0].name, "first");
+/// assert_eq!(queries[1].name, "last");
+///
+/// // Delete one
+/// store.delete("first");
+/// assert_eq!(store.len(), 1);
+/// ```
 #[derive(Debug, Default)]
 pub struct QueryStore {
     queries: HashMap<String, StoredQuery>,
 }
 
 impl QueryStore {
-    /// Create a new empty query store
+    /// Creates a new empty query store.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Define (store) a named query
+    /// Stores a named query.
     ///
-    /// Returns the previous query if one existed with the same name
+    /// If a query with the same name already exists, it is replaced and
+    /// the old query is returned.
+    ///
+    /// # Returns
+    ///
+    /// `Some(StoredQuery)` if a query was replaced, `None` if this is a new name.
     pub fn define(&mut self, query: StoredQuery) -> Option<StoredQuery> {
         self.queries.insert(query.name.clone(), query)
     }
 
-    /// Get a query by name
+    /// Retrieves a query by name.
+    ///
+    /// # Returns
+    ///
+    /// `Some(&StoredQuery)` if found, `None` if no query has that name.
     pub fn get(&self, name: &str) -> Option<&StoredQuery> {
         self.queries.get(name)
     }
 
-    /// Delete a query by name
+    /// Removes a query by name.
     ///
-    /// Returns the deleted query if it existed
+    /// # Returns
+    ///
+    /// `Some(StoredQuery)` containing the removed query, `None` if not found.
     pub fn delete(&mut self, name: &str) -> Option<StoredQuery> {
         self.queries.remove(name)
     }
 
-    /// List all stored queries
+    /// Lists all stored queries, sorted alphabetically by name.
     pub fn list(&self) -> Vec<&StoredQuery> {
         let mut queries: Vec<_> = self.queries.values().collect();
         queries.sort_by(|a, b| a.name.cmp(&b.name));
         queries
     }
 
-    /// Get the number of stored queries
+    /// Returns the number of stored queries.
     pub fn len(&self) -> usize {
         self.queries.len()
     }
 
-    /// Check if the store is empty
+    /// Returns `true` if no queries are stored.
     pub fn is_empty(&self) -> bool {
         self.queries.is_empty()
     }
 
-    /// Clear all stored queries
+    /// Removes all stored queries.
     pub fn clear(&mut self) {
         self.queries.clear();
     }

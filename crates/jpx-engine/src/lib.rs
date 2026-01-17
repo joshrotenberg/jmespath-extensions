@@ -1,20 +1,23 @@
-//! # jpx_engine
+//! # jpx-engine
 //!
-//! The JMESPath query engine - a high-level platform built on `jmespath_extensions`.
+//! Protocol-agnostic JMESPath query engine with 400+ functions.
 //!
-//! This crate provides the "brain" of jpx: everything you can do with JMESPath
-//! beyond basic compile and evaluate. It's protocol-agnostic - the CLI, MCP server,
-//! REST API, and gRPC server are all thin adapters over this engine.
+//! This crate provides the core "brain" of jpx - everything you can do with JMESPath
+//! beyond basic compile and evaluate. It's designed to be transport-agnostic, allowing
+//! the CLI (`jpx`), MCP server (`jpx-server`), or any future REST/gRPC adapters to be
+//! thin wrappers over this engine.
 //!
 //! ## Features
 //!
-//! - **Evaluation**: Single, batch, and file-based evaluation with validation
-//! - **Introspection**: List functions, search by keyword, describe, find similar
-//! - **Discovery**: Cross-server tool discovery with BM25 search indexing
-//! - **Query Store**: Named queries for reuse
-//! - **JSON Utilities**: Format, diff, patch, merge, stats, paths, keys
+//! | Category | Description |
+//! |----------|-------------|
+//! | **Evaluation** | Single, batch, and string-based evaluation with validation |
+//! | **Introspection** | List functions, search by keyword, describe, find similar |
+//! | **Discovery** | Cross-server tool discovery with BM25 search indexing |
+//! | **Query Store** | Named queries for session-scoped reuse |
+//! | **JSON Utilities** | Format, diff, patch, merge, stats, paths, keys |
 //!
-//! ## Usage
+//! ## Quick Start
 //!
 //! ```rust
 //! use jpx_engine::JpxEngine;
@@ -27,27 +30,192 @@
 //!     "users": [{"name": "alice"}, {"name": "bob"}]
 //! })).unwrap();
 //! assert_eq!(result, json!(["alice", "bob"]));
+//! ```
 //!
-//! // Search for functions
-//! let results = engine.search_functions("string", 10);
-//! assert!(!results.is_empty());
+//! ## Evaluation
 //!
-//! // Describe a function
+//! The engine supports multiple evaluation modes:
+//!
+//! ```rust
+//! use jpx_engine::JpxEngine;
+//! use serde_json::json;
+//!
+//! let engine = JpxEngine::new();
+//!
+//! // From parsed JSON
+//! let data = json!({"items": [1, 2, 3]});
+//! let result = engine.evaluate("length(items)", &data).unwrap();
+//! assert_eq!(result, json!(3));
+//!
+//! // From JSON string
+//! let result = engine.evaluate_str("length(@)", r#"[1, 2, 3]"#).unwrap();
+//! assert_eq!(result, json!(3));
+//!
+//! // Batch evaluation (multiple expressions, same input)
+//! let exprs = vec!["a".to_string(), "b".to_string()];
+//! let batch = engine.batch_evaluate(&exprs, &json!({"a": 1, "b": 2}));
+//! assert_eq!(batch.results[0].result, Some(json!(1)));
+//!
+//! // Validation without evaluation
+//! let valid = engine.validate("users[*].name");
+//! assert!(valid.valid);
+//! ```
+//!
+//! ## Function Introspection
+//!
+//! Discover and explore the 400+ available functions:
+//!
+//! ```rust
+//! use jpx_engine::JpxEngine;
+//!
+//! let engine = JpxEngine::new();
+//!
+//! // List all categories
+//! let categories = engine.categories();
+//! assert!(categories.contains(&"String".to_string()));
+//!
+//! // List functions in a category
+//! let string_funcs = engine.functions(Some("String"));
+//! assert!(string_funcs.iter().any(|f| f.name == "upper"));
+//!
+//! // Search by keyword (fuzzy matching, synonyms)
+//! let results = engine.search_functions("upper", 5);
+//! assert!(results.iter().any(|r| r.function.name == "upper"));
+//!
+//! // Get detailed function info
 //! let info = engine.describe_function("upper").unwrap();
-//! assert_eq!(info.name, "upper");
+//! assert_eq!(info.category, "String");
+//!
+//! // Find similar functions
+//! let similar = engine.similar_functions("upper").unwrap();
+//! assert!(!similar.same_category.is_empty());
+//! ```
+//!
+//! ## JSON Utilities
+//!
+//! Beyond JMESPath evaluation, the engine provides JSON manipulation tools:
+//!
+//! ```rust
+//! use jpx_engine::JpxEngine;
+//!
+//! let engine = JpxEngine::new();
+//!
+//! // Pretty-print JSON
+//! let formatted = engine.format_json(r#"{"a":1}"#, 2).unwrap();
+//! assert!(formatted.contains('\n'));
+//!
+//! // Generate JSON Patch (RFC 6902)
+//! let patch = engine.diff(r#"{"a": 1}"#, r#"{"a": 2}"#).unwrap();
+//!
+//! // Apply JSON Patch
+//! let result = engine.patch(
+//!     r#"{"a": 1}"#,
+//!     r#"[{"op": "replace", "path": "/a", "value": 2}]"#
+//! ).unwrap();
+//!
+//! // Apply JSON Merge Patch (RFC 7396)
+//! let merged = engine.merge(
+//!     r#"{"a": 1, "b": 2}"#,
+//!     r#"{"b": 3, "c": 4}"#
+//! ).unwrap();
+//!
+//! // Analyze JSON structure
+//! let stats = engine.stats(r#"[1, 2, 3]"#).unwrap();
+//! assert_eq!(stats.root_type, "array");
+//! ```
+//!
+//! ## Query Store
+//!
+//! Store and reuse named queries within a session:
+//!
+//! ```rust
+//! use jpx_engine::JpxEngine;
+//! use serde_json::json;
+//!
+//! let engine = JpxEngine::new();
+//!
+//! // Define a reusable query
+//! engine.define_query(
+//!     "active_users".to_string(),
+//!     "users[?active].name".to_string(),
+//!     Some("Get names of active users".to_string())
+//! ).unwrap();
+//!
+//! // Run it by name
+//! let data = json!({"users": [
+//!     {"name": "alice", "active": true},
+//!     {"name": "bob", "active": false}
+//! ]});
+//! let result = engine.run_query("active_users", &data).unwrap();
+//! assert_eq!(result, json!(["alice"]));
+//!
+//! // List all stored queries
+//! let queries = engine.list_queries().unwrap();
+//! assert_eq!(queries.len(), 1);
+//! ```
+//!
+//! ## Tool Discovery
+//!
+//! Register and search tools across multiple servers (for MCP integration):
+//!
+//! ```rust
+//! use jpx_engine::{JpxEngine, DiscoverySpec};
+//! use serde_json::json;
+//!
+//! let engine = JpxEngine::new();
+//!
+//! // Register a server's tools
+//! let spec: DiscoverySpec = serde_json::from_value(json!({
+//!     "server": {"name": "my-server", "version": "1.0.0"},
+//!     "tools": [
+//!         {"name": "create_user", "description": "Create a new user", "tags": ["write"]}
+//!     ]
+//! })).unwrap();
+//!
+//! let result = engine.register_discovery(spec, false).unwrap();
+//! assert!(result.ok);
+//!
+//! // Search across registered tools
+//! let tools = engine.query_tools("user", 10).unwrap();
+//! assert!(!tools.is_empty());
+//! ```
+//!
+//! ## Strict Mode
+//!
+//! For standard JMESPath compliance without extensions:
+//!
+//! ```rust
+//! use jpx_engine::JpxEngine;
+//! use serde_json::json;
+//!
+//! let engine = JpxEngine::strict();
+//! assert!(engine.is_strict());
+//!
+//! // Standard functions work
+//! let result = engine.evaluate("length(@)", &json!([1, 2, 3])).unwrap();
+//! assert_eq!(result, json!(3));
+//!
+//! // Extension functions are not available for evaluation
+//! // (but introspection still works for documentation purposes)
 //! ```
 //!
 //! ## Architecture
 //!
 //! ```text
-//! jmespath_extensions    (400+ functions, registry)
-//!         ↓
-//!    jpx_engine          (this crate - evaluation, search, discovery)
-//!         ↓
-//!    ┌────┴────┐
-//!    ↓         ↓
-//!   jpx    jpx-server    (CLI and network transports)
+//! jmespath-extensions    (400+ functions, registry)
+//!         |
+//!    jpx-engine          (this crate - evaluation, search, discovery)
+//!         |
+//!    +----+----+
+//!    |         |
+//!   jpx    jpx-server    (CLI and MCP transport)
 //! ```
+//!
+//! ## Thread Safety
+//!
+//! The engine uses interior mutability (`Arc<RwLock<...>>`) for the discovery
+//! registry and query store, making it safe to share across threads. The function
+//! registry is immutable after construction.
 
 mod bm25;
 mod discovery;
@@ -79,17 +247,42 @@ use strsim::jaro_winkler;
 // Re-export commonly used types from jmespath_extensions
 pub use jmespath_extensions::registry::{Category, FunctionInfo};
 
-/// Serializable function detail for API responses
+/// Detailed information about a JMESPath function.
+///
+/// This struct provides a serializable representation of function metadata,
+/// suitable for API responses, documentation generation, and introspection tools.
+///
+/// # Example
+///
+/// ```rust
+/// use jpx_engine::JpxEngine;
+///
+/// let engine = JpxEngine::new();
+/// let info = engine.describe_function("upper").unwrap();
+///
+/// println!("Function: {}", info.name);
+/// println!("Category: {}", info.category);
+/// println!("Signature: {}", info.signature);
+/// println!("Example: {}", info.example);
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionDetail {
+    /// Function name (e.g., "upper", "sum", "now")
     pub name: String,
+    /// Category name (e.g., "String", "Math", "Datetime")
     pub category: String,
+    /// Human-readable description of what the function does
     pub description: String,
+    /// Function signature showing parameter types (e.g., "string -> string")
     pub signature: String,
+    /// Example usage demonstrating the function
     pub example: String,
+    /// Whether this is a standard JMESPath function (vs extension)
     pub is_standard: bool,
+    /// JMESPath Enhancement Proposal number, if applicable
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jep: Option<String>,
+    /// Alternative names for this function
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub aliases: Vec<String>,
 }
@@ -109,87 +302,200 @@ impl From<&FunctionInfo> for FunctionDetail {
     }
 }
 
-/// Search result with match information
+/// Result from searching for functions.
+///
+/// Contains the matched function along with information about how it matched
+/// the search query and its relevance score.
+///
+/// # Scoring
+///
+/// Match types and approximate scores:
+/// - `exact_name` (1000): Query exactly matches function name
+/// - `alias` (900): Query matches a function alias
+/// - `name_prefix` (800): Function name starts with query
+/// - `name_contains` (700): Function name contains query
+/// - `category` (600): Query matches category name
+/// - `description` (100-300): Query found in description
+/// - `fuzzy_name` (variable): Jaro-Winkler similarity > 0.8
+/// - `synonym` (300): Query synonym found in name/description
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
-    /// Function details
+    /// The matched function's details
     pub function: FunctionDetail,
-    /// How the function matched the query
+    /// How the function matched (e.g., "exact_name", "description")
     pub match_type: String,
     /// Relevance score (higher = better match)
     pub score: i32,
 }
 
-/// Similar functions result
+/// Result from finding functions similar to a given function.
+///
+/// Groups similar functions by relationship type: same category,
+/// similar signature, or related concepts in descriptions.
+///
+/// # Example
+///
+/// ```rust
+/// use jpx_engine::JpxEngine;
+///
+/// let engine = JpxEngine::new();
+/// let similar = engine.similar_functions("upper").unwrap();
+///
+/// // Functions in the same category (String)
+/// for f in &similar.same_category {
+///     println!("Same category: {}", f.name);
+/// }
+///
+/// // Functions with similar signatures
+/// for f in &similar.similar_signature {
+///     println!("Similar signature: {}", f.name);
+/// }
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimilarFunctionsResult {
-    /// Functions in the same category
+    /// Functions in the same category as the target
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub same_category: Vec<FunctionDetail>,
-    /// Functions with similar signatures
+    /// Functions with similar parameter/return types
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub similar_signature: Vec<FunctionDetail>,
-    /// Functions with related concepts (based on description keywords)
+    /// Functions with overlapping description keywords
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub related_concepts: Vec<FunctionDetail>,
 }
 
-/// Statistics about JSON data
+/// Statistics about JSON data structure.
+///
+/// Provides insights into JSON data including type, size, depth, and
+/// detailed field analysis for arrays of objects.
+///
+/// # Example
+///
+/// ```rust
+/// use jpx_engine::JpxEngine;
+///
+/// let engine = JpxEngine::new();
+/// let stats = engine.stats(r#"{"users": [{"name": "alice"}, {"name": "bob"}]}"#).unwrap();
+///
+/// println!("Type: {}", stats.root_type);      // "object"
+/// println!("Size: {}", stats.size_human);     // "52 bytes"
+/// println!("Depth: {}", stats.depth);         // 3
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatsResult {
-    /// Type of the root value
+    /// JSON type of the root value ("object", "array", "string", etc.)
     pub root_type: String,
-    /// Estimated size in bytes
+    /// Size of the JSON string in bytes
     pub size_bytes: usize,
-    /// Human-readable size
+    /// Human-readable size (e.g., "1.5 KB", "2.3 MB")
     pub size_human: String,
-    /// Nesting depth
+    /// Maximum nesting depth (0 for primitives)
     pub depth: usize,
-    /// For arrays: number of items
+    /// Number of items (arrays only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub length: Option<usize>,
-    /// For objects: number of keys
+    /// Number of keys (objects only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_count: Option<usize>,
-    /// For arrays of objects: field analysis
+    /// Field analysis (arrays of objects only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<Vec<FieldAnalysis>>,
-    /// Type distribution for arrays
+    /// Count of each JSON type in array (arrays only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub type_distribution: Option<HashMap<String, usize>>,
 }
 
-/// Field analysis for arrays of objects
+/// Analysis of a field across an array of objects.
+///
+/// Used by [`StatsResult`] to provide insights into consistent fields
+/// in arrays of objects, including type information and null counts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldAnalysis {
-    /// Field name
+    /// Field name (key)
     pub name: String,
-    /// Predominant type
+    /// Most common type for this field
     pub field_type: String,
-    /// Count of null values
+    /// Number of objects where this field is null
     pub null_count: usize,
-    /// Number of unique values (for low-cardinality fields)
+    /// Number of distinct values (omitted for high-cardinality fields)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unique_count: Option<usize>,
 }
 
-/// Path information in JSON structure
+/// Information about a path in a JSON structure.
+///
+/// Used by [`JpxEngine::paths`] to enumerate all paths in a JSON document.
+///
+/// # Example
+///
+/// ```rust
+/// use jpx_engine::JpxEngine;
+///
+/// let engine = JpxEngine::new();
+/// let paths = engine.paths(r#"{"user": {"name": "alice"}}"#, true, false).unwrap();
+///
+/// for path in paths {
+///     println!("{}: {:?}", path.path, path.path_type);
+/// }
+/// // Output:
+/// // @: Some("object")
+/// // user: Some("object")
+/// // user.name: Some("string")
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PathInfo {
-    /// The path in dot notation
+    /// Path in dot notation (e.g., "user.name", "items.0.id")
     pub path: String,
-    /// The type at this path
+    /// JSON type at this path (if `include_types` was true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path_type: Option<String>,
-    /// The value at this path (for leaf nodes)
+    /// Value at this path (if `include_values` was true, leaf nodes only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Value>,
 }
 
 /// The JMESPath query engine.
 ///
-/// This is the main entry point for all jpx functionality. It wraps the JMESPath
-/// runtime with additional capabilities for introspection, search, and discovery.
+/// `JpxEngine` is the main entry point for all jpx functionality. It combines:
+///
+/// - **JMESPath runtime** with 400+ extension functions
+/// - **Function registry** for introspection and search
+/// - **Discovery registry** for cross-server tool indexing
+/// - **Query store** for named query management
+///
+/// # Construction
+///
+/// ```rust
+/// use jpx_engine::JpxEngine;
+///
+/// // Full engine with all extensions
+/// let engine = JpxEngine::new();
+///
+/// // Strict mode (standard JMESPath only)
+/// let strict_engine = JpxEngine::strict();
+///
+/// // Or using Default
+/// let default_engine = JpxEngine::default();
+/// ```
+///
+/// # Thread Safety
+///
+/// The engine is designed to be shared across threads. The discovery registry
+/// and query store use `Arc<RwLock<...>>` for interior mutability, while the
+/// function registry is immutable after construction.
+///
+/// ```rust
+/// use jpx_engine::JpxEngine;
+/// use std::sync::Arc;
+///
+/// let engine = Arc::new(JpxEngine::new());
+///
+/// // Clone the Arc to share across threads
+/// let engine_clone = Arc::clone(&engine);
+/// std::thread::spawn(move || {
+///     let result = engine_clone.evaluate("length(@)", &serde_json::json!([1, 2, 3]));
+/// });
+/// ```
 pub struct JpxEngine {
     /// JMESPath runtime with all extensions registered
     runtime: Runtime,
@@ -204,15 +510,50 @@ pub struct JpxEngine {
 }
 
 impl JpxEngine {
-    /// Create a new engine with all extension functions enabled.
+    /// Creates a new engine with all extension functions enabled.
+    ///
+    /// This is the standard way to create an engine with full functionality,
+    /// including all 400+ extension functions.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    /// use serde_json::json;
+    ///
+    /// let engine = JpxEngine::new();
+    ///
+    /// // Standard JMESPath works
+    /// let result = engine.evaluate("name", &json!({"name": "alice"})).unwrap();
+    /// assert_eq!(result, json!("alice"));
+    ///
+    /// // Extension functions also work
+    /// let result = engine.evaluate("upper(name)", &json!({"name": "alice"})).unwrap();
+    /// assert_eq!(result, json!("ALICE"));
+    /// ```
     pub fn new() -> Self {
         Self::with_options(false)
     }
 
-    /// Create a new engine with strict mode option.
+    /// Creates a new engine with configurable strict mode.
     ///
-    /// In strict mode, only standard JMESPath functions are available for evaluation.
-    /// Introspection and discovery features still work for all functions.
+    /// # Arguments
+    ///
+    /// * `strict` - If `true`, only standard JMESPath functions are available
+    ///   for evaluation. Introspection features still show all functions.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    ///
+    /// // Create engine with extensions
+    /// let full_engine = JpxEngine::with_options(false);
+    ///
+    /// // Create strict engine (standard JMESPath only)
+    /// let strict_engine = JpxEngine::with_options(true);
+    /// assert!(strict_engine.is_strict());
+    /// ```
     pub fn with_options(strict: bool) -> Self {
         let mut runtime = Runtime::new();
         runtime.register_builtin_functions();
@@ -232,32 +573,61 @@ impl JpxEngine {
         }
     }
 
-    /// Create a new engine in strict mode (standard JMESPath only).
+    /// Creates a new engine in strict mode (standard JMESPath only).
+    ///
+    /// Equivalent to `JpxEngine::with_options(true)`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    /// use serde_json::json;
+    ///
+    /// let engine = JpxEngine::strict();
+    ///
+    /// // Standard functions work
+    /// let result = engine.evaluate("length(@)", &json!([1, 2, 3])).unwrap();
+    /// assert_eq!(result, json!(3));
+    /// ```
     pub fn strict() -> Self {
         Self::with_options(true)
     }
 
-    /// Check if the engine is in strict mode.
+    /// Returns `true` if the engine is in strict mode.
+    ///
+    /// In strict mode, only standard JMESPath functions are available for
+    /// evaluation. Extension functions will cause evaluation errors.
     pub fn is_strict(&self) -> bool {
         self.strict
     }
 
-    /// Get a reference to the underlying JMESPath runtime.
+    /// Returns a reference to the underlying JMESPath runtime.
+    ///
+    /// This provides access to the low-level runtime for advanced use cases.
     pub fn runtime(&self) -> &Runtime {
         &self.runtime
     }
 
-    /// Get a reference to the function registry.
+    /// Returns a reference to the function registry.
+    ///
+    /// The registry contains metadata about all available functions and can
+    /// be used for custom introspection beyond what the engine methods provide.
     pub fn registry(&self) -> &FunctionRegistry {
         &self.registry
     }
 
-    /// Get a reference to the discovery registry.
+    /// Returns a reference to the discovery registry.
+    ///
+    /// The discovery registry manages cross-server tool indexing and search.
+    /// Access is through `Arc<RwLock<...>>` for thread-safe mutation.
     pub fn discovery(&self) -> &Arc<RwLock<DiscoveryRegistry>> {
         &self.discovery
     }
 
-    /// Get a reference to the query store.
+    /// Returns a reference to the query store.
+    ///
+    /// The query store manages named queries for the session.
+    /// Access is through `Arc<RwLock<...>>` for thread-safe mutation.
     pub fn queries(&self) -> &Arc<RwLock<QueryStore>> {
         &self.queries
     }
@@ -266,13 +636,52 @@ impl JpxEngine {
     // Evaluation methods
     // =========================================================================
 
-    /// Evaluate a JMESPath expression against JSON input.
+    /// Evaluates a JMESPath expression against JSON input.
+    ///
+    /// This is the primary method for running JMESPath queries. The expression
+    /// is compiled and executed against the provided JSON value.
+    ///
+    /// # Arguments
+    ///
+    /// * `expression` - A JMESPath expression string
+    /// * `input` - JSON data to query
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EngineError::InvalidExpression`] if the expression has syntax errors,
+    /// or [`EngineError::EvaluationFailed`] if evaluation fails (e.g., calling an
+    /// undefined function in strict mode).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    /// use serde_json::json;
+    ///
+    /// let engine = JpxEngine::new();
+    ///
+    /// // Simple field access
+    /// let result = engine.evaluate("name", &json!({"name": "alice"})).unwrap();
+    /// assert_eq!(result, json!("alice"));
+    ///
+    /// // Array projection with function
+    /// let result = engine.evaluate("users[*].name | sort(@)", &json!({
+    ///     "users": [{"name": "charlie"}, {"name": "alice"}, {"name": "bob"}]
+    /// })).unwrap();
+    /// assert_eq!(result, json!(["alice", "bob", "charlie"]));
+    /// ```
     pub fn evaluate(&self, expression: &str, input: &Value) -> Result<Value> {
-        let expr = jmespath::compile(expression)
+        let expr = self
+            .runtime
+            .compile(expression)
             .map_err(|e| EngineError::InvalidExpression(e.to_string()))?;
 
+        // Convert input Value to Variable for jmespath
+        let var = jmespath::Variable::from_json(&input.to_string())
+            .map_err(|e| EngineError::InvalidJson(e.to_string()))?;
+
         let result = expr
-            .search(input)
+            .search(&var)
             .map_err(|e| EngineError::EvaluationFailed(e.to_string()))?;
 
         // Convert Rcvar to Value
@@ -282,14 +691,56 @@ impl JpxEngine {
         Ok(value)
     }
 
-    /// Evaluate a JMESPath expression against JSON input string.
+    /// Evaluates a JMESPath expression against a JSON string.
+    ///
+    /// Convenience method that parses the JSON string before evaluation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EngineError::InvalidJson`] if the input is not valid JSON,
+    /// or evaluation errors as with [`evaluate`](Self::evaluate).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    /// use serde_json::json;
+    ///
+    /// let engine = JpxEngine::new();
+    /// let result = engine.evaluate_str("length(@)", r#"[1, 2, 3, 4, 5]"#).unwrap();
+    /// assert_eq!(result, json!(5));
+    /// ```
     pub fn evaluate_str(&self, expression: &str, input: &str) -> Result<Value> {
         let json: Value =
             serde_json::from_str(input).map_err(|e| EngineError::InvalidJson(e.to_string()))?;
         self.evaluate(expression, &json)
     }
 
-    /// Evaluate multiple expressions against the same input.
+    /// Evaluates multiple expressions against the same input.
+    ///
+    /// Useful for extracting multiple values from a document in one call.
+    /// Each expression is evaluated independently; failures don't affect other expressions.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    /// use serde_json::json;
+    ///
+    /// let engine = JpxEngine::new();
+    /// let input = json!({"name": "alice", "age": 30, "active": true});
+    ///
+    /// let exprs = vec![
+    ///     "name".to_string(),
+    ///     "age".to_string(),
+    ///     "missing".to_string(),  // Returns null, not an error
+    /// ];
+    ///
+    /// let results = engine.batch_evaluate(&exprs, &input);
+    /// assert_eq!(results.results[0].result, Some(json!("alice")));
+    /// assert_eq!(results.results[1].result, Some(json!(30)));
+    /// assert_eq!(results.results[2].result, Some(json!(null)));
+    /// ```
     pub fn batch_evaluate(&self, expressions: &[String], input: &Value) -> BatchEvaluateResult {
         let results = expressions
             .iter()
@@ -310,7 +761,28 @@ impl JpxEngine {
         BatchEvaluateResult { results }
     }
 
-    /// Validate a JMESPath expression without evaluating it.
+    /// Validates a JMESPath expression without evaluating it.
+    ///
+    /// Checks if an expression has valid syntax without needing input data.
+    /// Useful for validating user-provided expressions before storing them.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    ///
+    /// let engine = JpxEngine::new();
+    ///
+    /// // Valid expression
+    /// let result = engine.validate("users[*].name | sort(@)");
+    /// assert!(result.valid);
+    /// assert!(result.error.is_none());
+    ///
+    /// // Invalid expression (unclosed bracket)
+    /// let result = engine.validate("users[*.name");
+    /// assert!(!result.valid);
+    /// assert!(result.error.is_some());
+    /// ```
     pub fn validate(&self, expression: &str) -> ValidationResult {
         match jmespath::compile(expression) {
             Ok(_) => ValidationResult {
@@ -328,12 +800,47 @@ impl JpxEngine {
     // Introspection methods
     // =========================================================================
 
-    /// List all available function categories.
+    /// Lists all available function categories.
+    ///
+    /// Returns category names like "String", "Math", "Datetime", etc.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    ///
+    /// let engine = JpxEngine::new();
+    /// let categories = engine.categories();
+    ///
+    /// assert!(categories.contains(&"String".to_string()));
+    /// assert!(categories.contains(&"Math".to_string()));
+    /// assert!(categories.contains(&"Array".to_string()));
+    /// ```
     pub fn categories(&self) -> Vec<String> {
         Category::all().iter().map(|c| format!("{:?}", c)).collect()
     }
 
-    /// List all functions, optionally filtered by category.
+    /// Lists functions, optionally filtered by category.
+    ///
+    /// # Arguments
+    ///
+    /// * `category` - Optional category name to filter by (case-insensitive)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    ///
+    /// let engine = JpxEngine::new();
+    ///
+    /// // All functions
+    /// let all = engine.functions(None);
+    /// assert!(all.len() > 100);
+    ///
+    /// // Just string functions
+    /// let string_funcs = engine.functions(Some("String"));
+    /// assert!(string_funcs.iter().all(|f| f.category == "String"));
+    /// ```
     pub fn functions(&self, category: Option<&str>) -> Vec<FunctionDetail> {
         match category.and_then(parse_category) {
             Some(cat) => self
@@ -349,12 +856,66 @@ impl JpxEngine {
         }
     }
 
-    /// Describe a function by name or alias.
+    /// Gets detailed information about a function by name or alias.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Function name or alias (e.g., "upper", "md5", "len")
+    ///
+    /// # Returns
+    ///
+    /// `Some(FunctionDetail)` if found, `None` if no matching function exists.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    ///
+    /// let engine = JpxEngine::new();
+    ///
+    /// let info = engine.describe_function("upper").unwrap();
+    /// assert_eq!(info.category, "String");
+    /// println!("Signature: {}", info.signature);
+    /// println!("Example: {}", info.example);
+    ///
+    /// // Also works with aliases
+    /// let info = engine.describe_function("len");  // alias for "length"
+    /// ```
     pub fn describe_function(&self, name: &str) -> Option<FunctionDetail> {
         self.registry.get_function(name).map(FunctionDetail::from)
     }
 
-    /// Search for functions matching a query.
+    /// Searches for functions matching a query string.
+    ///
+    /// Uses fuzzy matching, synonyms, and searches across names, descriptions,
+    /// categories, and signatures. Results are ranked by relevance.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Search term (e.g., "hash", "string manipulation", "date")
+    /// * `limit` - Maximum number of results to return
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    ///
+    /// let engine = JpxEngine::new();
+    ///
+    /// // Search by concept
+    /// let results = engine.search_functions("hash", 10);
+    /// assert!(results.iter().any(|r| r.function.name == "md5"));
+    /// assert!(results.iter().any(|r| r.function.name == "sha256"));
+    ///
+    /// // Results are ranked by relevance
+    /// for result in &results {
+    ///     println!("{}: {} (score: {})",
+    ///         result.function.name,
+    ///         result.match_type,
+    ///         result.score
+    ///     );
+    /// }
+    /// ```
     pub fn search_functions(&self, query: &str, limit: usize) -> Vec<SearchResult> {
         let query_lower = query.to_lowercase();
 
@@ -408,7 +969,36 @@ impl JpxEngine {
         results
     }
 
-    /// Find functions similar to a given function.
+    /// Finds functions similar to a given function.
+    ///
+    /// Returns functions grouped by relationship type:
+    /// - Same category (e.g., other string functions if input is "upper")
+    /// - Similar signature (same parameter/return types)
+    /// - Related concepts (overlapping description keywords)
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Name of the function to find similar functions for
+    ///
+    /// # Returns
+    ///
+    /// `Some(SimilarFunctionsResult)` if the function exists, `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jpx_engine::JpxEngine;
+    ///
+    /// let engine = JpxEngine::new();
+    ///
+    /// let similar = engine.similar_functions("upper").unwrap();
+    ///
+    /// // Other string functions
+    /// println!("Same category:");
+    /// for f in &similar.same_category {
+    ///     println!("  - {}", f.name);
+    /// }
+    /// ```
     pub fn similar_functions(&self, name: &str) -> Option<SimilarFunctionsResult> {
         let info = self.registry.get_function(name)?;
         let all_functions: Vec<_> = self.registry.functions().collect();
