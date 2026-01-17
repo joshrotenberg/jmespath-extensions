@@ -15,6 +15,21 @@ Configure jpx as an MCP server for Claude Desktop.
 
 ## Configuration
 
+### Docker
+
+The simplest way to run jpx as an MCP server:
+
+```json
+{
+  "mcpServers": {
+    "jpx": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/joshrotenberg/jpx", "mcp"]
+    }
+  }
+}
+```
+
 ### macOS
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:

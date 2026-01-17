@@ -169,6 +169,19 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
+Or use Docker (no installation required):
+
+```json
+{
+  "mcpServers": {
+    "jpx": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/joshrotenberg/jpx", "mcp"]
+    }
+  }
+}
+```
+
 ### Example Usage
 
 Once configured, Claude can use jpx to query JSON data:
