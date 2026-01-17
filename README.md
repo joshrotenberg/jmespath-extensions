@@ -24,7 +24,7 @@ Use jpx as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) s
 
 **12 tools available:** `evaluate`, `evaluate_file`, `batch_evaluate`, `functions`, `describe`, `categories`, `validate`, `format`, `diff`, `patch`, `merge`, `keys`
 
-See the [jpx README](jpx/README.md) for details.
+See the [jpx README](crates/jpx/README.md) for details.
 
 ---
 
@@ -217,7 +217,7 @@ This enables:
 
 ## jpx CLI
 
-See [jpx/README.md](jpx/README.md) for full CLI documentation, or use `jpx --help`.
+See [jpx/README.md](crates/jpx/README.md) for full CLI documentation, or use `jpx --help`.
 
 ```bash
 # Expression functions (the novel stuff!)
