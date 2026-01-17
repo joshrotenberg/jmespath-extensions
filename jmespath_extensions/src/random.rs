@@ -16,11 +16,13 @@
 //! random::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 #[cfg(feature = "rand")]
 use crate::common::ErrorReason;
 use crate::common::{Context, Function, JmespathError, Rcvar, Runtime, Variable};
+use crate::register_if_enabled;
 
 #[cfg(feature = "uuid")]
 use crate::define_function;
@@ -36,6 +38,20 @@ pub fn register(runtime: &mut Runtime) {
     #[cfg(feature = "uuid")]
     {
         runtime.register_function("uuid", Box::new(UuidFn::new()));
+    }
+}
+
+/// Register random functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    #[cfg(feature = "rand")]
+    {
+        register_if_enabled!(runtime, enabled, "random", Box::new(RandomFn::new()));
+        register_if_enabled!(runtime, enabled, "shuffle", Box::new(ShuffleFn::new()));
+        register_if_enabled!(runtime, enabled, "sample", Box::new(SampleFn::new()));
+    }
+    #[cfg(feature = "uuid")]
+    {
+        register_if_enabled!(runtime, enabled, "uuid", Box::new(UuidFn::new()));
     }
 }
 

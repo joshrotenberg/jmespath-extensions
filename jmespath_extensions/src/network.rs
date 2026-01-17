@@ -16,6 +16,7 @@
 //! network::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::rc::Rc;
 use std::str::FromStr;
@@ -23,6 +24,7 @@ use std::str::FromStr;
 use ipnetwork::{IpNetwork, Ipv4Network};
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Signature, Variable};
 
 /// Register all network functions with the runtime.
@@ -34,6 +36,42 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("cidr_broadcast", Box::new(CidrBroadcastFn::new()));
     runtime.register_function("cidr_prefix", Box::new(CidrPrefixFn::new()));
     runtime.register_function("is_private_ip", Box::new(IsPrivateIpFn::new()));
+}
+
+/// Register only enabled network functions with the runtime.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "ip_to_int", Box::new(IpToIntFn::new()));
+    register_if_enabled!(runtime, enabled, "int_to_ip", Box::new(IntToIpFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "cidr_contains",
+        Box::new(CidrContainsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "cidr_network",
+        Box::new(CidrNetworkFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "cidr_broadcast",
+        Box::new(CidrBroadcastFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "cidr_prefix",
+        Box::new(CidrPrefixFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "is_private_ip",
+        Box::new(IsPrivateIpFn::new())
+    );
 }
 
 // =============================================================================

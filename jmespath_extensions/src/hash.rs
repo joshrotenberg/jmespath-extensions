@@ -16,12 +16,14 @@
 //! hash::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 use crc32fast::Hasher as Crc32Hasher;
 use hmac::{Hmac, Mac};
@@ -51,6 +53,34 @@ pub fn register(runtime: &mut Runtime) {
 
     // Checksum functions
     runtime.register_function("crc32", Box::new(Crc32Fn::new()));
+}
+
+/// Register hash functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    // Hash functions
+    register_if_enabled!(runtime, enabled, "md5", Box::new(Md5Fn::new()));
+    register_if_enabled!(runtime, enabled, "sha1", Box::new(Sha1Fn::new()));
+    register_if_enabled!(runtime, enabled, "sha256", Box::new(Sha256Fn::new()));
+    register_if_enabled!(runtime, enabled, "sha512", Box::new(Sha512Fn::new()));
+
+    // HMAC functions
+    register_if_enabled!(runtime, enabled, "hmac_md5", Box::new(HmacMd5Fn::new()));
+    register_if_enabled!(runtime, enabled, "hmac_sha1", Box::new(HmacSha1Fn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "hmac_sha256",
+        Box::new(HmacSha256Fn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "hmac_sha512",
+        Box::new(HmacSha512Fn::new())
+    );
+
+    // Checksum functions
+    register_if_enabled!(runtime, enabled, "crc32", Box::new(Crc32Fn::new()));
 }
 
 // =============================================================================

@@ -23,6 +23,7 @@ use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all array functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -68,6 +69,97 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("indices_array", Box::new(IndicesArrayFn::new()));
     runtime.register_function("inside_array", Box::new(InsideArrayFn::new()));
     runtime.register_function("bsearch", Box::new(BsearchFn::new()));
+}
+
+/// Register only the array functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "unique", Box::new(UniqueFn::new()));
+    register_if_enabled!(runtime, enabled, "zip", Box::new(ZipFn::new()));
+    register_if_enabled!(runtime, enabled, "chunk", Box::new(ChunkFn::new()));
+    register_if_enabled!(runtime, enabled, "take", Box::new(TakeFn::new()));
+    register_if_enabled!(runtime, enabled, "drop", Box::new(DropFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "flatten_deep",
+        Box::new(FlattenDeepFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "flatten", Box::new(FlattenFn::new()));
+    register_if_enabled!(runtime, enabled, "compact", Box::new(CompactFn::new()));
+    register_if_enabled!(runtime, enabled, "range", Box::new(RangeFn::new()));
+    register_if_enabled!(runtime, enabled, "index_at", Box::new(IndexAtFn::new()));
+    register_if_enabled!(runtime, enabled, "includes", Box::new(IncludesFn::new()));
+    register_if_enabled!(runtime, enabled, "find_index", Box::new(FindIndexFn::new()));
+    register_if_enabled!(runtime, enabled, "first", Box::new(FirstFn::new()));
+    register_if_enabled!(runtime, enabled, "last", Box::new(LastFn::new()));
+    register_if_enabled!(runtime, enabled, "group_by", Box::new(GroupByFn::new()));
+    register_if_enabled!(runtime, enabled, "index_by", Box::new(IndexByFn::new()));
+    register_if_enabled!(runtime, enabled, "nth", Box::new(NthFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "interleave",
+        Box::new(InterleaveFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "rotate", Box::new(RotateFn::new()));
+    register_if_enabled!(runtime, enabled, "partition", Box::new(PartitionFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "difference",
+        Box::new(DifferenceFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "intersection",
+        Box::new(IntersectionFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "union", Box::new(UnionFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "frequencies",
+        Box::new(FrequenciesFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "mode", Box::new(ModeFn::new()));
+    register_if_enabled!(runtime, enabled, "cartesian", Box::new(CartesianFn::new()));
+    register_if_enabled!(runtime, enabled, "initial", Box::new(InitialFn::new()));
+    register_if_enabled!(runtime, enabled, "tail", Box::new(TailFn::new()));
+    register_if_enabled!(runtime, enabled, "without", Box::new(WithoutFn::new()));
+    register_if_enabled!(runtime, enabled, "xor", Box::new(XorFn::new()));
+    register_if_enabled!(runtime, enabled, "fill", Box::new(FillFn::new()));
+    register_if_enabled!(runtime, enabled, "pull_at", Box::new(PullAtFn::new()));
+    register_if_enabled!(runtime, enabled, "window", Box::new(WindowFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "combinations",
+        Box::new(CombinationsFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "transpose", Box::new(TransposeFn::new()));
+    register_if_enabled!(runtime, enabled, "pairwise", Box::new(PairwiseFn::new()));
+    // Alias for window (sliding_window is a common name)
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "sliding_window",
+        Box::new(WindowFn::new())
+    );
+    // jq-parity functions
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "indices_array",
+        Box::new(IndicesArrayFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "inside_array",
+        Box::new(InsideArrayFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "bsearch", Box::new(BsearchFn::new()));
 }
 
 // =============================================================================

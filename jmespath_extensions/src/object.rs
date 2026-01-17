@@ -29,6 +29,7 @@ use crate::common::{
     Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all object functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -98,6 +99,223 @@ pub fn register(runtime: &mut Runtime) {
     // Template functions
     runtime.register_function("template", Box::new(TemplateFn::new()));
     runtime.register_function("template_strict", Box::new(TemplateStrictFn::new()));
+}
+
+/// Register object functions filtered by an enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "items", Box::new(EntriesFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "from_items",
+        Box::new(FromEntriesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "from_entries",
+        Box::new(FromEntriesFn::new())
+    ); // alias for jq/lodash users
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "with_entries",
+        Box::new(WithEntriesFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "pick", Box::new(PickFn::new()));
+    register_if_enabled!(runtime, enabled, "omit", Box::new(OmitFn::new()));
+    register_if_enabled!(runtime, enabled, "invert", Box::new(InvertFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "rename_keys",
+        Box::new(RenameKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "flatten_keys",
+        Box::new(FlattenKeysFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "flatten", Box::new(FlattenKeysFn::new())); // alias
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "unflatten_keys",
+        Box::new(UnflattenKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "unflatten",
+        Box::new(UnflattenKeysFn::new())
+    ); // alias
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "flatten_array",
+        Box::new(FlattenArrayFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "deep_merge", Box::new(DeepMergeFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "deep_equals",
+        Box::new(DeepEqualsFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "deep_diff", Box::new(DeepDiffFn::new()));
+    register_if_enabled!(runtime, enabled, "get", Box::new(GetFn::new()));
+    register_if_enabled!(runtime, enabled, "get_path", Box::new(GetFn::new())); // alias
+    register_if_enabled!(runtime, enabled, "has", Box::new(HasFn::new()));
+    register_if_enabled!(runtime, enabled, "has_path", Box::new(HasFn::new())); // alias
+    register_if_enabled!(runtime, enabled, "defaults", Box::new(DefaultsFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "defaults_deep",
+        Box::new(DefaultsDeepFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "set_path", Box::new(SetPathFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "delete_path",
+        Box::new(DeletePathFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "paths", Box::new(PathsFn::new()));
+    register_if_enabled!(runtime, enabled, "leaves", Box::new(LeavesFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "leaves_with_paths",
+        Box::new(LeavesWithPathsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_nulls",
+        Box::new(RemoveNullsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_empty",
+        Box::new(RemoveEmptyFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_empty_strings",
+        Box::new(RemoveEmptyStringsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "compact_deep",
+        Box::new(CompactDeepFn::new())
+    );
+    // Data quality functions
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "completeness",
+        Box::new(CompletenessFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "type_consistency",
+        Box::new(TypeConsistencyFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "data_quality_score",
+        Box::new(DataQualityScoreFn::new())
+    );
+    // Data redaction functions
+    register_if_enabled!(runtime, enabled, "redact", Box::new(RedactFn::new()));
+    register_if_enabled!(runtime, enabled, "mask", Box::new(MaskFn::new()));
+    #[cfg(feature = "regex")]
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "redact_keys",
+        Box::new(RedactKeysFn::new())
+    );
+    // Recursive key search and transformation
+    register_if_enabled!(runtime, enabled, "pluck_deep", Box::new(PluckDeepFn::new()));
+    register_if_enabled!(runtime, enabled, "paths_to", Box::new(PathsToFn::new()));
+    register_if_enabled!(runtime, enabled, "snake_keys", Box::new(SnakeKeysFn::new()));
+    register_if_enabled!(runtime, enabled, "camel_keys", Box::new(CamelKeysFn::new()));
+    register_if_enabled!(runtime, enabled, "kebab_keys", Box::new(KebabKeysFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "pascal_keys",
+        Box::new(PascalKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shouty_snake_keys",
+        Box::new(ShoutySnakeKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shouty_kebab_keys",
+        Box::new(ShoutyKebabKeysFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "train_keys", Box::new(TrainKeysFn::new()));
+    // Structural diff functions
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "structural_diff",
+        Box::new(StructuralDiffFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "has_same_shape",
+        Box::new(HasSameShapeFn::new())
+    );
+    // Schema inference
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "infer_schema",
+        Box::new(InferSchemaFn::new())
+    );
+    // Chunking functions
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "chunk_by_size",
+        Box::new(ChunkBySizeFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "paginate", Box::new(PaginateFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "estimate_size",
+        Box::new(EstimateSizeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "truncate_to_size",
+        Box::new(TruncateToSizeFn::new())
+    );
+    // Template functions
+    register_if_enabled!(runtime, enabled, "template", Box::new(TemplateFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "template_strict",
+        Box::new(TemplateStrictFn::new())
+    );
 }
 
 // =============================================================================

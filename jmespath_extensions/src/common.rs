@@ -116,3 +116,16 @@ macro_rules! define_function {
 pub fn rcvar(v: Variable) -> Rcvar {
     Rc::new(v)
 }
+
+/// Helper macro for registering a function only if it's in the enabled set.
+///
+/// This is used by `register_filtered` functions to conditionally register
+/// functions based on the registry's enabled/disabled state.
+#[macro_export]
+macro_rules! register_if_enabled {
+    ($runtime:expr, $enabled:expr, $name:expr, $fn_expr:expr) => {
+        if $enabled.contains($name) {
+            $runtime.register_function($name, $fn_expr);
+        }
+    };
+}

@@ -16,6 +16,7 @@
 //! phonetic::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use rphonetic::{
@@ -23,6 +24,7 @@ use rphonetic::{
 };
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Signature, Variable};
 
 /// Register all phonetic functions with the runtime.
@@ -36,6 +38,49 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("caverphone2", Box::new(Caverphone2Fn::new()));
     runtime.register_function("sounds_like", Box::new(SoundsLikeFn::new()));
     runtime.register_function("phonetic_match", Box::new(PhoneticMatchFn::new()));
+}
+
+/// Register phonetic functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "soundex", Box::new(SoundexFn::new()));
+    register_if_enabled!(runtime, enabled, "metaphone", Box::new(MetaphoneFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "double_metaphone",
+        Box::new(DoubleMetaphoneFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "nysiis", Box::new(NysiisFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "match_rating_codex",
+        Box::new(MatchRatingCodexFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "caverphone",
+        Box::new(CaverphoneFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "caverphone2",
+        Box::new(Caverphone2Fn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "sounds_like",
+        Box::new(SoundsLikeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "phonetic_match",
+        Box::new(PhoneticMatchFn::new())
+    );
 }
 
 // =============================================================================

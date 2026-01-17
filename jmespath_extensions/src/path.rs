@@ -16,12 +16,14 @@
 //! path::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all path functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -29,6 +31,24 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("path_dirname", Box::new(PathDirnameFn::new()));
     runtime.register_function("path_ext", Box::new(PathExtFn::new()));
     runtime.register_function("path_join", Box::new(PathJoinFn::new()));
+}
+
+/// Register path functions filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "path_basename",
+        Box::new(PathBasenameFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "path_dirname",
+        Box::new(PathDirnameFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "path_ext", Box::new(PathExtFn::new()));
+    register_if_enabled!(runtime, enabled, "path_join", Box::new(PathJoinFn::new()));
 }
 
 // =============================================================================
