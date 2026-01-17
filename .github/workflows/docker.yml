@@ -98,9 +98,6 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Determine tag and version
         id: meta
         run: |
@@ -113,10 +110,17 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # Checkout the release tag for source code
       - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meta.outputs.tag }}
+
+      # Get Dockerfile.build from main (it may not exist in older tags)
+      - name: Fetch Dockerfile.build from main
         run: |
-          git fetch --tags
-          git checkout ${{ steps.meta.outputs.tag }}
+          git fetch origin main
+          git checkout origin/main -- Dockerfile.build
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
