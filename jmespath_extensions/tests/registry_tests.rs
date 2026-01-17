@@ -4,12 +4,18 @@
 //! - Functions can be disabled via the registry
 //! - Disabled functions are actually unavailable at runtime (not just hidden from introspection)
 //! - The registry correctly tracks enabled/disabled state
+//!
+//! Note: These tests require specific feature flags to be enabled.
 
+#[cfg(feature = "string")]
 use jmespath::{Runtime, Variable};
+#[cfg(feature = "string")]
 use jmespath_extensions::registry::{Category, FunctionRegistry};
+#[cfg(feature = "string")]
 use std::rc::Rc;
 
 /// Create a runtime with specific registry configuration
+#[cfg(feature = "string")]
 fn create_runtime_with_registry(registry: &FunctionRegistry) -> Runtime {
     let mut runtime = Runtime::new();
     runtime.register_builtin_functions();
@@ -20,6 +26,7 @@ fn create_runtime_with_registry(registry: &FunctionRegistry) -> Runtime {
 /// Test that disable_function actually prevents function execution at runtime.
 /// This is the key test for issue #358.
 #[test]
+#[cfg(feature = "string")]
 fn test_disable_function_prevents_execution() {
     // Create a registry with string functions, but disable "upper"
     let mut registry = FunctionRegistry::new();
@@ -57,6 +64,7 @@ fn test_disable_function_prevents_execution() {
 
 /// Test that multiple functions can be disabled
 #[test]
+#[cfg(feature = "string")]
 fn test_disable_multiple_functions() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);
@@ -98,6 +106,7 @@ fn test_disable_multiple_functions() {
 
 /// Test that enable_function re-enables a disabled function
 #[test]
+#[cfg(feature = "string")]
 fn test_enable_function_restores_access() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);
@@ -124,6 +133,7 @@ fn test_enable_function_restores_access() {
 
 /// Test that is_enabled correctly reflects disabled state
 #[test]
+#[cfg(feature = "string")]
 fn test_is_enabled_reflects_state() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);
@@ -144,6 +154,7 @@ fn test_is_enabled_reflects_state() {
 
 /// Test that get_function returns None for disabled functions
 #[test]
+#[cfg(feature = "string")]
 fn test_get_function_returns_none_for_disabled() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);
@@ -158,6 +169,7 @@ fn test_get_function_returns_none_for_disabled() {
 
 /// Test that functions() iterator excludes disabled functions
 #[test]
+#[cfg(feature = "string")]
 fn test_functions_iterator_excludes_disabled() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);
@@ -178,6 +190,7 @@ fn test_functions_iterator_excludes_disabled() {
 
 /// Test disabling functions across different categories
 #[test]
+#[cfg(all(feature = "string", feature = "math"))]
 fn test_disable_across_categories() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);
@@ -227,6 +240,7 @@ fn test_disable_across_categories() {
 
 /// Test that len() correctly accounts for disabled functions
 #[test]
+#[cfg(feature = "string")]
 fn test_len_accounts_for_disabled() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);
@@ -242,6 +256,7 @@ fn test_len_accounts_for_disabled() {
 /// Test disabling a function that doesn't exist (should be a no-op for introspection,
 /// but will still add to disabled set - which is fine since it won't affect anything)
 #[test]
+#[cfg(feature = "string")]
 fn test_disable_nonexistent_function() {
     let mut registry = FunctionRegistry::new();
     registry.register_category(Category::String);

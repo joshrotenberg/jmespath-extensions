@@ -34,7 +34,12 @@ pub fn register(runtime: &mut Runtime) {
 pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
     register_if_enabled!(runtime, enabled, "nanoid", Box::new(NanoidFn::new()));
     register_if_enabled!(runtime, enabled, "ulid", Box::new(UlidFn::new()));
-    register_if_enabled!(runtime, enabled, "ulid_timestamp", Box::new(UlidTimestampFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "ulid_timestamp",
+        Box::new(UlidTimestampFn::new())
+    );
 }
 
 // =============================================================================
