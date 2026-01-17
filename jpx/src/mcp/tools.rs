@@ -2,7 +2,9 @@
 
 use jmespath::Runtime;
 use jmespath_extensions::register_all;
-use jmespath_extensions::registry::{Category, FunctionInfo, FunctionRegistry};
+use jmespath_extensions::registry::{
+    Category, FunctionInfo, FunctionRegistry, expand_search_terms, lookup_synonyms,
+};
 use rmcp::{
     ErrorData as McpError, ServerHandler, handler::server::router::tool::ToolRouter,
     handler::server::wrapper::Parameters, model::*, schemars, tool, tool_handler, tool_router,
@@ -10,6 +12,7 @@ use rmcp::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::{OnceLock, RwLock};
+use strsim::jaro_winkler;
 
 use super::discovery::{DiscoveryRegistry, DiscoverySpec};
 use super::query_store::{self, StoredQuery};
@@ -377,6 +380,19 @@ pub struct SearchResult {
     pub match_type: String,
     /// Relevance score (higher = better match)
     pub score: i32,
+}
+
+/// Search response with results and suggestions
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResponse {
+    /// Matching functions
+    pub results: Vec<SearchResult>,
+    /// "Did you mean" suggestions when no exact matches found
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suggestions: Vec<String>,
+    /// Query terms that were expanded via synonyms
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub expanded_terms: Vec<String>,
 }
 
 /// Similar functions result
@@ -962,7 +978,7 @@ impl JpxMcp {
 
     /// Search for functions by name, description, category, or signature
     #[tool(
-        description = "Search for JMESPath functions using fuzzy matching. Searches function names, descriptions, categories, signatures, and aliases. Returns ranked results with match type and relevance score. Essential for discovering functions when you're not sure of the exact name."
+        description = "Search for JMESPath functions using fuzzy matching. Searches function names, descriptions, categories, signatures, and aliases. Returns ranked results with match type and relevance score. Supports synonym expansion (e.g., 'aggregate' finds 'group_by') and provides 'did you mean' suggestions when no exact matches are found."
     )]
     async fn search(
         &self,
@@ -971,6 +987,22 @@ impl JpxMcp {
         let reg = registry();
         let query_lower = params.query.to_lowercase();
         let mut results: Vec<SearchResult> = Vec::new();
+        let mut expanded_terms: Vec<String> = Vec::new();
+
+        // Expand query using synonyms
+        let search_terms = expand_search_terms(&params.query);
+
+        // Track which terms were expanded from synonyms
+        for word in params.query.split_whitespace() {
+            let word_lower = word.to_lowercase();
+            if let Some(targets) = lookup_synonyms(&word_lower) {
+                for target in targets {
+                    if !expanded_terms.contains(&(*target).to_string()) {
+                        expanded_terms.push((*target).to_string());
+                    }
+                }
+            }
+        }
 
         for func in reg.functions() {
             let name_lower = func.name.to_lowercase();
@@ -978,7 +1010,7 @@ impl JpxMcp {
             let sig_lower = func.signature.to_lowercase();
             let cat_lower = func.category.name().to_lowercase();
 
-            // Scoring: higher = better match
+            // Check for matches with the original query first (highest priority)
             let (score, match_type) = if name_lower == query_lower {
                 (1000, "exact_name")
             } else if name_lower.starts_with(&query_lower) {
@@ -1000,7 +1032,29 @@ impl JpxMcp {
             } else if sig_lower.contains(&query_lower) {
                 (100, "signature_match")
             } else {
-                continue; // No match
+                // Check synonym-expanded terms
+                let mut synonym_match: Option<(i32, &str)> = None;
+                for term in &search_terms {
+                    if term == &query_lower {
+                        continue; // Already checked original query
+                    }
+                    if name_lower == *term {
+                        synonym_match = Some((450, "synonym_exact"));
+                        break;
+                    } else if name_lower.contains(term.as_str()) {
+                        synonym_match = Some((350, "synonym_contains"));
+                        break;
+                    } else if desc_lower.contains(term.as_str()) {
+                        synonym_match = Some((250, "synonym_description"));
+                        break;
+                    }
+                }
+
+                if let Some((s, t)) = synonym_match {
+                    (s, t)
+                } else {
+                    continue; // No match
+                }
             };
 
             results.push(SearchResult {
@@ -1016,13 +1070,53 @@ impl JpxMcp {
         // Limit results
         results.truncate(params.limit);
 
-        if results.is_empty() {
+        // If no results, find fuzzy suggestions using Jaro-Winkler
+        let suggestions = if results.is_empty() {
+            let mut fuzzy_matches: Vec<(String, f64)> = Vec::new();
+            let threshold = 0.7; // Minimum similarity score
+
+            for func in reg.functions() {
+                let similarity = jaro_winkler(&query_lower, &func.name.to_lowercase());
+                if similarity >= threshold {
+                    fuzzy_matches.push((func.name.to_string(), similarity));
+                }
+                // Also check aliases
+                for alias in func.aliases {
+                    let alias_sim = jaro_winkler(&query_lower, &alias.to_lowercase());
+                    if alias_sim >= threshold {
+                        fuzzy_matches.push((func.name.to_string(), alias_sim));
+                    }
+                }
+            }
+
+            // Sort by similarity descending and dedupe
+            fuzzy_matches
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            let mut seen = std::collections::HashSet::new();
+            fuzzy_matches
+                .into_iter()
+                .filter(|(name, _)| seen.insert(name.clone()))
+                .take(5)
+                .map(|(name, _)| name)
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        // Build response
+        let response = SearchResponse {
+            results,
+            suggestions,
+            expanded_terms,
+        };
+
+        if response.results.is_empty() && response.suggestions.is_empty() {
             Ok(error_result(format!(
                 "No functions found matching '{}'. Try broader search terms like 'string', 'array', 'date', 'hash', etc.",
                 params.query
             )))
         } else {
-            json_result(&results)
+            json_result(&response)
         }
     }
 
@@ -3238,11 +3332,11 @@ mod tests {
 
         if let Some(content) = result.content.first() {
             if let RawContent::Text(text_content) = &content.raw {
-                let results: Vec<SearchResult> = serde_json::from_str(&text_content.text).unwrap();
-                assert!(!results.is_empty());
+                let response: SearchResponse = serde_json::from_str(&text_content.text).unwrap();
+                assert!(!response.results.is_empty());
                 // First result should be exact match
-                assert_eq!(results[0].function.name, "upper");
-                assert_eq!(results[0].match_type, "exact_name");
+                assert_eq!(response.results[0].function.name, "upper");
+                assert_eq!(response.results[0].match_type, "exact_name");
             } else {
                 panic!("Expected text content");
             }
@@ -3263,12 +3357,17 @@ mod tests {
 
         if let Some(content) = result.content.first() {
             if let RawContent::Text(text_content) = &content.raw {
-                let results: Vec<SearchResult> = serde_json::from_str(&text_content.text).unwrap();
-                assert!(!results.is_empty());
-                // Should find hash-related functions
-                assert!(results.iter().any(|r| r.function.name.contains("md5")
-                    || r.function.name.contains("sha")
-                    || r.function.category == "Hash"));
+                let response: SearchResponse = serde_json::from_str(&text_content.text).unwrap();
+                assert!(!response.results.is_empty());
+                // Should find hash-related functions (via synonym expansion)
+                assert!(
+                    response
+                        .results
+                        .iter()
+                        .any(|r| r.function.name.contains("md5")
+                            || r.function.name.contains("sha")
+                            || r.function.category == "Hash")
+                );
             } else {
                 panic!("Expected text content");
             }
@@ -3287,6 +3386,66 @@ mod tests {
         let result = mcp.search(Parameters(params)).await.unwrap();
         // Should return error result (not Err)
         assert_eq!(result.is_error, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_search_synonym_expansion() {
+        let mcp = JpxMcp::new(false);
+        let params = SearchParams {
+            query: "aggregate".to_string(),
+            limit: 20,
+        };
+        let result = mcp.search(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let response: SearchResponse = serde_json::from_str(&text_content.text).unwrap();
+                // Should find group_by via synonym expansion
+                assert!(
+                    response
+                        .results
+                        .iter()
+                        .any(|r| r.function.name == "group_by"),
+                    "Expected to find group_by via synonym expansion"
+                );
+                // expanded_terms should contain the synonym targets
+                assert!(
+                    response.expanded_terms.contains(&"group_by".to_string()),
+                    "Expected expanded_terms to contain group_by"
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_search_fuzzy_suggestions() {
+        let mcp = JpxMcp::new(false);
+        let params = SearchParams {
+            query: "uper".to_string(), // typo for "upper"
+            limit: 10,
+        };
+        let result = mcp.search(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+
+        if let Some(content) = result.content.first() {
+            if let RawContent::Text(text_content) = &content.raw {
+                let response: SearchResponse = serde_json::from_str(&text_content.text).unwrap();
+                // Should have suggestions including "upper"
+                assert!(
+                    response.suggestions.contains(&"upper".to_string()),
+                    "Expected suggestions to contain 'upper' for typo 'uper'"
+                );
+            } else {
+                panic!("Expected text content");
+            }
+        } else {
+            panic!("Expected content");
+        }
     }
 
     // =========================================================================

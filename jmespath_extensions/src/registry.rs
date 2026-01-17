@@ -711,3 +711,421 @@ fn get_category_functions(category: Category) -> Vec<FunctionInfo> {
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/registry_data.rs"));
 }
+
+// =============================================================================
+// Synonym mapping for function discovery
+// =============================================================================
+
+/// Synonym entry mapping a search term to related function names/keywords
+pub struct SynonymEntry {
+    /// The search term (e.g., "aggregate")
+    pub term: &'static str,
+    /// Related function names or keywords that should match
+    pub targets: &'static [&'static str],
+}
+
+/// Get all synonym mappings for function discovery
+///
+/// Maps common search terms to function names/keywords that should match.
+/// Useful for improving search when users don't know exact function names.
+///
+/// # Example
+///
+/// ```
+/// use jmespath_extensions::registry::get_synonyms;
+///
+/// let synonyms = get_synonyms();
+/// // Find what "aggregate" maps to
+/// if let Some(entry) = synonyms.iter().find(|s| s.term == "aggregate") {
+///     assert!(entry.targets.contains(&"group_by"));
+/// }
+/// ```
+pub fn get_synonyms() -> &'static [SynonymEntry] {
+    static SYNONYMS: &[SynonymEntry] = &[
+        // Aggregation/grouping synonyms
+        SynonymEntry {
+            term: "aggregate",
+            targets: &[
+                "group_by",
+                "group_by_expr",
+                "sum",
+                "avg",
+                "count",
+                "reduce",
+                "fold",
+            ],
+        },
+        SynonymEntry {
+            term: "group",
+            targets: &["group_by", "group_by_expr", "chunk", "partition"],
+        },
+        SynonymEntry {
+            term: "collect",
+            targets: &["group_by", "group_by_expr", "flatten", "merge"],
+        },
+        SynonymEntry {
+            term: "bucket",
+            targets: &["group_by", "group_by_expr", "chunk"],
+        },
+        // Counting synonyms
+        SynonymEntry {
+            term: "count",
+            targets: &["length", "count_by", "count_if", "size"],
+        },
+        SynonymEntry {
+            term: "size",
+            targets: &["length", "count_by"],
+        },
+        SynonymEntry {
+            term: "len",
+            targets: &["length"],
+        },
+        // String manipulation synonyms
+        SynonymEntry {
+            term: "concat",
+            targets: &["join", "merge", "combine"],
+        },
+        SynonymEntry {
+            term: "combine",
+            targets: &["join", "merge", "concat"],
+        },
+        SynonymEntry {
+            term: "substring",
+            targets: &["slice", "substr", "mid"],
+        },
+        SynonymEntry {
+            term: "cut",
+            targets: &["slice", "split", "trim"],
+        },
+        SynonymEntry {
+            term: "strip",
+            targets: &["trim", "trim_left", "trim_right"],
+        },
+        SynonymEntry {
+            term: "lowercase",
+            targets: &["lower", "to_lower", "downcase"],
+        },
+        SynonymEntry {
+            term: "uppercase",
+            targets: &["upper", "to_upper", "upcase"],
+        },
+        SynonymEntry {
+            term: "replace",
+            targets: &["substitute", "gsub", "regex_replace"],
+        },
+        SynonymEntry {
+            term: "find",
+            targets: &["contains", "index_of", "search", "match"],
+        },
+        SynonymEntry {
+            term: "search",
+            targets: &["contains", "find", "index_of", "regex_match"],
+        },
+        // Array/list synonyms
+        SynonymEntry {
+            term: "filter",
+            targets: &["select", "where", "find_all", "keep"],
+        },
+        SynonymEntry {
+            term: "select",
+            targets: &["filter", "map", "pluck"],
+        },
+        SynonymEntry {
+            term: "transform",
+            targets: &["map", "transform_values", "map_values"],
+        },
+        SynonymEntry {
+            term: "first",
+            targets: &["head", "take", "front"],
+        },
+        SynonymEntry {
+            term: "last",
+            targets: &["tail", "end", "back"],
+        },
+        SynonymEntry {
+            term: "remove",
+            targets: &["reject", "delete", "drop", "exclude"],
+        },
+        SynonymEntry {
+            term: "unique",
+            targets: &["distinct", "uniq", "dedupe", "deduplicate"],
+        },
+        SynonymEntry {
+            term: "dedupe",
+            targets: &["unique", "distinct", "uniq"],
+        },
+        SynonymEntry {
+            term: "shuffle",
+            targets: &["random", "randomize", "permute"],
+        },
+        // Sorting synonyms
+        SynonymEntry {
+            term: "order",
+            targets: &["sort", "sort_by", "order_by", "arrange"],
+        },
+        SynonymEntry {
+            term: "arrange",
+            targets: &["sort", "sort_by", "order_by"],
+        },
+        SynonymEntry {
+            term: "rank",
+            targets: &["sort", "sort_by", "order_by"],
+        },
+        // Math synonyms
+        SynonymEntry {
+            term: "average",
+            targets: &["avg", "mean", "arithmetic_mean"],
+        },
+        SynonymEntry {
+            term: "mean",
+            targets: &["avg", "average"],
+        },
+        SynonymEntry {
+            term: "total",
+            targets: &["sum", "add", "accumulate"],
+        },
+        SynonymEntry {
+            term: "add",
+            targets: &["sum", "plus", "addition"],
+        },
+        SynonymEntry {
+            term: "subtract",
+            targets: &["minus", "difference"],
+        },
+        SynonymEntry {
+            term: "multiply",
+            targets: &["times", "product", "mul"],
+        },
+        SynonymEntry {
+            term: "divide",
+            targets: &["quotient", "div"],
+        },
+        SynonymEntry {
+            term: "remainder",
+            targets: &["mod", "modulo", "modulus"],
+        },
+        SynonymEntry {
+            term: "power",
+            targets: &["pow", "exponent", "exp"],
+        },
+        SynonymEntry {
+            term: "absolute",
+            targets: &["abs", "magnitude"],
+        },
+        SynonymEntry {
+            term: "round",
+            targets: &["round", "round_to", "nearest"],
+        },
+        SynonymEntry {
+            term: "random",
+            targets: &["rand", "random_int", "random_float"],
+        },
+        // Date/time synonyms
+        SynonymEntry {
+            term: "date",
+            targets: &["now", "today", "parse_date", "format_date", "datetime"],
+        },
+        SynonymEntry {
+            term: "time",
+            targets: &["now", "time_now", "parse_time", "datetime"],
+        },
+        SynonymEntry {
+            term: "timestamp",
+            targets: &["now", "epoch", "unix_time", "to_epoch"],
+        },
+        SynonymEntry {
+            term: "format",
+            targets: &["format_date", "strftime", "date_format"],
+        },
+        SynonymEntry {
+            term: "parse",
+            targets: &["parse_date", "parse_time", "strptime", "from_string"],
+        },
+        // Type conversion synonyms
+        SynonymEntry {
+            term: "convert",
+            targets: &["to_string", "to_number", "to_array", "type"],
+        },
+        SynonymEntry {
+            term: "cast",
+            targets: &["to_string", "to_number", "to_bool"],
+        },
+        SynonymEntry {
+            term: "stringify",
+            targets: &["to_string", "string", "str"],
+        },
+        SynonymEntry {
+            term: "numberify",
+            targets: &["to_number", "number", "int", "float"],
+        },
+        // Object/hash synonyms
+        SynonymEntry {
+            term: "object",
+            targets: &["from_items", "to_object", "merge", "object_from_items"],
+        },
+        SynonymEntry {
+            term: "dict",
+            targets: &["from_items", "to_object", "object"],
+        },
+        SynonymEntry {
+            term: "hash",
+            targets: &["md5", "sha256", "sha1", "crc32"],
+        },
+        SynonymEntry {
+            term: "encrypt",
+            targets: &["md5", "sha256", "sha1", "hmac"],
+        },
+        SynonymEntry {
+            term: "checksum",
+            targets: &["md5", "sha256", "crc32"],
+        },
+        // Encoding synonyms
+        SynonymEntry {
+            term: "encode",
+            targets: &["base64_encode", "url_encode", "hex_encode"],
+        },
+        SynonymEntry {
+            term: "decode",
+            targets: &["base64_decode", "url_decode", "hex_decode"],
+        },
+        SynonymEntry {
+            term: "escape",
+            targets: &["url_encode", "html_escape"],
+        },
+        SynonymEntry {
+            term: "unescape",
+            targets: &["url_decode", "html_unescape"],
+        },
+        // Validation synonyms
+        SynonymEntry {
+            term: "check",
+            targets: &[
+                "is_string",
+                "is_number",
+                "is_array",
+                "is_object",
+                "validate",
+            ],
+        },
+        SynonymEntry {
+            term: "validate",
+            targets: &["is_email", "is_url", "is_uuid", "is_valid"],
+        },
+        SynonymEntry {
+            term: "test",
+            targets: &["regex_match", "contains", "starts_with", "ends_with"],
+        },
+        // Null/empty handling synonyms
+        SynonymEntry {
+            term: "default",
+            targets: &["coalesce", "if_null", "or_else", "default_value"],
+        },
+        SynonymEntry {
+            term: "empty",
+            targets: &["is_empty", "blank", "null"],
+        },
+        SynonymEntry {
+            term: "null",
+            targets: &["is_null", "coalesce", "not_null"],
+        },
+        SynonymEntry {
+            term: "fallback",
+            targets: &["coalesce", "default", "or_else"],
+        },
+        // Comparison synonyms
+        SynonymEntry {
+            term: "equal",
+            targets: &["eq", "equals", "same"],
+        },
+        SynonymEntry {
+            term: "compare",
+            targets: &["eq", "lt", "gt", "lte", "gte", "cmp"],
+        },
+        SynonymEntry {
+            term: "between",
+            targets: &["range", "in_range", "clamp"],
+        },
+        // Misc synonyms
+        SynonymEntry {
+            term: "copy",
+            targets: &["clone", "dup", "duplicate"],
+        },
+        SynonymEntry {
+            term: "debug",
+            targets: &["debug", "inspect", "dump", "print"],
+        },
+        SynonymEntry {
+            term: "reverse",
+            targets: &["reverse", "flip", "invert"],
+        },
+        SynonymEntry {
+            term: "repeat",
+            targets: &["repeat", "replicate", "times"],
+        },
+        SynonymEntry {
+            term: "uuid",
+            targets: &["uuid", "uuid4", "guid", "generate_uuid"],
+        },
+        SynonymEntry {
+            term: "id",
+            targets: &["uuid", "nanoid", "ulid", "unique_id"],
+        },
+    ];
+    SYNONYMS
+}
+
+/// Look up synonyms for a search term
+///
+/// Returns the list of related function names/keywords if the term has synonyms,
+/// or None if not found.
+///
+/// # Example
+///
+/// ```
+/// use jmespath_extensions::registry::lookup_synonyms;
+///
+/// let targets = lookup_synonyms("aggregate");
+/// assert!(targets.is_some());
+/// assert!(targets.unwrap().contains(&"group_by"));
+/// ```
+pub fn lookup_synonyms(term: &str) -> Option<&'static [&'static str]> {
+    let term_lower = term.to_lowercase();
+    get_synonyms()
+        .iter()
+        .find(|s| s.term == term_lower)
+        .map(|s| s.targets)
+}
+
+/// Expand a search query using synonyms
+///
+/// Takes a search query (possibly multi-word) and returns all terms that should
+/// be searched, including the original terms and any synonym expansions.
+///
+/// # Example
+///
+/// ```
+/// use jmespath_extensions::registry::expand_search_terms;
+///
+/// let terms = expand_search_terms("group aggregate");
+/// assert!(terms.contains(&"group_by".to_string()));
+/// assert!(terms.contains(&"sum".to_string()));
+/// ```
+pub fn expand_search_terms(query: &str) -> Vec<String> {
+    let mut expanded = Vec::new();
+
+    for word in query.split_whitespace() {
+        let word_lower = word.to_lowercase();
+        expanded.push(word_lower.clone());
+
+        if let Some(targets) = lookup_synonyms(&word_lower) {
+            for target in targets {
+                let target_str = (*target).to_string();
+                if !expanded.contains(&target_str) {
+                    expanded.push(target_str);
+                }
+            }
+        }
+    }
+
+    expanded
+}
