@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.1...v0.8.2) - 2026-01-17
+
+### Added
+
+- add from_entries as alias for from_items ([#340](https://github.com/joshrotenberg/jmespath-extensions/pull/340))
+
+### Fixed
+
+- *(registry)* enforce disable_function at runtime ([#358](https://github.com/joshrotenberg/jmespath-extensions/pull/358)) ([#360](https://github.com/joshrotenberg/jmespath-extensions/pull/360))
+
+### Other
+
+- documentation audit and improvements ([#355](https://github.com/joshrotenberg/jmespath-extensions/pull/355))
+- use heck crate for case conversion functions ([#348](https://github.com/joshrotenberg/jmespath-extensions/pull/348)) ([#349](https://github.com/joshrotenberg/jmespath-extensions/pull/349))
+
 ## [0.8.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.0...v0.8.1) - 2026-01-16
 
 ### Added

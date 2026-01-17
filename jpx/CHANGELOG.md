@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.17...jpx-v0.1.18) - 2026-01-17
+
+### Added
+
+- use default query for single-query .jpx files ([#362](https://github.com/joshrotenberg/jmespath-extensions/pull/362))
+- enable MCP feature by default ([#361](https://github.com/joshrotenberg/jmespath-extensions/pull/361))
+- *(mcp)* add runtime query storage tools ([#347](https://github.com/joshrotenberg/jmespath-extensions/pull/347))
+
+### Other
+
+- documentation audit and improvements ([#355](https://github.com/joshrotenberg/jmespath-extensions/pull/355))
+- improve error message for non-JSON input ([#343](https://github.com/joshrotenberg/jmespath-extensions/pull/343))
+
 ## [0.1.17](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.16...jpx-v0.1.17) - 2026-01-16
 
 ### Added
