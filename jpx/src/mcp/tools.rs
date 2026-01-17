@@ -13,6 +13,7 @@ use std::sync::{OnceLock, RwLock};
 
 use super::discovery::{DiscoveryRegistry, DiscoverySpec};
 use super::discovery_log::{self, DiscoveryFeedback, DiscoveryLogEntry};
+use super::query_store::{self, StoredQuery};
 
 /// Global JMESPath runtime with all extensions registered
 static RUNTIME_FULL: OnceLock<Runtime> = OnceLock::new();
@@ -287,6 +288,45 @@ pub struct ReportDiscoveryFeedbackParams {
 }
 
 // =============================================================================
+// Query store tool parameters
+// =============================================================================
+
+/// Parameters for the define_query tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct DefineQueryParams {
+    /// Unique name for the query (used to reference it later)
+    pub name: String,
+    /// JMESPath expression
+    pub expression: String,
+    /// Optional description of what the query does
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+/// Parameters for the get_query tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GetQueryParams {
+    /// Name of the query to retrieve
+    pub name: String,
+}
+
+/// Parameters for the delete_query tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct DeleteQueryParams {
+    /// Name of the query to delete
+    pub name: String,
+}
+
+/// Parameters for the run_query tool
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RunQueryParams {
+    /// Name of the stored query to run
+    pub name: String,
+    /// JSON input to evaluate the query against
+    pub input: String,
+}
+
+// =============================================================================
 // Response types
 // =============================================================================
 
@@ -549,7 +589,7 @@ impl Default for JpxMcp {
 impl JpxMcp {
     /// Evaluate a JMESPath expression against JSON input
     #[tool(
-        description = "Evaluate a JMESPath expression against JSON input. Returns the result of applying the expression to the input data. Supports 320+ extended functions beyond standard JMESPath."
+        description = "Evaluate a JMESPath expression against JSON input. Returns the result of applying the expression to the input data. Supports 400+ extended functions beyond standard JMESPath."
     )]
     async fn evaluate(
         &self,
@@ -1356,6 +1396,156 @@ impl JpxMcp {
                 "Failed to record feedback - logger unavailable",
             ))
         }
+    }
+
+    // =========================================================================
+    // Query Store Tools
+    // =========================================================================
+
+    /// Define a named query for later reuse
+    #[tool(
+        description = "Store a named JMESPath query for reuse during this session. Useful for building and refining complex queries iteratively. The query is validated before storing."
+    )]
+    async fn define_query(
+        &self,
+        Parameters(params): Parameters<DefineQueryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Validate the expression first
+        if let Err(e) = self.runtime().compile(&params.expression) {
+            return Ok(error_result(format!("Invalid JMESPath expression: {}", e)));
+        }
+
+        let query = StoredQuery {
+            name: params.name.clone(),
+            expression: params.expression,
+            description: params.description,
+        };
+
+        let store = query_store::query_store();
+        let was_replaced = match store.write() {
+            Ok(mut s) => s.define(query).is_some(),
+            Err(_) => return Ok(error_result("Failed to access query store")),
+        };
+
+        if was_replaced {
+            Ok(text_result(format!(
+                "Query '{}' updated successfully",
+                params.name
+            )))
+        } else {
+            Ok(text_result(format!(
+                "Query '{}' defined successfully",
+                params.name
+            )))
+        }
+    }
+
+    /// List all stored queries
+    #[tool(
+        description = "List all named queries stored in this session. Shows query names, expressions, and descriptions."
+    )]
+    async fn list_queries(&self) -> Result<CallToolResult, McpError> {
+        let store = query_store::query_store();
+        let queries: Vec<StoredQuery> = match store.read() {
+            Ok(s) => s.list().into_iter().cloned().collect(),
+            Err(_) => return Ok(error_result("Failed to access query store")),
+        };
+
+        if queries.is_empty() {
+            return Ok(text_result(
+                "No queries stored. Use 'define_query' to store a named query.",
+            ));
+        }
+
+        json_result(&queries)
+    }
+
+    /// Get a stored query by name
+    #[tool(
+        description = "Retrieve a stored query by name. Returns the expression and description if found."
+    )]
+    async fn get_query(
+        &self,
+        Parameters(params): Parameters<GetQueryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = query_store::query_store();
+        let query: Option<StoredQuery> = match store.read() {
+            Ok(s) => s.get(&params.name).cloned(),
+            Err(_) => return Ok(error_result("Failed to access query store")),
+        };
+
+        match query {
+            Some(q) => json_result(&q),
+            None => Ok(error_result(format!(
+                "Query '{}' not found. Use 'list_queries' to see available queries.",
+                params.name
+            ))),
+        }
+    }
+
+    /// Delete a stored query
+    #[tool(description = "Delete a stored query by name. Returns the deleted query if it existed.")]
+    async fn delete_query(
+        &self,
+        Parameters(params): Parameters<DeleteQueryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = query_store::query_store();
+        let deleted: Option<StoredQuery> = match store.write() {
+            Ok(mut s) => s.delete(&params.name),
+            Err(_) => return Ok(error_result("Failed to access query store")),
+        };
+
+        match deleted {
+            Some(q) => Ok(text_result(format!(
+                "Query '{}' deleted (expression was: {})",
+                q.name, q.expression
+            ))),
+            None => Ok(error_result(format!("Query '{}' not found", params.name))),
+        }
+    }
+
+    /// Run a stored query against input data
+    #[tool(
+        description = "Execute a stored query by name against JSON input. Combines the convenience of named queries with evaluation."
+    )]
+    async fn run_query(
+        &self,
+        Parameters(params): Parameters<RunQueryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Get the stored query
+        let store = query_store::query_store();
+        let query: Option<StoredQuery> = match store.read() {
+            Ok(s) => s.get(&params.name).cloned(),
+            Err(_) => return Ok(error_result("Failed to access query store")),
+        };
+
+        let query = match query {
+            Some(q) => q,
+            None => {
+                return Ok(error_result(format!(
+                    "Query '{}' not found. Use 'list_queries' to see available queries.",
+                    params.name
+                )));
+            }
+        };
+
+        // Compile and execute
+        let expr = self.runtime().compile(&query.expression).map_err(|e| {
+            McpError::internal_error(format!("Stored query has invalid expression: {}", e), None)
+        })?;
+
+        let var = jmespath::Variable::from_json(&params.input)
+            .map_err(|e| McpError::invalid_params(format!("Invalid JSON input: {}", e), None))?;
+
+        let result = expr
+            .search(&var)
+            .map_err(|e| McpError::internal_error(format!("Evaluation failed: {}", e), None))?;
+
+        let result_json: Value = serde_json::to_value(&*result).map_err(|e| {
+            McpError::internal_error(format!("Failed to serialize result: {}", e), None)
+        })?;
+
+        json_result(&result_json)
     }
 }
 

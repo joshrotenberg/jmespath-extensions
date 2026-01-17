@@ -1,6 +1,6 @@
 # Introduction
 
-This documentation covers the **JMESPath Extensions** project, which provides 360+ additional functions for [JMESPath](https://jmespath.org/) queries.
+This documentation covers the **JMESPath Extensions** project, which provides 400+ additional functions for [JMESPath](https://jmespath.org/) queries.
 
 ## Project Components
 
@@ -8,7 +8,7 @@ This project includes multiple components:
 
 | Component | Description | Documentation |
 |-----------|-------------|---------------|
-| **[jmespath_extensions](https://crates.io/crates/jmespath_extensions)** | Rust library with 360+ extension functions | [docs.rs](https://docs.rs/jmespath_extensions) |
+| **[jmespath_extensions](https://crates.io/crates/jmespath_extensions)** | Rust library with 400+ extension functions | [docs.rs](https://docs.rs/jmespath_extensions) |
 | **[jpx](https://crates.io/crates/jpx)** | Command-line tool for querying JSON | This site |
 | **[jmespath-extensions-py](https://pypi.org/project/jmespath-extensions/)** | Python bindings | [Python section](./python/installation.md) |
 | **MCP Server** | AI assistant integration | [MCP section](./mcp/overview.md) |
@@ -21,7 +21,7 @@ This documentation primarily focuses on **jpx**, the CLI tool. For using the Rus
 
 ## Why JMESPath Extensions?
 
-While standard JMESPath is powerful, it's intentionally minimal with only 26 built-in functions. This project extends JMESPath with 360+ additional functions for:
+While standard JMESPath is powerful, it's intentionally minimal with only 26 built-in functions. This project extends JMESPath with 400+ additional functions for:
 
 - **String manipulation**: `upper`, `lower`, `split`, `replace`, `camel_case`, `snake_case`, and more
 - **Array operations**: `unique`, `chunk`, `flatten`, `group_by`, `zip`, and more
@@ -37,7 +37,7 @@ While standard JMESPath is powerful, it's intentionally minimal with only 26 bui
 - **Rust Library**: Use the functions in your Rust applications ([docs.rs](https://docs.rs/jmespath_extensions))
 - **Powerful CLI**: Query JSON from files, stdin, or inline with jpx
 - **MCP Server**: Use jpx with AI assistants like Claude
-- **Python Bindings**: Use the same 360+ functions in Python
+- **Python Bindings**: Use the same 400+ functions in Python
 - **Function Discovery**: Built-in help for all functions
 - **Strict Mode**: Use only standard JMESPath for portable queries
 

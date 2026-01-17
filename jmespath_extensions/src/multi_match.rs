@@ -16,11 +16,13 @@
 //! multi_match::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use aho_corasick::AhoCorasick;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Variable, define_function};
 
 /// Register all multi-match functions with the runtime.
@@ -35,6 +37,50 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("tokenize", Box::new(TokenizeFn::new()));
     runtime.register_function("extract_between", Box::new(ExtractBetweenFn::new()));
     runtime.register_function("split_keep", Box::new(SplitKeepFn::new()));
+}
+
+/// Register multi-match functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "match_any", Box::new(MatchAnyFn::new()));
+    register_if_enabled!(runtime, enabled, "match_all", Box::new(MatchAllFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "match_which",
+        Box::new(MatchWhichFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "match_count",
+        Box::new(MatchCountFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "replace_many",
+        Box::new(ReplaceManyFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "extract_all",
+        Box::new(ExtractAllFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "match_positions",
+        Box::new(MatchPositionsFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "tokenize", Box::new(TokenizeFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "extract_between",
+        Box::new(ExtractBetweenFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "split_keep", Box::new(SplitKeepFn::new()));
 }
 
 // match_any(string, patterns) -> boolean

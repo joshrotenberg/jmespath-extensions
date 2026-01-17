@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/crates/l/jmespath_extensions.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
 [![CI](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml)
 
-Extended functions for JMESPath queries in Rust. **320+ functions** for strings, arrays, dates, hashing, encoding, and more.
+Extended functions for JMESPath queries in Rust. **400+ functions** for strings, arrays, dates, hashing, encoding, and more.
 
 ## MCP Server for AI Assistants
 
@@ -53,7 +53,7 @@ The official [jp](https://github.com/jmespath/jp) CLI tool (written in Go) is a 
 brew install jmespath/jmespath/jp
 ```
 
-jpx is inspired by jp's simplicity while extending it with 320+ additional functions and features like multiple output formats, expression pipelines, and interactive REPL mode.
+jpx is inspired by jp's simplicity while extending it with 400+ additional functions and features like multiple output formats, expression pipelines, and interactive REPL mode.
 
 ---
 
@@ -65,7 +65,7 @@ jpx is inspired by jp's simplicity while extending it with 320+ additional funct
 |--------|-----|-----|
 | **Language** | Custom DSL (Turing-complete) | JMESPath (standardized query language) |
 | **Learning curve** | Steeper (unique syntax) | Gentler (declarative, function-based) |
-| **Functions** | ~70 built-in | 320+ (string, math, date, geo, hash, etc.) |
+| **Functions** | ~70 built-in | 400+ (string, math, date, geo, hash, etc.) |
 | **Ecosystem** | Standalone | JMESPath works in AWS CLI, Ansible, many languages |
 | **Streaming** | Yes (`--stream`) | No (loads full document) |
 | **Custom functions** | Yes (`def`) | No (fixed function set) |
@@ -88,7 +88,7 @@ jpx 'upper(name)' data.json
 
 ### When to Choose jpx
 
-- **Extended functions**: 320+ functions including geo, hashing, fuzzy matching, semver, validation
+- **Extended functions**: 400+ functions including geo, hashing, fuzzy matching, semver, validation
 - **JMESPath compatibility**: Queries work in AWS CLI (`--query`), Ansible, and other tools
 - **Multiple output formats**: JSON, YAML, TOML, CSV, TSV, table
 - **AI integration**: MCP server for Claude and other assistants
@@ -127,7 +127,7 @@ echo '{"name": "world"}' | jpx 'upper(name)'
 
 | | **JMESPath Specification** | **jmespath_extensions** |
 |---|---|---|
-| **Functions** | 26 built-in functions | 320+ extension functions |
+| **Functions** | 26 built-in functions | 400+ extension functions |
 | **Portability** | Works everywhere (Python, JS, Go, AWS CLI, Ansible) | Rust only |
 | **Design** | Minimal, query-focused | Transformation-heavy, practical |
 | **Governance** | JEP process, multi-year consensus | Opinionated, can change |
@@ -159,7 +159,7 @@ Use only the [26 standard JMESPath built-in functions](https://jmespath.org/spec
 
 ## Overview
 
-This crate provides 320+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
+This crate provides 400+ additional functions beyond the standard JMESPath built-ins, organized into feature-gated categories.
 
 **[Full API Documentation →](https://docs.rs/jmespath_extensions)**
 
@@ -230,7 +230,7 @@ echo '[1, 2, 3]' | jpx --strict 'length(@)'
 # 3
 
 # Function discovery
-jpx --list-functions           # List all 320+ functions
+jpx --list-functions           # List all 400+ functions
 jpx --list-category expression # List expression functions
 jpx --describe map_expr        # Detailed function info
 ```
@@ -274,19 +274,49 @@ All features are opt-in. Use `default-features = false` to select only what you 
 | `computing` | `parse_bytes`, `format_bytes`, `bit_and`, `bit_or`, etc. | None |
 | `jsonpatch` | `json_patch`, `json_merge_patch`, `json_diff` (RFC 6902/7396) | json-patch |
 | `multi-match` | `match_any`, `match_all`, `match_which`, `match_count`, `replace_many` | aho-corasick |
+| **Opt-in (Security)** | | |
+| `env` | `env`, `get_env` - access environment variables | None |
+
+### Security Model
+
+Some features are **not included in `full`** because they can expose sensitive data:
+
+| Feature | Functions | Risk | Use Case |
+|---------|-----------|------|----------|
+| `env` | `env()`, `get_env(name)` | Exposes environment variables (API keys, secrets) | Config processing, debugging |
+
+**Recommended patterns:**
+
+```toml
+# Production: explicit feature selection (most secure)
+jmespath_extensions = { version = "0.7", default-features = false, features = ["core", "datetime"] }
+
+# Development: full + env for debugging
+jmespath_extensions = { version = "0.7", features = ["env"] }
+```
+
+**Runtime control:** Use the `FunctionRegistry` to disable specific functions at runtime:
+
+```rust
+let mut registry = FunctionRegistry::new();
+registry.register_all();
+registry.disable_function("md5");      // Disable weak hashing
+registry.disable_function("get_env");  // Disable env access
+registry.apply(&mut runtime);
+```
 
 ### Minimal Dependencies
 
 ```toml
 [dependencies]
-jmespath_extensions = { version = "0.2", default-features = false, features = ["core"] }
+jmespath_extensions = { version = "0.7", default-features = false, features = ["core"] }
 ```
 
 ### Specific Features
 
 ```toml
 [dependencies]
-jmespath_extensions = { version = "0.2", default-features = false, features = ["string", "array", "datetime"] }
+jmespath_extensions = { version = "0.7", default-features = false, features = ["string", "array", "datetime"] }
 ```
 
 ## Examples

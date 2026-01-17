@@ -16,9 +16,11 @@
 //! ids::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Signature, Variable};
 
 /// Register all ID functions with the runtime.
@@ -26,6 +28,18 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("nanoid", Box::new(NanoidFn::new()));
     runtime.register_function("ulid", Box::new(UlidFn::new()));
     runtime.register_function("ulid_timestamp", Box::new(UlidTimestampFn::new()));
+}
+
+/// Register ID functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "nanoid", Box::new(NanoidFn::new()));
+    register_if_enabled!(runtime, enabled, "ulid", Box::new(UlidFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "ulid_timestamp",
+        Box::new(UlidTimestampFn::new())
+    );
 }
 
 // =============================================================================

@@ -16,12 +16,14 @@
 //! utility::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all utility functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -38,6 +40,39 @@ pub fn register(runtime: &mut Runtime) {
     {
         runtime.register_function("env", Box::new(EnvFn::new()));
         runtime.register_function("get_env", Box::new(GetEnvFn::new()));
+    }
+}
+
+/// Register utility functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "now", Box::new(NowFn::new()));
+    register_if_enabled!(runtime, enabled, "now_ms", Box::new(NowMsFn::new()));
+    register_if_enabled!(runtime, enabled, "default", Box::new(DefaultFn::new()));
+    register_if_enabled!(runtime, enabled, "if", Box::new(IfFn::new()));
+    register_if_enabled!(runtime, enabled, "coalesce", Box::new(CoalesceFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "json_encode",
+        Box::new(JsonEncodeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "json_decode",
+        Box::new(JsonDecodeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "json_pointer",
+        Box::new(JsonPointerFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "pretty", Box::new(PrettyFn::new()));
+    #[cfg(feature = "env")]
+    {
+        register_if_enabled!(runtime, enabled, "env", Box::new(EnvFn::new()));
+        register_if_enabled!(runtime, enabled, "get_env", Box::new(GetEnvFn::new()));
     }
 }
 

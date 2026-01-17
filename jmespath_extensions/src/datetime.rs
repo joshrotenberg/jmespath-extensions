@@ -16,12 +16,14 @@
 //! datetime::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use chrono::{DateTime, Datelike, NaiveDateTime, TimeDelta, TimeZone, Utc, Weekday};
 use chrono_tz::Tz;
 
 use crate::common::{Function, custom_error};
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Variable, define_function};
 
 /// Register all datetime functions with the runtime.
@@ -58,6 +60,99 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("is_same_day", Box::new(IsSameDayFn::new()));
     // epoch_ms is an alias for now_millis (common name)
     runtime.register_function("epoch_ms", Box::new(NowMillisFn::new()));
+}
+
+/// Register only the datetime functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "now", Box::new(NowFn::new()));
+    register_if_enabled!(runtime, enabled, "now_millis", Box::new(NowMillisFn::new()));
+    register_if_enabled!(runtime, enabled, "parse_date", Box::new(ParseDateFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "format_date",
+        Box::new(FormatDateFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "date_add", Box::new(DateAddFn::new()));
+    register_if_enabled!(runtime, enabled, "date_diff", Box::new(DateDiffFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "timezone_convert",
+        Box::new(TimezoneConvertFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "is_weekend", Box::new(IsWeekendFn::new()));
+    register_if_enabled!(runtime, enabled, "is_weekday", Box::new(IsWeekdayFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "business_days_between",
+        Box::new(BusinessDaysBetweenFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "relative_time",
+        Box::new(RelativeTimeFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "quarter", Box::new(QuarterFn::new()));
+    register_if_enabled!(runtime, enabled, "is_after", Box::new(IsAfterFn::new()));
+    register_if_enabled!(runtime, enabled, "is_before", Box::new(IsBeforeFn::new()));
+    register_if_enabled!(runtime, enabled, "is_between", Box::new(IsBetweenFn::new()));
+    register_if_enabled!(runtime, enabled, "time_ago", Box::new(TimeAgoFn::new()));
+    register_if_enabled!(runtime, enabled, "from_epoch", Box::new(FromEpochFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "from_epoch_ms",
+        Box::new(FromEpochMsFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "to_epoch", Box::new(ToEpochFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "to_epoch_ms",
+        Box::new(ToEpochMsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "duration_since",
+        Box::new(DurationSinceFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "start_of_day",
+        Box::new(StartOfDayFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "end_of_day", Box::new(EndOfDayFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "start_of_week",
+        Box::new(StartOfWeekFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "start_of_month",
+        Box::new(StartOfMonthFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "start_of_year",
+        Box::new(StartOfYearFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "is_same_day",
+        Box::new(IsSameDayFn::new())
+    );
+    // epoch_ms is an alias for now_millis (common name)
+    register_if_enabled!(runtime, enabled, "epoch_ms", Box::new(NowMillisFn::new()));
 }
 
 // now() -> number

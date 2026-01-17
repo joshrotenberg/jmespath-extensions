@@ -16,10 +16,13 @@
 //! computing::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
+
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Variable, rcvar,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 // Decimal units (SI): KB, MB, GB, TB, PB
 const DECIMAL_UNITS: &[(&str, f64)] = &[
@@ -356,6 +359,44 @@ pub fn register(runtime: &mut crate::Runtime) {
     runtime.register_function("bit_not", Box::new(BitNotFn::new()));
     runtime.register_function("bit_shift_left", Box::new(BitShiftLeftFn::new()));
     runtime.register_function("bit_shift_right", Box::new(BitShiftRightFn::new()));
+}
+
+/// Register computing functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut crate::Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "parse_bytes",
+        Box::new(ParseBytesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "format_bytes",
+        Box::new(FormatBytesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "format_bytes_binary",
+        Box::new(FormatBytesBinaryFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "bit_and", Box::new(BitAndFn::new()));
+    register_if_enabled!(runtime, enabled, "bit_or", Box::new(BitOrFn::new()));
+    register_if_enabled!(runtime, enabled, "bit_xor", Box::new(BitXorFn::new()));
+    register_if_enabled!(runtime, enabled, "bit_not", Box::new(BitNotFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "bit_shift_left",
+        Box::new(BitShiftLeftFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "bit_shift_right",
+        Box::new(BitShiftRightFn::new())
+    );
 }
 
 #[cfg(test)]

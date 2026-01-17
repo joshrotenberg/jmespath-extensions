@@ -4,7 +4,7 @@
 [![Downloads](https://img.shields.io/crates/d/jpx.svg)](https://crates.io/crates/jpx)
 [![License](https://img.shields.io/crates/l/jpx.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
 
-A command-line tool for querying JSON data using JMESPath expressions with 360+ additional functions beyond the standard JMESPath specification.
+A command-line tool for querying JSON data using JMESPath expressions with 400+ additional functions beyond the standard JMESPath specification.
 
 ## Acknowledgments
 
@@ -23,7 +23,7 @@ Coming from [jq](https://jqlang.org/)? Here's a quick comparison:
 | | jq | jpx |
 |---|-----|-----|
 | **Language** | Custom DSL | JMESPath (standardized) |
-| **Functions** | ~70 built-in | 360+ extensions |
+| **Functions** | ~70 built-in | 400+ extensions |
 | **Ecosystem** | Standalone | Works with AWS CLI, Ansible |
 | **Streaming** | ✅ | ❌ |
 
@@ -58,8 +58,8 @@ git clone https://github.com/joshrotenberg/jmespath-extensions
 cd jmespath-extensions/jpx
 cargo install --path .
 
-# With MCP server support
-cargo install --path . --features mcp
+# Without MCP server support (smaller binary)
+cargo install --path . --no-default-features
 ```
 
 ## MCP Server (AI Assistant Integration)
@@ -68,8 +68,16 @@ jpx can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io
 
 ### Building with MCP Support
 
+MCP support is included by default. Simply build:
+
 ```bash
-cargo build -p jpx --features mcp --release
+cargo build -p jpx --release
+```
+
+To build without MCP support (smaller binary):
+
+```bash
+cargo build -p jpx --no-default-features --release
 ```
 
 ### Running the Server
@@ -262,7 +270,7 @@ jpx 'upper(name)' data.json  # Extension functions work
 
 ```bash
 # List all available functions grouped by category
-# Shows 26 standard JMESPath functions and 360+ extension functions
+# Shows 26 standard JMESPath functions and 400+ extension functions
 jpx --list-functions
 
 # List functions in a specific category

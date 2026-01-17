@@ -17,9 +17,11 @@
 //! ```
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Signature, Variable};
 
 /// Register all text functions with the runtime.
@@ -55,6 +57,93 @@ pub fn register(runtime: &mut Runtime) {
     #[cfg(feature = "text")]
     runtime.register_function("remove_accents", Box::new(RemoveAccentsFn::new()));
     runtime.register_function("collapse_whitespace", Box::new(CollapseWhitespaceFn::new()));
+}
+
+/// Register text functions with the runtime, filtered by enabled function names.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "word_count", Box::new(WordCountFn::new()));
+    register_if_enabled!(runtime, enabled, "char_count", Box::new(CharCountFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "sentence_count",
+        Box::new(SentenceCountFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "paragraph_count",
+        Box::new(ParagraphCountFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "reading_time",
+        Box::new(ReadingTimeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "reading_time_seconds",
+        Box::new(ReadingTimeSecondsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "char_frequencies",
+        Box::new(CharFrequenciesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "word_frequencies",
+        Box::new(WordFrequenciesFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "ngrams", Box::new(NgramsFn::new()));
+    register_if_enabled!(runtime, enabled, "bigrams", Box::new(BigramsFn::new()));
+    register_if_enabled!(runtime, enabled, "trigrams", Box::new(TrigramsFn::new()));
+    register_if_enabled!(runtime, enabled, "tokens", Box::new(TokensFn::new()));
+    register_if_enabled!(runtime, enabled, "tokenize", Box::new(TokenizeFn::new()));
+    #[cfg(feature = "text")]
+    register_if_enabled!(runtime, enabled, "stem", Box::new(StemFn::new()));
+    #[cfg(feature = "text")]
+    register_if_enabled!(runtime, enabled, "stems", Box::new(StemsFn::new()));
+    #[cfg(feature = "text")]
+    register_if_enabled!(runtime, enabled, "stopwords", Box::new(StopwordsFn::new()));
+    #[cfg(feature = "text")]
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_stopwords",
+        Box::new(RemoveStopwordsFn::new())
+    );
+    #[cfg(feature = "text")]
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "is_stopword",
+        Box::new(IsStopwordFn::new())
+    );
+    #[cfg(feature = "text")]
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "normalize_unicode",
+        Box::new(NormalizeUnicodeFn::new())
+    );
+    #[cfg(feature = "text")]
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_accents",
+        Box::new(RemoveAccentsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "collapse_whitespace",
+        Box::new(CollapseWhitespaceFn::new())
+    );
 }
 
 // Average reading speed in words per minute

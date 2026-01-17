@@ -16,9 +16,12 @@
 //! format::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use csv::WriterBuilder;
+
+use crate::register_if_enabled;
 
 use crate::common::{ArgumentType, Context, Function, JmespathError, Rcvar, Runtime, Variable};
 use crate::define_function;
@@ -31,6 +34,26 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("to_csv_table", Box::new(ToCsvTableFn::new()));
     runtime.register_function("from_csv", Box::new(FromCsvFn::new()));
     runtime.register_function("from_tsv", Box::new(FromTsvFn::new()));
+}
+
+/// Register format functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "to_csv", Box::new(ToCsvFn::new()));
+    register_if_enabled!(runtime, enabled, "to_tsv", Box::new(ToTsvFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "to_csv_rows",
+        Box::new(ToCsvRowsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "to_csv_table",
+        Box::new(ToCsvTableFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "from_csv", Box::new(FromCsvFn::new()));
+    register_if_enabled!(runtime, enabled, "from_tsv", Box::new(FromTsvFn::new()));
 }
 
 /// Convert a JMESPath Variable to a string suitable for CSV field.

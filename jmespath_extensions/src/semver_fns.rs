@@ -16,11 +16,13 @@
 //! semver_fns::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use semver_crate::{Version, VersionReq};
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Signature, Variable};
 
 /// Register all semver functions with the runtime.
@@ -32,6 +34,52 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("semver_compare", Box::new(SemverCompareFn::new()));
     runtime.register_function("semver_satisfies", Box::new(SemverSatisfiesFn::new()));
     runtime.register_function("semver_is_valid", Box::new(SemverIsValidFn::new()));
+}
+
+/// Register semver functions filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "semver_parse",
+        Box::new(SemverParseFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "semver_major",
+        Box::new(SemverMajorFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "semver_minor",
+        Box::new(SemverMinorFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "semver_patch",
+        Box::new(SemverPatchFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "semver_compare",
+        Box::new(SemverCompareFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "semver_satisfies",
+        Box::new(SemverSatisfiesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "semver_is_valid",
+        Box::new(SemverIsValidFn::new())
+    );
 }
 
 // =============================================================================

@@ -128,8 +128,8 @@ jpx 'hits[*].title
   | tokens(@) 
   | stems(@) 
   | frequencies(@) 
-  | to_entries(@) 
-  | sort_by(@, &value) 
+  | items(@) 
+  | sort_by(@, &[1]) 
   | reverse(@) 
   | [:20]' hn_front.json
 ```
@@ -164,8 +164,8 @@ jpx 'hits[0].story_text
   | remove_stopwords(@) 
   | stems(@) 
   | frequencies(@)
-  | to_entries(@)
-  | sort_by(@, &value)
+  | items(@)
+  | sort_by(@, &[1])
   | reverse(@)
   | [:15]' hn_ask.json
 ```
@@ -182,10 +182,10 @@ jpx 'hits[:5] | [*].{
     | remove_stopwords(@) 
     | stems(@) 
     | frequencies(@) 
-    | to_entries(@) 
-    | sort_by(@, &value) 
+    | items(@) 
+    | sort_by(@, &[1]) 
     | reverse(@) 
-    | [:5][*].key
+    | [:5][*][0]
 }' hn_ask.json
 ```
 
@@ -236,8 +236,8 @@ jpx 'hits[*].title
   | lower(@)
   | ngrams(@, `2`, `word`)
   | frequencies(@)
-  | to_entries(@)
-  | sort_by(@, &value)
+  | items(@)
+  | sort_by(@, &[1])
   | reverse(@)
   | [:10]' hn_front.json
 ```
@@ -296,7 +296,7 @@ jpx 'hits | {
 ### Most Active Authors
 
 ```bash
-jpx 'hits[*].author | frequencies(@) | to_entries(@) | sort_by(@, &value) | reverse(@) | [:10]' hn_front.json
+jpx 'hits[*].author | frequencies(@) | items(@) | sort_by(@, &[1]) | reverse(@) | [:10]' hn_front.json
 ```
 
 ### Author Vocabulary Fingerprint
@@ -378,20 +378,20 @@ jpx '{
     | remove_stopwords(@) 
     | stems(@) 
     | frequencies(@)
-    | to_entries(@)
-    | sort_by(@, &value)
+    | items(@)
+    | sort_by(@, &[1])
     | reverse(@)
-    | [:10][*].key,
+    | [:10][*][0],
   top_bigrams: hits[*].title
     | join(` `, @)
     | lower(@)
     | bigrams(@)
     | [*] | join(` `, @)
     | frequencies(@)
-    | to_entries(@)
-    | sort_by(@, &value)
+    | items(@)
+    | sort_by(@, &[1])
     | reverse(@)
-    | [:5][*].key,
+    | [:5][*][0],
   question_posts: length(hits[?ends_with(title, `?`)]),
   avg_title_words: avg(hits[*].title | [*] | word_count(@))
 }' hn_front.json

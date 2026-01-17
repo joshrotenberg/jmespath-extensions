@@ -37,12 +37,12 @@ cd jmespath-extensions/jpx
 cargo install --path .
 ```
 
-### With MCP Server Support
+### Without MCP Server Support
 
-To include the MCP server for AI assistant integration:
+MCP support is included by default. To build without it (smaller binary):
 
 ```bash
-cargo install --path . --features mcp
+cargo install --path . --no-default-features
 ```
 
 ## Verify Installation

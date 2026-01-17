@@ -19,11 +19,17 @@
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
+use heck::{
+    ToKebabCase, ToLowerCamelCase, ToShoutyKebabCase, ToShoutySnakeCase, ToSnakeCase, ToTrainCase,
+    ToUpperCamelCase,
+};
+
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Signature,
     Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all object functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -76,6 +82,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("snake_keys", Box::new(SnakeKeysFn::new()));
     runtime.register_function("camel_keys", Box::new(CamelKeysFn::new()));
     runtime.register_function("kebab_keys", Box::new(KebabKeysFn::new()));
+    runtime.register_function("pascal_keys", Box::new(PascalKeysFn::new()));
+    runtime.register_function("shouty_snake_keys", Box::new(ShoutySnakeKeysFn::new()));
+    runtime.register_function("shouty_kebab_keys", Box::new(ShoutyKebabKeysFn::new()));
+    runtime.register_function("train_keys", Box::new(TrainKeysFn::new()));
     // Structural diff functions
     runtime.register_function("structural_diff", Box::new(StructuralDiffFn::new()));
     runtime.register_function("has_same_shape", Box::new(HasSameShapeFn::new()));
@@ -89,6 +99,223 @@ pub fn register(runtime: &mut Runtime) {
     // Template functions
     runtime.register_function("template", Box::new(TemplateFn::new()));
     runtime.register_function("template_strict", Box::new(TemplateStrictFn::new()));
+}
+
+/// Register object functions filtered by an enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "items", Box::new(EntriesFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "from_items",
+        Box::new(FromEntriesFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "from_entries",
+        Box::new(FromEntriesFn::new())
+    ); // alias for jq/lodash users
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "with_entries",
+        Box::new(WithEntriesFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "pick", Box::new(PickFn::new()));
+    register_if_enabled!(runtime, enabled, "omit", Box::new(OmitFn::new()));
+    register_if_enabled!(runtime, enabled, "invert", Box::new(InvertFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "rename_keys",
+        Box::new(RenameKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "flatten_keys",
+        Box::new(FlattenKeysFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "flatten", Box::new(FlattenKeysFn::new())); // alias
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "unflatten_keys",
+        Box::new(UnflattenKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "unflatten",
+        Box::new(UnflattenKeysFn::new())
+    ); // alias
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "flatten_array",
+        Box::new(FlattenArrayFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "deep_merge", Box::new(DeepMergeFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "deep_equals",
+        Box::new(DeepEqualsFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "deep_diff", Box::new(DeepDiffFn::new()));
+    register_if_enabled!(runtime, enabled, "get", Box::new(GetFn::new()));
+    register_if_enabled!(runtime, enabled, "get_path", Box::new(GetFn::new())); // alias
+    register_if_enabled!(runtime, enabled, "has", Box::new(HasFn::new()));
+    register_if_enabled!(runtime, enabled, "has_path", Box::new(HasFn::new())); // alias
+    register_if_enabled!(runtime, enabled, "defaults", Box::new(DefaultsFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "defaults_deep",
+        Box::new(DefaultsDeepFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "set_path", Box::new(SetPathFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "delete_path",
+        Box::new(DeletePathFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "paths", Box::new(PathsFn::new()));
+    register_if_enabled!(runtime, enabled, "leaves", Box::new(LeavesFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "leaves_with_paths",
+        Box::new(LeavesWithPathsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_nulls",
+        Box::new(RemoveNullsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_empty",
+        Box::new(RemoveEmptyFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "remove_empty_strings",
+        Box::new(RemoveEmptyStringsFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "compact_deep",
+        Box::new(CompactDeepFn::new())
+    );
+    // Data quality functions
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "completeness",
+        Box::new(CompletenessFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "type_consistency",
+        Box::new(TypeConsistencyFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "data_quality_score",
+        Box::new(DataQualityScoreFn::new())
+    );
+    // Data redaction functions
+    register_if_enabled!(runtime, enabled, "redact", Box::new(RedactFn::new()));
+    register_if_enabled!(runtime, enabled, "mask", Box::new(MaskFn::new()));
+    #[cfg(feature = "regex")]
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "redact_keys",
+        Box::new(RedactKeysFn::new())
+    );
+    // Recursive key search and transformation
+    register_if_enabled!(runtime, enabled, "pluck_deep", Box::new(PluckDeepFn::new()));
+    register_if_enabled!(runtime, enabled, "paths_to", Box::new(PathsToFn::new()));
+    register_if_enabled!(runtime, enabled, "snake_keys", Box::new(SnakeKeysFn::new()));
+    register_if_enabled!(runtime, enabled, "camel_keys", Box::new(CamelKeysFn::new()));
+    register_if_enabled!(runtime, enabled, "kebab_keys", Box::new(KebabKeysFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "pascal_keys",
+        Box::new(PascalKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shouty_snake_keys",
+        Box::new(ShoutySnakeKeysFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shouty_kebab_keys",
+        Box::new(ShoutyKebabKeysFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "train_keys", Box::new(TrainKeysFn::new()));
+    // Structural diff functions
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "structural_diff",
+        Box::new(StructuralDiffFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "has_same_shape",
+        Box::new(HasSameShapeFn::new())
+    );
+    // Schema inference
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "infer_schema",
+        Box::new(InferSchemaFn::new())
+    );
+    // Chunking functions
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "chunk_by_size",
+        Box::new(ChunkBySizeFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "paginate", Box::new(PaginateFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "estimate_size",
+        Box::new(EstimateSizeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "truncate_to_size",
+        Box::new(TruncateToSizeFn::new())
+    );
+    // Template functions
+    register_if_enabled!(runtime, enabled, "template", Box::new(TemplateFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "template_strict",
+        Box::new(TemplateStrictFn::new())
+    );
 }
 
 // =============================================================================
@@ -2418,6 +2645,7 @@ fn paths_to_recursive(value: &Variable, key: &str, current_path: String, paths: 
 
 // =============================================================================
 // snake_keys(any) -> any (recursively convert all keys to snake_case)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(SnakeKeysFn, vec![ArgumentType::Any], None);
@@ -2425,29 +2653,15 @@ define_function!(SnakeKeysFn, vec![ArgumentType::Any], None);
 impl Function for SnakeKeysFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
-        Ok(Rc::new(transform_keys_recursive(&args[0], to_snake_case)))
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_snake_case()
+        })))
     }
-}
-
-fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() {
-            if i > 0 {
-                result.push('_');
-            }
-            result.push(c.to_lowercase().next().unwrap());
-        } else if c == '-' || c == ' ' {
-            result.push('_');
-        } else {
-            result.push(c);
-        }
-    }
-    result
 }
 
 // =============================================================================
 // camel_keys(any) -> any (recursively convert all keys to camelCase)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(CamelKeysFn, vec![ArgumentType::Any], None);
@@ -2455,30 +2669,15 @@ define_function!(CamelKeysFn, vec![ArgumentType::Any], None);
 impl Function for CamelKeysFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
-        Ok(Rc::new(transform_keys_recursive(&args[0], to_camel_case)))
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_lower_camel_case()
+        })))
     }
-}
-
-fn to_camel_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = false;
-    for (i, c) in s.chars().enumerate() {
-        if c == '_' || c == '-' || c == ' ' {
-            capitalize_next = true;
-        } else if capitalize_next {
-            result.push(c.to_uppercase().next().unwrap());
-            capitalize_next = false;
-        } else if i == 0 {
-            result.push(c.to_lowercase().next().unwrap());
-        } else {
-            result.push(c);
-        }
-    }
-    result
 }
 
 // =============================================================================
 // kebab_keys(any) -> any (recursively convert all keys to kebab-case)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(KebabKeysFn, vec![ArgumentType::Any], None);
@@ -2486,25 +2685,74 @@ define_function!(KebabKeysFn, vec![ArgumentType::Any], None);
 impl Function for KebabKeysFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
         self.signature.validate(args, ctx)?;
-        Ok(Rc::new(transform_keys_recursive(&args[0], to_kebab_case)))
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_kebab_case()
+        })))
     }
 }
 
-fn to_kebab_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() {
-            if i > 0 {
-                result.push('-');
-            }
-            result.push(c.to_lowercase().next().unwrap());
-        } else if c == '_' || c == ' ' {
-            result.push('-');
-        } else {
-            result.push(c);
-        }
+// =============================================================================
+// pascal_keys(any) -> any (recursively convert all keys to PascalCase)
+// Uses heck crate - also known as UpperCamelCase
+// =============================================================================
+
+define_function!(PascalKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for PascalKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_upper_camel_case()
+        })))
     }
-    result
+}
+
+// =============================================================================
+// shouty_snake_keys(any) -> any (recursively convert all keys to SHOUTY_SNAKE_CASE)
+// Uses heck crate - useful for constants
+// =============================================================================
+
+define_function!(ShoutySnakeKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for ShoutySnakeKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_shouty_snake_case()
+        })))
+    }
+}
+
+// =============================================================================
+// shouty_kebab_keys(any) -> any (recursively convert all keys to SHOUTY-KEBAB-CASE)
+// Uses heck crate
+// =============================================================================
+
+define_function!(ShoutyKebabKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for ShoutyKebabKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_shouty_kebab_case()
+        })))
+    }
+}
+
+// =============================================================================
+// train_keys(any) -> any (recursively convert all keys to Train-Case)
+// Uses heck crate - like HTTP headers (Content-Type)
+// =============================================================================
+
+define_function!(TrainKeysFn, vec![ArgumentType::Any], None);
+
+impl Function for TrainKeysFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+        Ok(Rc::new(transform_keys_recursive(&args[0], |s| {
+            s.to_train_case()
+        })))
+    }
 }
 
 fn transform_keys_recursive<F>(value: &Variable, transform: F) -> Variable

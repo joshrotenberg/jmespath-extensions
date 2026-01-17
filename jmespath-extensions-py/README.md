@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/jmespath-extensions.svg)](https://pypi.org/project/jmespath-extensions/)
 [![License](https://img.shields.io/pypi/l/jmespath-extensions.svg)](https://github.com/joshrotenberg/jmespath-extensions#license)
 
-JMESPath with **320+ extension functions** for strings, arrays, dates, hashing, encoding, and more.
+JMESPath with **400+ extension functions** for strings, arrays, dates, hashing, encoding, and more.
 
 This package provides Python bindings for [jmespath-extensions](https://github.com/joshrotenberg/jmespath-extensions), a Rust library that extends JMESPath with hundreds of additional functions.
 
@@ -115,7 +115,7 @@ jpx.describe("upper")
 | **uuid** | `uuid` (v4 generation) |
 | **ids** | `nanoid`, `ulid` |
 
-See the [full documentation](https://github.com/joshrotenberg/jmespath-extensions) for all 320+ functions.
+See the [full documentation](https://github.com/joshrotenberg/jmespath-extensions) for all 400+ functions.
 
 ## Compatibility with jmespath-py
 

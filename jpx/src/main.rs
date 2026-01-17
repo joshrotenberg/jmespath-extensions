@@ -232,7 +232,7 @@ enum Commands {
     "    jpx -y 'config' < data.json         # YAML output\n",
     "\n",
     "  Discovery:\n",
-    "    jpx --list-functions                # List all 320+ functions\n",
+    "    jpx --list-functions                # List all 400+ functions\n",
     "    jpx --search date                   # Find date-related functions\n",
     "    jpx --describe format_date          # Function documentation\n",
     "\n",

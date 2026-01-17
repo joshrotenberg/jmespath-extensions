@@ -4,11 +4,11 @@ Configure jpx as an MCP server for Claude Desktop.
 
 ## Prerequisites
 
-1. Install jpx with MCP support:
+1. Install jpx (MCP support is included by default):
    ```bash
    brew install joshrotenberg/brew/jpx
    # or
-   cargo install jpx --features mcp
+   cargo install jpx
    ```
 
 2. Have Claude Desktop installed

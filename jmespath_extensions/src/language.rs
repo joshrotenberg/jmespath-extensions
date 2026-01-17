@@ -18,9 +18,11 @@
 //! ```
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::Function;
+use crate::register_if_enabled;
 use crate::{ArgumentType, Context, JmespathError, Rcvar, Runtime, Variable, define_function};
 
 /// Register all language detection functions with the runtime.
@@ -35,6 +37,40 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function(
         "detect_language_info",
         Box::new(DetectLanguageInfoFn::new()),
+    );
+}
+
+/// Register language detection functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "detect_language",
+        Box::new(DetectLanguageFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "detect_language_iso",
+        Box::new(DetectLanguageIsoFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "detect_script",
+        Box::new(DetectScriptFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "detect_language_confidence",
+        Box::new(DetectLanguageConfidenceFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "detect_language_info",
+        Box::new(DetectLanguageInfoFn::new())
     );
 }
 

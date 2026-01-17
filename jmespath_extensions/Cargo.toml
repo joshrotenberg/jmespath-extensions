@@ -6,7 +6,7 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Extended functions for JMESPath queries - 320+ functions for strings, arrays, dates, hashing, encoding, geo, and more"
+description = "Extended functions for JMESPath queries - 400+ functions for strings, arrays, dates, hashing, encoding, geo, and more"
 documentation = "https://docs.rs/jmespath_extensions"
 readme = "../README.md"
 keywords = ["jmespath", "json", "query", "transform", "filter"]
@@ -45,6 +45,7 @@ whatlang = { workspace = true, optional = true }
 rust-stemmers = { workspace = true, optional = true }
 stop-words = { workspace = true, optional = true }
 unicode-normalization = { workspace = true, optional = true }
+heck.workspace = true
 
 [features]
 default = ["full"]

@@ -16,10 +16,12 @@
 //! jsonpatch::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Variable};
 use crate::define_function;
+use crate::register_if_enabled;
 use jmespath::Runtime;
 
 /// Register all JSON patch functions with the runtime.
@@ -27,6 +29,18 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("json_patch", Box::new(JsonPatchFn::new()));
     runtime.register_function("json_merge_patch", Box::new(JsonMergePatchFn::new()));
     runtime.register_function("json_diff", Box::new(JsonDiffFn::new()));
+}
+
+/// Register JSON patch functions filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "json_patch", Box::new(JsonPatchFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "json_merge_patch",
+        Box::new(JsonMergePatchFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "json_diff", Box::new(JsonDiffFn::new()));
 }
 
 // =============================================================================

@@ -18,10 +18,18 @@
 
 use std::rc::Rc;
 
+use heck::{
+    ToKebabCase, ToLowerCamelCase, ToShoutyKebabCase, ToShoutySnakeCase, ToSnakeCase, ToTitleCase,
+    ToTrainCase, ToUpperCamelCase,
+};
+
+use std::collections::HashSet;
+
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all string functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -48,6 +56,10 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("camel_case", Box::new(CamelCaseFn::new()));
     runtime.register_function("snake_case", Box::new(SnakeCaseFn::new()));
     runtime.register_function("kebab_case", Box::new(KebabCaseFn::new()));
+    runtime.register_function("pascal_case", Box::new(PascalCaseFn::new()));
+    runtime.register_function("shouty_snake_case", Box::new(ShoutySnakeCaseFn::new()));
+    runtime.register_function("shouty_kebab_case", Box::new(ShoutyKebabCaseFn::new()));
+    runtime.register_function("train_case", Box::new(TrainCaseFn::new()));
     runtime.register_function("truncate", Box::new(TruncateFn::new()));
     runtime.register_function("wrap", Box::new(WrapFn::new()));
     runtime.register_function("format", Box::new(FormatFn::new()));
@@ -77,6 +89,113 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("explode", Box::new(ExplodeFn::new()));
     runtime.register_function("implode", Box::new(ImplodeFn::new()));
     runtime.register_function("shell_escape", Box::new(ShellEscapeFn::new()));
+}
+
+/// Register only the string functions that are in the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "lower", Box::new(LowerFn::new()));
+    register_if_enabled!(runtime, enabled, "upper", Box::new(UpperFn::new()));
+    register_if_enabled!(runtime, enabled, "trim", Box::new(TrimFn::new()));
+    register_if_enabled!(runtime, enabled, "trim_left", Box::new(TrimStartFn::new()));
+    register_if_enabled!(runtime, enabled, "trim_right", Box::new(TrimEndFn::new()));
+    register_if_enabled!(runtime, enabled, "split", Box::new(SplitFn::new()));
+    register_if_enabled!(runtime, enabled, "replace", Box::new(ReplaceFn::new()));
+    register_if_enabled!(runtime, enabled, "pad_left", Box::new(PadLeftFn::new()));
+    register_if_enabled!(runtime, enabled, "pad_right", Box::new(PadRightFn::new()));
+    register_if_enabled!(runtime, enabled, "substr", Box::new(SubstrFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "capitalize",
+        Box::new(CapitalizeFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "title", Box::new(TitleFn::new()));
+    register_if_enabled!(runtime, enabled, "repeat", Box::new(RepeatFn::new()));
+    register_if_enabled!(runtime, enabled, "find_first", Box::new(IndexOfFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "find_last",
+        Box::new(LastIndexOfFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "slice", Box::new(SliceFn::new()));
+    register_if_enabled!(runtime, enabled, "concat", Box::new(ConcatFn::new()));
+    register_if_enabled!(runtime, enabled, "upper_case", Box::new(UpperCaseFn::new()));
+    register_if_enabled!(runtime, enabled, "lower_case", Box::new(LowerCaseFn::new()));
+    register_if_enabled!(runtime, enabled, "title_case", Box::new(TitleCaseFn::new()));
+    register_if_enabled!(runtime, enabled, "camel_case", Box::new(CamelCaseFn::new()));
+    register_if_enabled!(runtime, enabled, "snake_case", Box::new(SnakeCaseFn::new()));
+    register_if_enabled!(runtime, enabled, "kebab_case", Box::new(KebabCaseFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "pascal_case",
+        Box::new(PascalCaseFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shouty_snake_case",
+        Box::new(ShoutySnakeCaseFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shouty_kebab_case",
+        Box::new(ShoutyKebabCaseFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "train_case", Box::new(TrainCaseFn::new()));
+    register_if_enabled!(runtime, enabled, "truncate", Box::new(TruncateFn::new()));
+    register_if_enabled!(runtime, enabled, "wrap", Box::new(WrapFn::new()));
+    register_if_enabled!(runtime, enabled, "format", Box::new(FormatFn::new()));
+    register_if_enabled!(runtime, enabled, "sprintf", Box::new(SprintfFn::new()));
+    register_if_enabled!(runtime, enabled, "ltrimstr", Box::new(LtrimstrFn::new()));
+    register_if_enabled!(runtime, enabled, "rtrimstr", Box::new(RtrimstrFn::new()));
+    register_if_enabled!(runtime, enabled, "indices", Box::new(IndicesFn::new()));
+    register_if_enabled!(runtime, enabled, "inside", Box::new(InsideFn::new()));
+    register_if_enabled!(runtime, enabled, "humanize", Box::new(HumanizeFn::new()));
+    register_if_enabled!(runtime, enabled, "deburr", Box::new(DeburrrFn::new()));
+    register_if_enabled!(runtime, enabled, "words", Box::new(WordsFn::new()));
+    register_if_enabled!(runtime, enabled, "escape", Box::new(EscapeFn::new()));
+    register_if_enabled!(runtime, enabled, "unescape", Box::new(UnescapeFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "escape_regex",
+        Box::new(EscapeRegexFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "start_case", Box::new(StartCaseFn::new()));
+    register_if_enabled!(runtime, enabled, "mask", Box::new(MaskFn::new()));
+    #[cfg(feature = "regex")]
+    register_if_enabled!(runtime, enabled, "redact", Box::new(RedactFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "normalize_whitespace",
+        Box::new(NormalizeWhitespaceFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "is_blank", Box::new(IsBlankFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "abbreviate",
+        Box::new(AbbreviateFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "center", Box::new(CenterFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "reverse_string",
+        Box::new(ReverseStringFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "explode", Box::new(ExplodeFn::new()));
+    register_if_enabled!(runtime, enabled, "implode", Box::new(ImplodeFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shell_escape",
+        Box::new(ShellEscapeFn::new())
+    );
 }
 
 // =============================================================================
@@ -847,6 +966,7 @@ impl Function for LowerCaseFn {
 
 // =============================================================================
 // title_case(string) -> string (alias for title, snake_case style)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(TitleCaseFn, vec![ArgumentType::String], None);
@@ -863,26 +983,13 @@ impl Function for TitleCaseFn {
             )
         })?;
 
-        let result = s
-            .split_whitespace()
-            .map(|word| {
-                let mut chars = word.chars();
-                match chars.next() {
-                    None => String::new(),
-                    Some(first) => {
-                        first.to_uppercase().to_string() + &chars.as_str().to_lowercase()
-                    }
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        Ok(Rc::new(Variable::String(result)))
+        Ok(Rc::new(Variable::String(s.to_title_case())))
     }
 }
 
 // =============================================================================
 // camel_case(string) -> string (helloWorld)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(CamelCaseFn, vec![ArgumentType::String], None);
@@ -899,30 +1006,13 @@ impl Function for CamelCaseFn {
             )
         })?;
 
-        let mut result = String::new();
-        let mut capitalize_next = false;
-        let mut first_word = true;
-
-        for c in s.chars() {
-            if c.is_alphanumeric() {
-                if capitalize_next && !first_word {
-                    result.push(c.to_ascii_uppercase());
-                    capitalize_next = false;
-                } else {
-                    result.push(c.to_ascii_lowercase());
-                }
-                first_word = false;
-            } else {
-                capitalize_next = true;
-            }
-        }
-
-        Ok(Rc::new(Variable::String(result)))
+        Ok(Rc::new(Variable::String(s.to_lower_camel_case())))
     }
 }
 
 // =============================================================================
 // snake_case(string) -> string (hello_world)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(SnakeCaseFn, vec![ArgumentType::String], None);
@@ -939,36 +1029,13 @@ impl Function for SnakeCaseFn {
             )
         })?;
 
-        let mut result = String::new();
-        let mut prev_was_lower = false;
-
-        for c in s.chars() {
-            if c.is_uppercase() {
-                if prev_was_lower && !result.is_empty() {
-                    result.push('_');
-                }
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = false;
-            } else if c.is_alphanumeric() {
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = c.is_lowercase();
-            } else if !result.is_empty() && !result.ends_with('_') {
-                result.push('_');
-                prev_was_lower = false;
-            }
-        }
-
-        // Trim trailing underscore
-        if result.ends_with('_') {
-            result.pop();
-        }
-
-        Ok(Rc::new(Variable::String(result)))
+        Ok(Rc::new(Variable::String(s.to_snake_case())))
     }
 }
 
 // =============================================================================
 // kebab_case(string) -> string (hello-world)
+// Uses heck crate for proper case conversion
 // =============================================================================
 
 define_function!(KebabCaseFn, vec![ArgumentType::String], None);
@@ -985,31 +1052,99 @@ impl Function for KebabCaseFn {
             )
         })?;
 
-        let mut result = String::new();
-        let mut prev_was_lower = false;
+        Ok(Rc::new(Variable::String(s.to_kebab_case())))
+    }
+}
 
-        for c in s.chars() {
-            if c.is_uppercase() {
-                if prev_was_lower && !result.is_empty() {
-                    result.push('-');
-                }
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = false;
-            } else if c.is_alphanumeric() {
-                result.push(c.to_ascii_lowercase());
-                prev_was_lower = c.is_lowercase();
-            } else if !result.is_empty() && !result.ends_with('-') {
-                result.push('-');
-                prev_was_lower = false;
-            }
-        }
+// =============================================================================
+// pascal_case(string) -> string (HelloWorld)
+// Uses heck crate - also known as UpperCamelCase
+// =============================================================================
 
-        // Trim trailing hyphen
-        if result.ends_with('-') {
-            result.pop();
-        }
+define_function!(PascalCaseFn, vec![ArgumentType::String], None);
 
-        Ok(Rc::new(Variable::String(result)))
+impl Function for PascalCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_upper_camel_case())))
+    }
+}
+
+// =============================================================================
+// shouty_snake_case(string) -> string (HELLO_WORLD)
+// Uses heck crate - useful for constants
+// =============================================================================
+
+define_function!(ShoutySnakeCaseFn, vec![ArgumentType::String], None);
+
+impl Function for ShoutySnakeCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_shouty_snake_case())))
+    }
+}
+
+// =============================================================================
+// shouty_kebab_case(string) -> string (HELLO-WORLD)
+// Uses heck crate
+// =============================================================================
+
+define_function!(ShoutyKebabCaseFn, vec![ArgumentType::String], None);
+
+impl Function for ShoutyKebabCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_shouty_kebab_case())))
+    }
+}
+
+// =============================================================================
+// train_case(string) -> string (Hello-World)
+// Uses heck crate - like HTTP headers (Content-Type)
+// =============================================================================
+
+define_function!(TrainCaseFn, vec![ArgumentType::String], None);
+
+impl Function for TrainCaseFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let s = args[0].as_string().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected string argument".to_owned()),
+            )
+        })?;
+
+        Ok(Rc::new(Variable::String(s.to_train_case())))
     }
 }
 

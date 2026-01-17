@@ -41,6 +41,7 @@ pub fn parse_query_path(path: &str) -> (&str, Option<&str>) {
 }
 
 /// Result of loading a query file.
+#[derive(Debug)]
 pub enum LoadResult {
     /// A single expression to evaluate
     Expression(String),
@@ -90,12 +91,20 @@ pub fn load_query_expression(
                 Ok(LoadResult::Expression(query.expression.clone()))
             }
             None => {
-                let available = library.names().join(", ");
-                Err(anyhow!(
-                    "Query library requires --query <name> or use colon syntax ({}:query_name). Available queries: {}",
-                    file_path,
-                    available
-                ))
+                let names = library.names();
+                if names.len() == 1 {
+                    // Single query in file - use it automatically
+                    let query = library.get(names[0]).unwrap();
+                    Ok(LoadResult::Expression(query.expression.clone()))
+                } else {
+                    let available = names.join(", ");
+                    Err(anyhow!(
+                        "Multiple queries in {}. Specify one with --query <name> or colon syntax ({}:query_name). Available: {}",
+                        file_path,
+                        file_path,
+                        available
+                    ))
+                }
             }
         }
     } else {
@@ -112,6 +121,8 @@ pub fn load_query_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_parse_query_path() {
@@ -125,5 +136,51 @@ mod tests {
             ("path/to/file.jpx", Some("query"))
         );
         assert_eq!(parse_query_path("query"), ("query", None));
+    }
+
+    #[test]
+    fn test_single_query_auto_selection() {
+        let mut file = NamedTempFile::with_suffix(".jpx").unwrap();
+        writeln!(file, "-- :name my-query").unwrap();
+        writeln!(file, "-- :desc A single query").unwrap();
+        writeln!(file, "length(@)").unwrap();
+
+        let result = load_query_expression(file.path().to_str().unwrap(), None, false).unwrap();
+        match result {
+            LoadResult::Expression(expr) => assert_eq!(expr, "length(@)"),
+            LoadResult::List(_) => panic!("Expected Expression, got List"),
+        }
+    }
+
+    #[test]
+    fn test_multiple_queries_require_name() {
+        let mut file = NamedTempFile::with_suffix(".jpx").unwrap();
+        writeln!(file, "-- :name query-a").unwrap();
+        writeln!(file, "length(@)").unwrap();
+        writeln!(file, "-- :name query-b").unwrap();
+        writeln!(file, "keys(@)").unwrap();
+
+        let result = load_query_expression(file.path().to_str().unwrap(), None, false);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Multiple queries"));
+        assert!(err.contains("query-a"));
+        assert!(err.contains("query-b"));
+    }
+
+    #[test]
+    fn test_multiple_queries_with_name() {
+        let mut file = NamedTempFile::with_suffix(".jpx").unwrap();
+        writeln!(file, "-- :name query-a").unwrap();
+        writeln!(file, "length(@)").unwrap();
+        writeln!(file, "-- :name query-b").unwrap();
+        writeln!(file, "keys(@)").unwrap();
+
+        let result =
+            load_query_expression(file.path().to_str().unwrap(), Some("query-b"), false).unwrap();
+        match result {
+            LoadResult::Expression(expr) => assert_eq!(expr, "keys(@)"),
+            LoadResult::List(_) => panic!("Expected Expression, got List"),
+        }
     }
 }

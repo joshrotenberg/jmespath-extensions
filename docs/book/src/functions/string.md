@@ -20,6 +20,7 @@ Functions for string manipulation: case conversion, splitting, joining, padding,
 | [`is_blank`](#is-blank) | `string -> boolean` | Check if string is empty or whitespace-only |
 | [`kebab_case`](#kebab-case) | `string -> string` | Convert to kebab-case |
 | [`lower`](#lower) | `string -> string` | Convert string to lowercase |
+| [`pascal_case`](#pascal-case) | `string -> string` | Convert to PascalCase |
 | [`ltrimstr`](#ltrimstr) | `string, string -> string` | Remove prefix from string if present |
 | [`mask`](#mask) | `string, number?, string? -> string` | Mask string, keeping last N characters visible |
 | [`normalize_whitespace`](#normalize-whitespace) | `string -> string` | Collapse multiple whitespace to single space |
@@ -27,6 +28,8 @@ Functions for string manipulation: case conversion, splitting, joining, padding,
 | [`pad_right`](#pad-right) | `string, number, string -> string` | Pad string on the right to reach target length |
 | [`redact`](#redact) | `string, string, string? -> string` | Redact regex pattern matches with replacement |
 | [`repeat`](#repeat) | `string, number -> string` | Repeat a string n times |
+| [`shouty_kebab_case`](#shouty-kebab-case) | `string -> string` | Convert to SHOUTY-KEBAB-CASE |
+| [`shouty_snake_case`](#shouty-snake-case) | `string -> string` | Convert to SHOUTY_SNAKE_CASE |
 | [`replace`](#replace) | `string, string, string -> string` | Replace occurrences of a substring |
 | [`reverse_string`](#reverse-string) | `string -> string` | Reverse a string |
 | [`rtrimstr`](#rtrimstr) | `string, string -> string` | Remove suffix from string if present |
@@ -37,6 +40,7 @@ Functions for string manipulation: case conversion, splitting, joining, padding,
 | [`sprintf`](#sprintf) | `string, any... -> string` | Printf-style string formatting |
 | [`substr`](#substr) | `string, number, number -> string` | Extract substring by start index and length |
 | [`title`](#title) | `string -> string` | Convert to title case |
+| [`train_case`](#train-case) | `string -> string` | Convert to Train-Case |
 | [`trim`](#trim) | `string -> string` | Remove leading and trailing whitespace |
 | [`trim_left`](#trim-left) | `string -> string` | Remove leading whitespace |
 | [`trim_right`](#trim-right) | `string -> string` | Remove trailing whitespace |
@@ -373,6 +377,31 @@ lower('hello') -> \"hello\"
 echo '{}' | jpx 'lower(`"HELLO"`)'
 ```
 
+### pascal_case
+
+Convert to PascalCase (also known as UpperCamelCase)
+
+**Signature:** `string -> string`
+
+**Examples:**
+
+```text
+# From snake_case
+pascal_case('hello_world') -> "HelloWorld"
+# From camelCase
+pascal_case('helloWorld') -> "HelloWorld"
+# From kebab-case
+pascal_case('hello-world') -> "HelloWorld"
+# Handles acronyms
+pascal_case('xml_parser') -> "XmlParser"
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'pascal_case(`"hello_world"`)'
+```
+
 ### ltrimstr
 
 Remove prefix from string if present
@@ -536,6 +565,52 @@ repeat('x', `0`) -> \"\"
 
 ```bash
 echo '{}' | jpx 'repeat(`"ab"`, `3`)'
+```
+
+### shouty_kebab_case
+
+Convert to SHOUTY-KEBAB-CASE (also known as COBOL-CASE or SCREAMING-KEBAB-CASE)
+
+**Signature:** `string -> string`
+
+**Examples:**
+
+```text
+# From camelCase
+shouty_kebab_case('helloWorld') -> "HELLO-WORLD"
+# From snake_case
+shouty_kebab_case('hello_world') -> "HELLO-WORLD"
+# From PascalCase
+shouty_kebab_case('HelloWorld') -> "HELLO-WORLD"
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'shouty_kebab_case(`"helloWorld"`)'
+```
+
+### shouty_snake_case
+
+Convert to SHOUTY_SNAKE_CASE (also known as SCREAMING_SNAKE_CASE or CONSTANT_CASE)
+
+**Signature:** `string -> string`
+
+**Examples:**
+
+```text
+# From camelCase
+shouty_snake_case('helloWorld') -> "HELLO_WORLD"
+# From kebab-case
+shouty_snake_case('hello-world') -> "HELLO_WORLD"
+# From PascalCase
+shouty_snake_case('HelloWorld') -> "HELLO_WORLD"
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'shouty_snake_case(`"helloWorld"`)'
 ```
 
 ### replace
@@ -786,6 +861,29 @@ title('a b c') -> \"A B C\"
 
 ```bash
 echo '{}' | jpx 'title(`"hello world"`)'
+```
+
+### train_case
+
+Convert to Train-Case (also known as HTTP-Header-Case)
+
+**Signature:** `string -> string`
+
+**Examples:**
+
+```text
+# From camelCase
+train_case('helloWorld') -> "Hello-World"
+# From snake_case
+train_case('hello_world') -> "Hello-World"
+# From lowercase
+train_case('content type') -> "Content-Type"
+```
+
+**CLI Usage:**
+
+```bash
+echo '{}' | jpx 'train_case(`"helloWorld"`)'
 ```
 
 ### trim

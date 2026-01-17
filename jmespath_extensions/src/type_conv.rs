@@ -17,10 +17,12 @@
 //! ```
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{ArgumentType, Context, Function, JmespathError, Rcvar, Runtime, Variable};
 use crate::define_function;
+use crate::register_if_enabled;
 
 /// Register all type functions with the runtime.
 pub fn register(runtime: &mut Runtime) {
@@ -41,6 +43,42 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("parse_booleans", Box::new(ParseBooleansFn::new()));
     runtime.register_function("parse_nulls", Box::new(ParseNullsFn::new()));
     runtime.register_function("auto_parse", Box::new(AutoParseFn::new()));
+}
+
+/// Register type functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(runtime, enabled, "to_string", Box::new(ToStringFn::new()));
+    register_if_enabled!(runtime, enabled, "to_number", Box::new(ToNumberFn::new()));
+    register_if_enabled!(runtime, enabled, "to_boolean", Box::new(ToBooleanFn::new()));
+    register_if_enabled!(runtime, enabled, "type_of", Box::new(TypeOfFn::new()));
+    register_if_enabled!(runtime, enabled, "is_string", Box::new(IsStringFn::new()));
+    register_if_enabled!(runtime, enabled, "is_number", Box::new(IsNumberFn::new()));
+    register_if_enabled!(runtime, enabled, "is_boolean", Box::new(IsBooleanFn::new()));
+    register_if_enabled!(runtime, enabled, "is_array", Box::new(IsArrayFn::new()));
+    register_if_enabled!(runtime, enabled, "is_object", Box::new(IsObjectFn::new()));
+    register_if_enabled!(runtime, enabled, "is_null", Box::new(IsNullFn::new()));
+    register_if_enabled!(runtime, enabled, "is_empty", Box::new(IsEmptyFn::new()));
+    register_if_enabled!(runtime, enabled, "is_blank", Box::new(IsBlankFn::new()));
+    register_if_enabled!(runtime, enabled, "is_json", Box::new(IsJsonFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "parse_numbers",
+        Box::new(ParseNumbersFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "parse_booleans",
+        Box::new(ParseBooleansFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "parse_nulls",
+        Box::new(ParseNullsFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "auto_parse", Box::new(AutoParseFn::new()));
 }
 
 // =============================================================================

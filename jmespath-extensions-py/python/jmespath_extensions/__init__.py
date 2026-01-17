@@ -1,7 +1,7 @@
 """
-jmespath-extensions - JMESPath with 320+ extension functions.
+jmespath-extensions - JMESPath with 400+ extension functions.
 
-This package provides a JMESPath implementation with over 320 additional functions
+This package provides a JMESPath implementation with over 400 additional functions
 for strings, arrays, dates, hashing, encoding, and more.
 
 Example:

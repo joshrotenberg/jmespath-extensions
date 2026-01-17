@@ -16,12 +16,14 @@
 //! encoding::register(&mut runtime);
 //! ```
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::common::{
     ArgumentType, Context, ErrorReason, Function, JmespathError, Rcvar, Runtime, Variable,
 };
 use crate::define_function;
+use crate::register_if_enabled;
 
 use base64::{
     Engine,
@@ -39,6 +41,44 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("html_escape", Box::new(HtmlEscapeFn::new()));
     runtime.register_function("html_unescape", Box::new(HtmlUnescapeFn::new()));
     runtime.register_function("shell_escape", Box::new(ShellEscapeFn::new()));
+}
+
+/// Register encoding functions with the runtime, filtered by the enabled set.
+pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "base64_encode",
+        Box::new(Base64EncodeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "base64_decode",
+        Box::new(Base64DecodeFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "hex_encode", Box::new(HexEncodeFn::new()));
+    register_if_enabled!(runtime, enabled, "hex_decode", Box::new(HexDecodeFn::new()));
+    register_if_enabled!(runtime, enabled, "jwt_decode", Box::new(JwtDecodeFn::new()));
+    register_if_enabled!(runtime, enabled, "jwt_header", Box::new(JwtHeaderFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "html_escape",
+        Box::new(HtmlEscapeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "html_unescape",
+        Box::new(HtmlUnescapeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "shell_escape",
+        Box::new(ShellEscapeFn::new())
+    );
 }
 
 // =============================================================================

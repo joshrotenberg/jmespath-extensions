@@ -1,3 +1,5 @@
+-- :name user-summary
+-- :description Summarize users by active status with contact info
 {
   active_users: @[?active].{
     name: name,
