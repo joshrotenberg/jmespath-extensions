@@ -58,8 +58,8 @@ git clone https://github.com/joshrotenberg/jmespath-extensions
 cd jmespath-extensions/jpx
 cargo install --path .
 
-# With MCP server support
-cargo install --path . --features mcp
+# Without MCP server support (smaller binary)
+cargo install --path . --no-default-features
 ```
 
 ## MCP Server (AI Assistant Integration)
@@ -68,8 +68,16 @@ jpx can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io
 
 ### Building with MCP Support
 
+MCP support is included by default. Simply build:
+
 ```bash
-cargo build -p jpx --features mcp --release
+cargo build -p jpx --release
+```
+
+To build without MCP support (smaller binary):
+
+```bash
+cargo build -p jpx --no-default-features --release
 ```
 
 ### Running the Server

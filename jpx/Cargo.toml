@@ -56,5 +56,5 @@ tracing-subscriber = { workspace = true, optional = true }
 tempfile = "3"
 
 [features]
-default = []
+default = ["mcp"]
 mcp = ["rmcp", "schemars", "tokio", "tracing", "tracing-subscriber"]
