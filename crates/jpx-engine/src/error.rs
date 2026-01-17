@@ -76,6 +76,13 @@ pub enum EngineError {
     /// generally be reported.
     #[error("Internal error: {0}")]
     Internal(String),
+
+    /// Arrow conversion error (only available with `arrow` feature).
+    ///
+    /// Returned when converting between Arrow RecordBatches and JSON fails.
+    #[cfg(feature = "arrow")]
+    #[error("Arrow error: {0}")]
+    ArrowError(String),
 }
 
 /// A specialized Result type for engine operations.
