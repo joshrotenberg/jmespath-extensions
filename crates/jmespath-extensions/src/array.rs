@@ -76,6 +76,9 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("indices_array", Box::new(IndicesArrayFn::new()));
     runtime.register_function("inside_array", Box::new(InsideArrayFn::new()));
     runtime.register_function("bsearch", Box::new(BsearchFn::new()));
+    // Clojure-inspired functions (Phase 3)
+    runtime.register_function("repeat_array", Box::new(RepeatArrayFn::new()));
+    runtime.register_function("cycle", Box::new(CycleFn::new()));
 }
 
 /// Register only the array functions that are in the enabled set.
@@ -179,6 +182,14 @@ pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
         Box::new(InsideArrayFn::new())
     );
     register_if_enabled!(runtime, enabled, "bsearch", Box::new(BsearchFn::new()));
+    // Clojure-inspired functions (Phase 3)
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "repeat_array",
+        Box::new(RepeatArrayFn::new())
+    );
+    register_if_enabled!(runtime, enabled, "cycle", Box::new(CycleFn::new()));
 }
 
 // =============================================================================
@@ -2390,6 +2401,118 @@ impl Function for BsearchFn {
     }
 }
 
+// =============================================================================
+// repeat_array(value, n) -> array (create array with value repeated n times)
+// =============================================================================
+
+// Creates an array containing the given value repeated n times.
+//
+// # Arguments
+// * `value` - The value to repeat
+// * `n` - Number of times to repeat (must be non-negative)
+//
+// # Returns
+// An array containing the value repeated n times.
+//
+// # Example
+// repeat_array(`1`, `3`) -> [1, 1, 1]
+// repeat_array("x", `4`) -> ["x", "x", "x", "x"]
+// repeat_array(`0`, `0`) -> []
+define_function!(
+    RepeatArrayFn,
+    vec![ArgumentType::Any, ArgumentType::Number],
+    None
+);
+
+impl Function for RepeatArrayFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let value = &args[0];
+        let n = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for count argument".to_owned()),
+            )
+        })? as i64;
+
+        if n < 0 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Count must be non-negative".to_owned()),
+            ));
+        }
+
+        let result: Vec<Rcvar> = (0..n).map(|_| value.clone()).collect();
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
+// =============================================================================
+// cycle(array, n) -> array (cycle through array n times)
+// =============================================================================
+
+// Creates an array by cycling through the input array n times.
+//
+// # Arguments
+// * `array` - The array to cycle through
+// * `n` - Number of times to cycle (must be non-negative)
+//
+// # Returns
+// An array containing the elements of the input array repeated n times.
+//
+// # Example
+// cycle([1, 2, 3], `2`) -> [1, 2, 3, 1, 2, 3]
+// cycle(["a", "b"], `3`) -> ["a", "b", "a", "b", "a", "b"]
+// cycle([1, 2], `0`) -> []
+define_function!(
+    CycleFn,
+    vec![ArgumentType::Array, ArgumentType::Number],
+    None
+);
+
+impl Function for CycleFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let arr = args[0].as_array().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected array argument".to_owned()),
+            )
+        })?;
+
+        let n = args[1].as_number().ok_or_else(|| {
+            JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Expected number for count argument".to_owned()),
+            )
+        })? as i64;
+
+        if n < 0 {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse("Count must be non-negative".to_owned()),
+            ));
+        }
+
+        if arr.is_empty() || n == 0 {
+            return Ok(Rc::new(Variable::Array(vec![])));
+        }
+
+        let mut result: Vec<Rcvar> = Vec::with_capacity(arr.len() * n as usize);
+        for _ in 0..n {
+            result.extend(arr.iter().cloned());
+        }
+        Ok(Rc::new(Variable::Array(result)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4173,5 +4296,123 @@ mod tests {
         let expr = runtime.compile("bsearch(@, `5`)").unwrap();
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_number().unwrap() as i64, -1);
+    }
+
+    // repeat_array tests
+    #[test]
+    fn test_repeat_array_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"null"#).unwrap();
+        let expr = runtime.compile("repeat_array(`1`, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 1);
+    }
+
+    #[test]
+    fn test_repeat_array_string() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"null"#).unwrap();
+        let expr = runtime.compile(r#"repeat_array(`"x"`, `4`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 4);
+        assert_eq!(arr[0].as_string().unwrap(), "x");
+        assert_eq!(arr[3].as_string().unwrap(), "x");
+    }
+
+    #[test]
+    fn test_repeat_array_zero() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"null"#).unwrap();
+        let expr = runtime.compile("repeat_array(`1`, `0`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_repeat_array_object() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"null"#).unwrap();
+        let expr = runtime.compile(r#"repeat_array(`{"a": 1}`, `2`)"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(
+            arr[0]
+                .as_object()
+                .unwrap()
+                .get("a")
+                .unwrap()
+                .as_number()
+                .unwrap() as i64,
+            1
+        );
+    }
+
+    // cycle tests
+    #[test]
+    fn test_cycle_basic() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("cycle(@, `2`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 6);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[2].as_number().unwrap() as i64, 3);
+        assert_eq!(arr[3].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[4].as_number().unwrap() as i64, 2);
+        assert_eq!(arr[5].as_number().unwrap() as i64, 3);
+    }
+
+    #[test]
+    fn test_cycle_strings() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"["a", "b"]"#).unwrap();
+        let expr = runtime.compile("cycle(@, `3`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 6);
+        assert_eq!(arr[0].as_string().unwrap(), "a");
+        assert_eq!(arr[1].as_string().unwrap(), "b");
+        assert_eq!(arr[2].as_string().unwrap(), "a");
+    }
+
+    #[test]
+    fn test_cycle_zero() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2, 3]"#).unwrap();
+        let expr = runtime.compile("cycle(@, `0`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_cycle_empty_array() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[]"#).unwrap();
+        let expr = runtime.compile("cycle(@, `5`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 0);
+    }
+
+    #[test]
+    fn test_cycle_once() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"[1, 2]"#).unwrap();
+        let expr = runtime.compile("cycle(@, `1`)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_number().unwrap() as i64, 1);
+        assert_eq!(arr[1].as_number().unwrap() as i64, 2);
     }
 }

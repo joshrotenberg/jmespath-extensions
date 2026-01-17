@@ -406,6 +406,32 @@ examples = [
 ]
 features = ["core"]
 
+[[functions]]
+name = "repeat_array"
+category = "array"
+description = "Create array with value repeated n times"
+signature = "any, number -> array"
+examples = [
+    { code = "repeat_array(`1`, `3`) -> [1, 1, 1]", description = "Repeat number" },
+    { code = '''repeat_array(`"x"`, `4`) -> ["x", "x", "x", "x"]''', description = "Repeat string" },
+    { code = "repeat_array(`0`, `0`) -> []", description = "Zero repetitions" },
+    { code = '''repeat_array(`{"a": 1}`, `2`) -> [{"a": 1}, {"a": 1}]''', description = "Repeat object" },
+]
+features = ["core"]
+
+[[functions]]
+name = "cycle"
+category = "array"
+description = "Cycle through array elements n times"
+signature = "array, number -> array"
+examples = [
+    { code = "cycle([1, 2, 3], `2`) -> [1, 2, 3, 1, 2, 3]", description = "Cycle twice" },
+    { code = '''cycle(["a", "b"], `3`) -> ["a", "b", "a", "b", "a", "b"]''', description = "Cycle strings" },
+    { code = "cycle([1, 2], `0`) -> []", description = "Zero cycles" },
+    { code = "cycle([], `5`) -> []", description = "Empty array" },
+]
+features = ["core"]
+
 # =============================================================================
 # COLOR FUNCTIONS
 # =============================================================================
