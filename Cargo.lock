@@ -1298,7 +1298,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jmespath-extensions"
+name = "jmespath_extensions"
 version = "0.8.2"
 dependencies = [
  "aho-corasick",
@@ -1350,7 +1350,7 @@ dependencies = [
  "csv",
  "dirs",
  "jmespath",
- "jmespath-extensions",
+ "jmespath_extensions",
  "jpx-engine",
  "json-patch",
  "parquet",
@@ -1369,7 +1369,7 @@ version = "0.1.0"
 dependencies = [
  "arrow",
  "jmespath",
- "jmespath-extensions",
+ "jmespath_extensions",
  "json-patch",
  "serde",
  "serde_json",

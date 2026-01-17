@@ -1,5 +1,5 @@
 [package]
-name = "jmespath-extensions"
+name = "jmespath_extensions"
 version = "0.8.2"
 edition.workspace = true
 authors.workspace = true
@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "Extended functions for JMESPath queries - 400+ functions for strings, arrays, dates, hashing, encoding, geo, and more"
-documentation = "https://docs.rs/jmespath-extensions"
+documentation = "https://docs.rs/jmespath_extensions"
 readme = "../README.md"
 keywords = ["jmespath", "json", "query", "transform", "filter"]
 categories = ["data-structures", "parsing", "text-processing"]
