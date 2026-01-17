@@ -17,3 +17,4 @@ crates/jmespath-extensions-py/Cargo.lock
 
 # Misc
 .tmp/
+docs/build/
