@@ -72,7 +72,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 
 # Internal crates
 jmespath-extensions = { path = "crates/jmespath-extensions", version = "0.8.3", package = "jmespath_extensions" }
-jpx-engine = { path = "crates/jpx-engine", version = "0.1.0" }
+jpx-engine = { path = "crates/jpx-engine", version = "0.1.1" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
