@@ -27,7 +27,7 @@ serde = { workspace = true, features = ["derive"] }
 [dependencies]
 jmespath.workspace = true
 jmespath-extensions = { workspace = true, features = ["full", "query-library"] }
-jpx-engine = { path = "../jpx-engine" }
+jpx-engine = { version = "0.1", path = "../jpx-engine" }
 clap.workspace = true
 clap_complete.workspace = true
 serde.workspace = true
