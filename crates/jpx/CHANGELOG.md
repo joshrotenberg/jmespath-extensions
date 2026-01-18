@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.18...jpx-v0.2.0) - 2026-01-18
+
+### Added
+
+- add Arrow support to jpx-engine and Parquet I/O to CLI ([#385](https://github.com/joshrotenberg/jmespath-extensions/pull/385))
+
+### Other
+
+- add jpx-server Docker image to MCP setup docs ([#396](https://github.com/joshrotenberg/jmespath-extensions/pull/396))
+- [**breaking**] extract jpx-engine/jpx-server and reorganize into crates/ directory ([#381](https://github.com/joshrotenberg/jmespath-extensions/pull/381))
+
 ## [0.1.18](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.17...jpx-v0.1.18) - 2026-01-17
 
 ### Added
