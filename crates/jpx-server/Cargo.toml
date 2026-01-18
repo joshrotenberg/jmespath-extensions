@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Engine
-jpx-engine = { path = "../jpx-engine" }
+jpx-engine = { version = "0.1.0", path = "../jpx-engine" }
 
 # Core
 serde = { workspace = true, features = ["derive"] }
