@@ -63,6 +63,7 @@ jobs:
           TAG="${{ steps.meta.outputs.tag }}"
           gh release download "$TAG" --pattern "jpx-x86_64-unknown-linux-gnu.tar.xz" --dir /tmp
           tar -xJf /tmp/jpx-x86_64-unknown-linux-gnu.tar.xz
+          mv jpx-x86_64-unknown-linux-gnu/jpx ./jpx
           ls -la jpx
 
       - name: Set up Docker Buildx
