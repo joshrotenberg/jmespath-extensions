@@ -13,6 +13,10 @@ name = "jmespath_extensions"
 publish = true
 git_release_enable = true
 git_tag_name = "v{{ version }}"
+# Disable semver check - the crates/ directory reorganization broke comparison
+# against previous commits (README path changed from ../README.md to ../../README.md).
+# Can be re-enabled after 0.8.3 is published and becomes the comparison baseline.
+semver_check = false
 
 # CLI tool - separate versioning, let cargo-dist handle GitHub releases
 [[package]]
