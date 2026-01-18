@@ -41,7 +41,7 @@ fn get_runtime() -> &'static Runtime {
 ///     'ALICE'
 #[pyfunction]
 #[pyo3(signature = (expression, data))]
-fn search(expression: &str, data: &Bound<'_, PyAny>) -> PyResult<PyObject> {
+fn search(expression: &str, data: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     let runtime = get_runtime();
 
     // Compile the expression
@@ -65,7 +65,7 @@ fn search(expression: &str, data: &Bound<'_, PyAny>) -> PyResult<PyObject> {
     let result_json: Value = serde_json::to_value(&*result)
         .map_err(|e| PyValueError::new_err(format!("Failed to convert result: {}", e)))?;
 
-    Python::with_gil(|py| json_to_python(py, &result_json))
+    Python::attach(|py| json_to_python(py, &result_json))
 }
 
 /// Compile a JMESPath expression for repeated use.
@@ -115,7 +115,7 @@ impl CompiledExpression {
     ///
     /// Returns:
     ///     The result of evaluating the expression against the data
-    fn search(&self, data: &Bound<'_, PyAny>) -> PyResult<PyObject> {
+    fn search(&self, data: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
         search(&self.expression, data)
     }
 
@@ -199,7 +199,7 @@ fn list_categories() -> Vec<String> {
 ///     >>> info["description"]
 ///     'Convert string to uppercase'
 #[pyfunction]
-fn describe(py: Python<'_>, name: &str) -> PyResult<Option<PyObject>> {
+fn describe(py: Python<'_>, name: &str) -> PyResult<Option<Py<PyAny>>> {
     use jmespath_extensions::registry::FunctionRegistry;
 
     let mut registry = FunctionRegistry::new();
@@ -233,10 +233,10 @@ fn python_to_json(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
             .unwrap_or(Value::Null))
     } else if let Ok(s) = obj.extract::<String>() {
         Ok(Value::String(s))
-    } else if let Ok(list) = obj.downcast::<pyo3::types::PyList>() {
+    } else if let Ok(list) = obj.cast::<pyo3::types::PyList>() {
         let arr: Result<Vec<Value>, _> = list.iter().map(|item| python_to_json(&item)).collect();
         Ok(Value::Array(arr?))
-    } else if let Ok(dict) = obj.downcast::<pyo3::types::PyDict>() {
+    } else if let Ok(dict) = obj.cast::<pyo3::types::PyDict>() {
         let mut map = serde_json::Map::new();
         for (key, value) in dict.iter() {
             let key_str = key
@@ -254,7 +254,7 @@ fn python_to_json(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
 }
 
 /// Convert serde_json::Value to a Python object
-fn json_to_python(py: Python<'_>, value: &Value) -> PyResult<PyObject> {
+fn json_to_python(py: Python<'_>, value: &Value) -> PyResult<Py<PyAny>> {
     use pyo3::IntoPyObject;
 
     match value {
