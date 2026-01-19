@@ -93,4 +93,4 @@ Tools for JSON manipulation (RFC 6902/7396):
 
 ## Getting Started
 
-See [Setup with Claude](./setup-claude.md) to configure jpx as an MCP server for Claude Desktop.
+See [Setup](./setup.md) to configure jpx as an MCP server for Claude Desktop.
