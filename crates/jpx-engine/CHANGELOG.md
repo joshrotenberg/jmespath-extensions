@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-engine-v0.1.1...jpx-engine-v0.1.2) - 2026-01-19
+
+### Fixed
+
+- *(mcp)* add proper type schema to register_discovery spec parameter ([#409](https://github.com/joshrotenberg/jmespath-extensions/pull/409))
+
 ## [0.1.1](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-engine-v0.1.0...jpx-engine-v0.1.1) - 2026-01-18
 
 ### Fixed

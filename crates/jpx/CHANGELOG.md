@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.2.0...jpx-v0.2.1) - 2026-01-19
+
+### Other
+
+- update MCP references to use jpx-server instead of jpx mcp ([#408](https://github.com/joshrotenberg/jmespath-extensions/pull/408))
+
 ## [0.2.0](https://github.com/joshrotenberg/jmespath-extensions/compare/jpx-v0.1.18...jpx-v0.2.0) - 2026-01-18
 
 ### Added
