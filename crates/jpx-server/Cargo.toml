@@ -1,6 +1,6 @@
 [package]
 name = "jpx-server"
-version = "0.1.1"
+version = "0.1.2"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Engine
-jpx-engine = { version = "0.1.1", path = "../jpx-engine", features = ["schema"] }
+jpx-engine = { version = "0.1.2", path = "../jpx-engine", features = ["schema"] }
 
 # Core
 serde = { workspace = true, features = ["derive"] }
