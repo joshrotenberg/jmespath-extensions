@@ -86,14 +86,14 @@ The `unique` function is an extension, while `sort` is standard.
 
 ## MCP Server Strict Mode
 
-The MCP server also supports strict mode. When configured, the `jpx-strict` server provides only standard JMESPath functions:
+The MCP server also supports strict mode. When configured with `--strict`, only standard JMESPath functions are available:
 
 ```json
 {
   "mcpServers": {
     "jpx-strict": {
-      "command": "jpx",
-      "args": ["mcp", "--strict"]
+      "command": "jpx-server",
+      "args": ["--strict"]
     }
   }
 }
