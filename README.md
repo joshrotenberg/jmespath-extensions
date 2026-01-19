@@ -1,7 +1,7 @@
 # jmespath-extensions
 
-[![Crates.io](https://img.shields.io/crates/v/jmespath-extensions.svg)](https://crates.io/crates/jmespath-extensions)
-[![Documentation](https://docs.rs/jmespath-extensions/badge.svg)](https://docs.rs/jmespath-extensions)
+[![Crates.io](https://img.shields.io/crates/v/jmespath_extensions.svg)](https://crates.io/crates/jmespath_extensions)
+[![Documentation](https://docs.rs/jmespath_extensions/badge.svg)](https://docs.rs/jmespath_extensions)
 [![CI](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml)
 
 Extended JMESPath with 400+ functions. Available as a CLI, MCP server, Rust library, and Python bindings.
