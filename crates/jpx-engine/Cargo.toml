@@ -25,12 +25,16 @@ json-patch = { workspace = true }
 # Error handling
 thiserror = "2"
 
+# Schema generation (optional, for MCP server)
+schemars = { workspace = true, optional = true }
+
 # Arrow support (optional)
 arrow = { version = "54", optional = true, default-features = false, features = ["json"] }
 
 [features]
 default = []
 arrow = ["dep:arrow"]
+schema = ["schemars"]
 
 [dev-dependencies]
 tokio = { workspace = true }

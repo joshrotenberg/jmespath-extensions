@@ -21,6 +21,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+#[cfg(feature = "schema")]
+use schemars::JsonSchema;
+
 /// Common English stop words to filter from search indexing.
 /// These words are too common to be useful for search relevance.
 const STOP_WORDS: &[&str] = &[
@@ -178,6 +181,7 @@ fn expand_identifiers(text: &str) -> String {
 
 /// Discovery spec - the schema MCP servers use to register their tools
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DiscoverySpec {
     /// JSON Schema reference (optional)
     #[serde(rename = "$schema", skip_serializing_if = "Option::is_none")]
@@ -196,6 +200,7 @@ pub struct DiscoverySpec {
 
 /// Server metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ServerInfo {
     /// Server name (required)
     pub name: String,
@@ -211,6 +216,7 @@ pub struct ServerInfo {
 
 /// Tool specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ToolSpec {
     /// Tool name (required)
     pub name: String,
@@ -266,6 +272,7 @@ pub struct ToolSpec {
 
 /// Parameter specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ParamSpec {
     /// Parameter name
     pub name: String,
@@ -293,6 +300,7 @@ pub struct ParamSpec {
 
 /// Return type specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ReturnSpec {
     /// Return type
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
@@ -305,6 +313,7 @@ pub struct ReturnSpec {
 
 /// Example specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ExampleSpec {
     /// Example description
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -321,6 +330,7 @@ pub struct ExampleSpec {
 
 /// Category information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct CategoryInfo {
     /// Category description
     #[serde(skip_serializing_if = "Option::is_none")]
