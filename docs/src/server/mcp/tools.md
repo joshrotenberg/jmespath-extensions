@@ -1,6 +1,6 @@
 # Available Tools
 
-The jpx MCP server provides 25 tools organized into five categories.
+The jpx MCP server provides 26 tools organized into five categories.
 
 ## Function Discovery
 
@@ -118,7 +118,7 @@ Returns: `["Alice"]`
 
 ### evaluate_file
 
-Query a JSON file directly from disk.
+Query a JSON file directly from disk. Useful when the file is too large to pass inline or when you want to avoid serialization overhead.
 
 ```json
 {
@@ -152,7 +152,7 @@ Returns validation status and any syntax errors.
 
 ## JSON Utilities
 
-Tools for JSON manipulation following RFC standards.
+Tools for JSON manipulation following RFC standards (RFC 6902 for JSON Patch, RFC 7396 for Merge Patch).
 
 ### format
 
@@ -208,7 +208,7 @@ Tools for semantic search across multiple MCP servers. See [Multi-Server Discove
 
 ### register_discovery
 
-Register an MCP server's tools for BM25 indexing.
+Register an MCP server's tools for BM25 indexing using the full discovery spec.
 
 ```json
 {
@@ -218,6 +218,20 @@ Register an MCP server's tools for BM25 indexing.
       {"name": "tool_one", "description": "Does something useful", "category": "utils"}
     ]
   }
+}
+```
+
+### register_tools_simple
+
+Quick registration without the full schema. Just provide server name and tools array.
+
+```json
+{
+  "server_name": "myserver",
+  "tools": [
+    {"name": "backup_db", "description": "Backup the database", "tags": ["database", "backup"]},
+    {"name": "restore_db", "description": "Restore from backup", "tags": ["database", "restore"]}
+  ]
 }
 ```
 
