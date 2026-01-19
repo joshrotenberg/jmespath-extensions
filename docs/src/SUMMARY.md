@@ -70,6 +70,7 @@
 # Guides
 
 - [Overview](./guides/index.md)
+  - [Standard JMESPath Only](./guides/standard-jmespath.md)
   - [NLP Text Processing](./guides/nlp-text-processing.md)
   - [Hacker News](./guides/hacker-news.md)
   - [USGS Earthquakes](./guides/earthquakes.md)

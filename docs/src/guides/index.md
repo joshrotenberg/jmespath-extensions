@@ -7,10 +7,11 @@ Learn jpx by working with real data from public APIs. Each example includes:
 - Progressive examples from basic to advanced
 - Practical use cases
 
-## Available Datasets
+## Available Guides
 
-| Dataset | Description | Key Features |
-|---------|-------------|--------------|
+| Guide | Description | Key Features |
+|-------|-------------|--------------|
+| [Standard JMESPath Only](./standard-jmespath.md) | Portable queries using only spec functions | 26 built-in functions, no extensions |
 | [NLP Text Processing](./nlp-text-processing.md) | Text analysis pipelines | Tokenization, stemming, stopwords, normalization |
 | [Hacker News](./hacker-news.md) | Tech discussions via Algolia API | NLP on real content, topic detection, vocabulary analysis |
 | [USGS Earthquakes](./earthquakes.md) | Real-time seismic data | Geo functions, statistics, filtering |
