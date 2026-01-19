@@ -1,15 +1,14 @@
 # Setup with Claude Desktop
 
-Configure jpx as an MCP server for Claude Desktop.
+Configure jpx-server as an MCP server for Claude Desktop.
 
 ## Prerequisites
 
-1. Install jpx (MCP support is included by default):
+1. Install jpx-server:
    ```bash
-   brew install joshrotenberg/brew/jpx
-   # or
-   cargo install jpx
+   cargo install jpx-server
    ```
+   Or use Docker (no installation required).
 
 2. Have Claude Desktop installed
 
@@ -32,19 +31,6 @@ The simplest way to run jpx as an MCP server using the dedicated server image:
 
 Available for `linux/amd64` and `linux/arm64`.
 
-Alternatively, you can use the CLI image with the `mcp` subcommand:
-
-```json
-{
-  "mcpServers": {
-    "jpx": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "ghcr.io/joshrotenberg/jpx", "mcp"]
-    }
-  }
-}
-```
-
 ### macOS
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
@@ -53,21 +39,19 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "jpx": {
-      "command": "jpx",
-      "args": ["mcp"]
+      "command": "jpx-server"
     }
   }
 }
 ```
 
-If jpx is not in your PATH, use the full path:
+If jpx-server is not in your PATH, use the full path:
 
 ```json
 {
   "mcpServers": {
     "jpx": {
-      "command": "/opt/homebrew/bin/jpx",
-      "args": ["mcp"]
+      "command": "/Users/yourname/.cargo/bin/jpx-server"
     }
   }
 }
@@ -81,8 +65,7 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json`:
 {
   "mcpServers": {
     "jpx": {
-      "command": "C:\\path\\to\\jpx.exe",
-      "args": ["mcp"]
+      "command": "C:\\path\\to\\jpx-server.exe"
     }
   }
 }
@@ -110,8 +93,21 @@ To use only standard JMESPath functions (no extensions):
 {
   "mcpServers": {
     "jpx": {
-      "command": "jpx",
-      "args": ["mcp", "--strict"]
+      "command": "jpx-server",
+      "args": ["--strict"]
+    }
+  }
+}
+```
+
+Or with Docker:
+
+```json
+{
+  "mcpServers": {
+    "jpx": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/joshrotenberg/jpx-server", "--strict"]
     }
   }
 }
@@ -119,9 +115,9 @@ To use only standard JMESPath functions (no extensions):
 
 ## Troubleshooting
 
-### jpx not found
+### jpx-server not found
 
-Make sure jpx is in your PATH, or use the full path in the config.
+Make sure jpx-server is in your PATH, or use the full path in the config.
 
 ### Tools not appearing
 

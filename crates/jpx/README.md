@@ -94,143 +94,17 @@ cargo install --path . --no-default-features
 
 ## MCP Server (AI Assistant Integration)
 
-jpx can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server, allowing AI assistants like Claude to use JMESPath for JSON querying and transformation.
-
-### Building with MCP Support
-
-MCP support is included by default. Simply build:
+For MCP (Model Context Protocol) support, use the dedicated [`jpx-server`](https://crates.io/crates/jpx-server) package:
 
 ```bash
-cargo build -p jpx --release
+# Install
+cargo install jpx-server
+
+# Or use Docker
+docker run -i --rm ghcr.io/joshrotenberg/jpx-server
 ```
 
-To build without MCP support (smaller binary):
-
-```bash
-cargo build -p jpx --no-default-features --release
-```
-
-### Running the Server
-
-```bash
-jpx mcp
-```
-
-### MCP Tools (17 total)
-
-**Discovery** - Find and explore functionality:
-
-| Tool | Description |
-|------|-------------|
-| `search` | Fuzzy search functions by name, description, category, or signature |
-| `similar` | Find functions related to a specified function |
-| `functions` | List available functions (with optional category filter) |
-| `describe` | Get detailed info for a specific function |
-| `categories` | List all function categories |
-
-**Data Analysis** - Understand JSON structure:
-
-| Tool | Description |
-|------|-------------|
-| `stats` | Analyze JSON structure (type, size, depth, field analysis) |
-| `paths` | Extract all paths in dot notation (e.g., `users[0].name`) |
-| `keys` | Extract object keys (optionally recursive with dot notation) |
-
-**Querying** - Evaluate expressions:
-
-| Tool | Description |
-|------|-------------|
-| `evaluate` | Run JMESPath expressions against JSON input |
-| `evaluate_file` | Query JSON files directly from disk (with security checks) |
-| `batch_evaluate` | Run multiple expressions against the same input |
-| `validate` | Check expression syntax without executing |
-
-**JSON Utilities** - Transform and manipulate:
-
-| Tool | Description |
-|------|-------------|
-| `format` | Pretty-print JSON with configurable indentation |
-| `diff` | Generate RFC 6902 JSON Patch between two documents |
-| `patch` | Apply RFC 6902 JSON Patch operations |
-| `merge` | Apply RFC 7396 JSON Merge Patch |
-
-### Claude Desktop Configuration
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
-
-```json
-{
-  "mcpServers": {
-    "jpx": {
-      "command": "/path/to/jpx",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Or use Docker with the dedicated server image (no installation required):
-
-```json
-{
-  "mcpServers": {
-    "jpx": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "ghcr.io/joshrotenberg/jpx-server"]
-    }
-  }
-}
-```
-
-You can also use the CLI image with the `mcp` subcommand:
-
-```json
-{
-  "mcpServers": {
-    "jpx": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "ghcr.io/joshrotenberg/jpx", "mcp"]
-    }
-  }
-}
-```
-
-### Example Usage
-
-Once configured, Claude can use jpx to query JSON data:
-
-```
-User: I have this JSON: {"users": [{"name": "alice", "age": 30}, {"name": "bob", "age": 25}]}
-      Get the names of users over 28.
-
-Claude: [Uses jpx.evaluate with expression "users[?age > `28`].name"]
-        Result: ["alice"]
-```
-
-#### More MCP Examples
-
-**Query a file directly:**
-```
-Claude: [Uses jpx.evaluate_file with file_path="/data/users.json", expression="users[*].email"]
-```
-
-**Batch multiple queries:**
-```
-Claude: [Uses jpx.batch_evaluate with input and expressions=["length(users)", "users[0].name", "max(users[*].age)"]]
-        Result: {results: [{expression: "length(users)", result: 10}, ...]}
-```
-
-**Compare JSON documents (RFC 6902):**
-```
-Claude: [Uses jpx.diff with source and target documents]
-        Result: [{"op": "replace", "path": "/name", "value": "bob"}, {"op": "add", "path": "/age", "value": 30}]
-```
-
-**Explore JSON structure:**
-```
-Claude: [Uses jpx.keys with input and recursive=true]
-        Result: ["user", "user.name", "user.profile", "user.profile.settings"]
-```
+See the [MCP documentation](https://joshrotenberg.github.io/jmespath-extensions/server/mcp/overview.html) for setup instructions with Claude Desktop.
 
 ## Usage
 
