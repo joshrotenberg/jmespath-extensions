@@ -155,8 +155,8 @@ pub struct GetDiscoverySchemaParams {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RegisterDiscoveryParams {
-    /// The discovery spec JSON
-    pub spec: Value,
+    /// The discovery spec with server info and tool definitions
+    pub spec: DiscoverySpec,
     /// Replace existing registration if server already registered (default: false)
     #[serde(default)]
     pub replace: bool,
@@ -572,18 +572,14 @@ impl JpxMcp {
         &self,
         Parameters(params): Parameters<RegisterDiscoveryParams>,
     ) -> Result<CallToolResult, McpError> {
-        let spec: DiscoverySpec = serde_json::from_value(params.spec).map_err(|e| {
-            McpError::invalid_params(format!("Invalid discovery spec: {}", e), None)
-        })?;
-
-        if spec.server.name.is_empty() {
+        if params.spec.server.name.is_empty() {
             return Err(McpError::invalid_params(
                 "server.name is required and cannot be empty",
                 None,
             ));
         }
 
-        match self.engine.register_discovery(spec, params.replace) {
+        match self.engine.register_discovery(params.spec, params.replace) {
             Ok(result) => json_result(&result),
             Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
