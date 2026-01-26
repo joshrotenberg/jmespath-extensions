@@ -4908,6 +4908,7 @@ examples = [
     { code = '''json_encode('hello') -> \"\\\"hello\\\"\"''', description = "Encode string" },
     { code = "json_encode(data) -> JSON string", description = "Encode any value" },
 ]
+aliases = ["to_json"]
 features = ["core"]
 
 [[functions]]
