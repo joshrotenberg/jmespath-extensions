@@ -33,6 +33,7 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("if", Box::new(IfFn::new()));
     runtime.register_function("coalesce", Box::new(CoalesceFn::new()));
     runtime.register_function("json_encode", Box::new(JsonEncodeFn::new()));
+    runtime.register_function("to_json", Box::new(JsonEncodeFn::new()));
     runtime.register_function("json_decode", Box::new(JsonDecodeFn::new()));
     runtime.register_function("json_pointer", Box::new(JsonPointerFn::new()));
     runtime.register_function("pretty", Box::new(PrettyFn::new()));
@@ -56,6 +57,7 @@ pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
         "json_encode",
         Box::new(JsonEncodeFn::new())
     );
+    register_if_enabled!(runtime, enabled, "to_json", Box::new(JsonEncodeFn::new()));
     register_if_enabled!(
         runtime,
         enabled,
@@ -559,6 +561,16 @@ mod tests {
         let data = Variable::String("not valid json".to_string());
         let result = expr.search(&data).unwrap();
         assert!(result.is_null());
+    }
+
+    #[test]
+    fn test_to_json_alias() {
+        let runtime = setup_runtime();
+        // to_json should work identically to json_encode
+        let expr = runtime.compile("to_json(@)").unwrap();
+        let data = Variable::from_json(r#"{"a": 1}"#).unwrap();
+        let result = expr.search(&data).unwrap();
+        assert_eq!(result.as_string().unwrap(), r#"{"a":1}"#);
     }
 
     #[test]
