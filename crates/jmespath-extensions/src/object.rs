@@ -3283,6 +3283,21 @@ define_function!(
 
 impl Function for TemplateFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        // Check for null template string before signature validation to provide a clearer error
+        // This commonly happens when users forget backticks: template(@, "{{foo}}")
+        // JMESPath evaluates unquoted strings as field references, returning null
+        if args.len() >= 2 && args[1].is_null() {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse(
+                    "template: second argument is null. Template strings must be JMESPath \
+                     literals using backticks, e.g., template(@, `\"Hello {{name}}\"`)"
+                        .to_owned(),
+                ),
+            ));
+        }
+
         self.signature.validate(args, ctx)?;
 
         let template = args[1].as_string().ok_or_else(|| {
@@ -3311,6 +3326,19 @@ define_function!(
 
 impl Function for TemplateStrictFn {
     fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        // Check for null template string before signature validation to provide a clearer error
+        if args.len() >= 2 && args[1].is_null() {
+            return Err(JmespathError::new(
+                ctx.expression,
+                0,
+                ErrorReason::Parse(
+                    "template_strict: second argument is null. Template strings must be JMESPath \
+                     literals using backticks, e.g., template_strict(@, `\"Hello {{name}}\"`)"
+                        .to_owned(),
+                ),
+            ));
+        }
+
         self.signature.validate(args, ctx)?;
 
         let template = args[1].as_string().ok_or_else(|| {
@@ -4892,5 +4920,28 @@ mod tests {
             .unwrap();
         let result = expr.search(&data).unwrap();
         assert_eq!(result.as_string().unwrap(), "Hello Guest");
+    }
+
+    #[test]
+    fn test_template_null_template_error() {
+        let runtime = setup_runtime();
+        let data = Variable::from_json(r#"{"name": "alice"}"#).unwrap();
+        // Simulate what happens when user forgets backticks - the template string
+        // evaluates as a field reference which returns null
+        let expr = runtime.compile(r#"template(@, missing_field)"#).unwrap();
+        let result = expr.search(&data);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("second argument is null"),
+            "Error should mention null argument: {}",
+            err_msg
+        );
+        assert!(
+            err_msg.contains("backticks"),
+            "Error should mention backticks: {}",
+            err_msg
+        );
     }
 }
