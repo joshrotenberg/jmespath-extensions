@@ -31,6 +31,8 @@ hex = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 chrono-tz = { workspace = true, optional = true }
+chrono-english = { workspace = true, optional = true }
+dateparser = { workspace = true, optional = true }
 strsim = { workspace = true, optional = true }
 rphonetic = { workspace = true, optional = true }
 geoutils = { workspace = true, optional = true }
@@ -67,7 +69,7 @@ regex = ["dep:regex"]
 url = ["dep:url", "dep:urlencoding"]
 uuid = ["dep:uuid"]
 rand = ["dep:rand"]
-datetime = ["dep:chrono", "dep:chrono-tz"]
+datetime = ["dep:chrono", "dep:chrono-tz", "dep:chrono-english", "dep:dateparser"]
 fuzzy = ["dep:strsim"]
 expression = []
 phonetic = ["dep:rphonetic"]

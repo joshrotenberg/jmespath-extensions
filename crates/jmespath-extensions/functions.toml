@@ -816,6 +816,38 @@ examples = [
 ]
 features = ["core"]
 
+# Parse structured date/time formats (deterministic)
+[[functions]]
+name = "parse_datetime"
+category = "datetime"
+description = "Parse structured date/time string to ISO 8601 UTC"
+signature = "string -> string | null"
+examples = [
+    { code = '''parse_datetime("2024-01-15") -> "2024-01-15T00:00:00Z"''', description = "ISO date" },
+    { code = '''parse_datetime("2024-01-15T10:30:00Z") -> "2024-01-15T10:30:00Z"''', description = "ISO datetime" },
+    { code = '''parse_datetime("Jan 15, 2024") -> "2024-01-15T00:00:00Z"''', description = "Human date" },
+    { code = '''parse_datetime("01/15/2024") -> "2024-01-15T00:00:00Z"''', description = "US date format" },
+    { code = '''parse_datetime("1705363200") -> "2024-01-16T00:00:00Z"''', description = "Unix timestamp" },
+    { code = '''parse_datetime("invalid") -> null''', description = "Returns null for unparseable" },
+]
+features = ["core"]
+
+# Parse natural language date expressions (relative to current time)
+[[functions]]
+name = "parse_natural_date"
+category = "datetime"
+description = "Parse natural language date expression to ISO 8601 UTC (relative to now)"
+signature = "string -> string | null"
+examples = [
+    { code = '''parse_natural_date("yesterday") -> "2026-01-25T00:00:00Z"''', description = "Yesterday" },
+    { code = '''parse_natural_date("tomorrow") -> "2026-01-27T00:00:00Z"''', description = "Tomorrow" },
+    { code = '''parse_natural_date("3 days ago") -> "2026-01-23T00:00:00Z"''', description = "Relative past" },
+    { code = '''parse_natural_date("next friday") -> "2026-01-31T00:00:00Z"''', description = "Next weekday" },
+    { code = '''parse_natural_date("2 weeks ago") -> "2026-01-12T00:00:00Z"''', description = "Weeks ago" },
+    { code = '''parse_natural_date("invalid") -> null''', description = "Returns null for unparseable" },
+]
+features = ["core"]
+
 [[functions]]
 name = "is_weekday"
 category = "datetime"

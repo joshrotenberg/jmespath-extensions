@@ -49,7 +49,7 @@ fn values_equal(a: &Value, b: &Value) -> bool {
             oa.len() == ob.len()
                 && oa
                     .iter()
-                    .all(|(k, v)| ob.get(k).map_or(false, |v2| values_equal(v, v2)))
+                    .all(|(k, v)| ob.get(k).is_some_and(|v2| values_equal(v, v2)))
         }
         _ => a == b,
     }

@@ -423,6 +423,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono-english"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38a56613410c9249673f4676ab8d27c70949814accb27b6b738009e2ff1034a1"
+dependencies = [
+ "chrono",
+ "scanlex",
+]
+
+[[package]]
 name = "chrono-tz"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -718,6 +728,18 @@ dependencies = [
  "darling_core",
  "quote",
  "syn 2.0.111",
+]
+
+[[package]]
+name = "dateparser"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2ef451feee09ae5ecd8a02e738bd9adee9266b8fa9b44e22d3ce968d8694238"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "lazy_static",
+ "regex",
 ]
 
 [[package]]
@@ -1304,10 +1326,12 @@ dependencies = [
  "aho-corasick",
  "base64",
  "chrono",
+ "chrono-english",
  "chrono-tz",
  "crc32fast",
  "criterion",
  "csv",
+ "dateparser",
  "geoutils",
  "heck 0.5.0",
  "hex",
@@ -2235,6 +2259,12 @@ checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "scanlex"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "088c5d71572124929ea7549a8ce98e1a6fd33d0a38367b09027b382e67c033db"
 
 [[package]]
 name = "schemars"

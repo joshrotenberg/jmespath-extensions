@@ -60,6 +60,8 @@ pub fn register(runtime: &mut Runtime) {
     runtime.register_function("is_same_day", Box::new(IsSameDayFn::new()));
     // epoch_ms is an alias for now_millis (common name)
     runtime.register_function("epoch_ms", Box::new(NowMillisFn::new()));
+    runtime.register_function("parse_datetime", Box::new(ParseDatetimeFn::new()));
+    runtime.register_function("parse_natural_date", Box::new(ParseNaturalDateFn::new()));
 }
 
 /// Register only the datetime functions that are in the enabled set.
@@ -153,6 +155,18 @@ pub fn register_filtered(runtime: &mut Runtime, enabled: &HashSet<&str>) {
     );
     // epoch_ms is an alias for now_millis (common name)
     register_if_enabled!(runtime, enabled, "epoch_ms", Box::new(NowMillisFn::new()));
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "parse_datetime",
+        Box::new(ParseDatetimeFn::new())
+    );
+    register_if_enabled!(
+        runtime,
+        enabled,
+        "parse_natural_date",
+        Box::new(ParseNaturalDateFn::new())
+    );
 }
 
 // now() -> number
@@ -1041,6 +1055,57 @@ impl Function for IsSameDayFn {
     }
 }
 
+// =============================================================================
+// parse_datetime(date_string) -> string
+// =============================================================================
+
+// Parse structured date/time formats into ISO 8601 UTC string
+// Supports: ISO 8601, RFC 2822/3339, "Jan 15, 2024", "01/15/2024", Unix timestamps
+// Returns null for unparseable input
+define_function!(ParseDatetimeFn, vec![ArgumentType::String], None);
+
+impl Function for ParseDatetimeFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let input = args[0].as_string().unwrap();
+
+        match dateparser::parse_with_timezone(input, &Utc) {
+            Ok(dt) => {
+                let iso = dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+                Ok(Rc::new(Variable::String(iso)))
+            }
+            Err(_) => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
+// =============================================================================
+// parse_natural_date(expression) -> string
+// =============================================================================
+
+// Parse natural language date expressions into ISO 8601 UTC string
+// Supports: "yesterday", "tomorrow", "3 days ago", "next friday", "last week", etc.
+// Result is relative to current time (non-deterministic)
+// Returns null for unparseable input
+define_function!(ParseNaturalDateFn, vec![ArgumentType::String], None);
+
+impl Function for ParseNaturalDateFn {
+    fn evaluate(&self, args: &[Rcvar], ctx: &mut Context<'_>) -> Result<Rcvar, JmespathError> {
+        self.signature.validate(args, ctx)?;
+
+        let input = args[0].as_string().unwrap();
+
+        match chrono_english::parse_date_string(input, Utc::now(), chrono_english::Dialect::Us) {
+            Ok(dt) => {
+                let iso = dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+                Ok(Rc::new(Variable::String(iso)))
+            }
+            Err(_) => Ok(Rc::new(Variable::Null)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1772,5 +1837,199 @@ mod tests {
         let ts = result.as_number().unwrap() as i64;
         // Should be a reasonable current timestamp in milliseconds
         assert!(ts > 1700000000000);
+    }
+
+    // =========================================================================
+    // parse_datetime tests (structured formats)
+    // =========================================================================
+
+    #[test]
+    fn test_parse_datetime_iso_date() {
+        let runtime = setup();
+        let data = Variable::String("2024-01-15".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains("2024-01-15"), "Expected 2024-01-15 in {}", s);
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_datetime_iso_datetime() {
+        let runtime = setup();
+        let data = Variable::String("2024-01-15T10:30:00Z".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert_eq!(s, "2024-01-15T10:30:00Z");
+    }
+
+    #[test]
+    fn test_parse_datetime_iso_with_offset() {
+        let runtime = setup();
+        let data = Variable::String("2024-01-15T10:30:00+05:00".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        // Should convert to UTC (10:30 +05:00 = 05:30 UTC)
+        assert!(s.contains("2024-01-15"), "Expected 2024-01-15 in {}", s);
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_datetime_human_month_day_year() {
+        let runtime = setup();
+        let data = Variable::String("Jan 15, 2024".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains("2024-01-15"), "Expected 2024-01-15 in {}", s);
+    }
+
+    #[test]
+    fn test_parse_datetime_human_full_month() {
+        let runtime = setup();
+        let data = Variable::String("January 15, 2024".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains("2024-01-15"), "Expected 2024-01-15 in {}", s);
+    }
+
+    #[test]
+    fn test_parse_datetime_us_format() {
+        let runtime = setup();
+        let data = Variable::String("01/15/2024".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains("2024"), "Expected year 2024 in {}", s);
+    }
+
+    #[test]
+    fn test_parse_datetime_rfc2822() {
+        let runtime = setup();
+        let data = Variable::String("Mon, 15 Jan 2024 10:30:00 +0000".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains("2024-01-15"), "Expected 2024-01-15 in {}", s);
+    }
+
+    #[test]
+    fn test_parse_datetime_unix_timestamp() {
+        let runtime = setup();
+        // 1705363200 = 2024-01-16T00:00:00Z
+        let data = Variable::String("1705363200".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.contains("2024-01-16"), "Expected 2024-01-16 in {}", s);
+    }
+
+    #[test]
+    fn test_parse_datetime_invalid() {
+        let runtime = setup();
+        let data = Variable::String("not a date at all xyz123".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null(), "Invalid date should return null");
+    }
+
+    #[test]
+    fn test_parse_datetime_empty() {
+        let runtime = setup();
+        let data = Variable::String("".to_string());
+        let expr = runtime.compile("parse_datetime(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null(), "Empty string should return null");
+    }
+
+    // =========================================================================
+    // parse_natural_date tests (natural language, relative to now)
+    // =========================================================================
+
+    #[test]
+    fn test_parse_natural_date_yesterday() {
+        let runtime = setup();
+        let data = Variable::String("yesterday".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+        assert!(
+            s.contains('T'),
+            "Expected ISO format with T separator in {}",
+            s
+        );
+    }
+
+    #[test]
+    fn test_parse_natural_date_tomorrow() {
+        let runtime = setup();
+        let data = Variable::String("tomorrow".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_natural_date_days_ago() {
+        let runtime = setup();
+        let data = Variable::String("3 days ago".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_natural_date_weeks_ago() {
+        let runtime = setup();
+        let data = Variable::String("2 weeks ago".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_natural_date_next_weekday() {
+        let runtime = setup();
+        let data = Variable::String("next friday".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_natural_date_last_weekday() {
+        let runtime = setup();
+        let data = Variable::String("last monday".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_natural_date_hours() {
+        let runtime = setup();
+        let data = Variable::String("5 hours ago".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        let s = result.as_string().unwrap();
+        assert!(s.ends_with('Z'), "Expected UTC timezone marker in {}", s);
+    }
+
+    #[test]
+    fn test_parse_natural_date_invalid() {
+        let runtime = setup();
+        let data = Variable::String("not a natural date expression".to_string());
+        let expr = runtime.compile("parse_natural_date(@)").unwrap();
+        let result = expr.search(&data).unwrap();
+        assert!(result.is_null(), "Invalid expression should return null");
     }
 }
