@@ -4231,7 +4231,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": [1, 2], "b": [1, 2, 3, 4]}"#).unwrap();
         let expr = runtime.compile("inside_array(a, b)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -4240,7 +4240,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": [1, 5], "b": [1, 2, 3, 4]}"#).unwrap();
         let expr = runtime.compile("inside_array(a, b)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -4249,7 +4249,7 @@ mod tests {
         let data = Variable::from_json(r#"{"a": [], "b": [1, 2, 3]}"#).unwrap();
         let expr = runtime.compile("inside_array(a, b)").unwrap();
         let result = expr.search(&data).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     // bsearch tests
