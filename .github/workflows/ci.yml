@@ -4,13 +4,11 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - "docs/**"
       - "*.md"
       - "LICENSE-*"
   pull_request:
     branches: [main]
     paths-ignore:
-      - "docs/**"
       - "*.md"
       - "LICENSE-*"
 
@@ -135,8 +133,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check MSRV
         # Edition 2024 requires 1.85
-        # Exclude mock-mcp-server (requires 1.88+ due to rmcp deps)
-        run: cargo check --no-default-features --workspace --exclude mock-mcp-server
+        run: cargo check --no-default-features --workspace
 
   bench:
     name: Benchmarks

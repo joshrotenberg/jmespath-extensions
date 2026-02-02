@@ -7,23 +7,14 @@ semver_check = true
 # PR configuration
 pr_labels = ["release"]
 
-# Main library - release-plz creates GitHub release (no binaries needed)
+# Main library - release-plz creates GitHub release
 [[package]]
 name = "jmespath_extensions"
 publish = true
 git_release_enable = true
 git_tag_name = "v{{ version }}"
-# Disable semver check - the crates/ directory reorganization broke comparison
-# against previous commits (README path changed from ../README.md to ../../README.md).
-# Can be re-enabled after 0.8.3 is published and becomes the comparison baseline.
-semver_check = false
-
-# CLI tool - separate versioning, let cargo-dist handle GitHub releases
-[[package]]
-name = "jpx"
-publish = true
-git_release_enable = false
-git_tag_name = "jpx-v{{ version }}"
 
 # Note: jmespath-extensions-py is excluded from Cargo workspace and uses
 # a separate python-release workflow, so it's not listed here.
+#
+# CLI tools (jpx, jpx-server) have moved to: https://github.com/joshrotenberg/jpx

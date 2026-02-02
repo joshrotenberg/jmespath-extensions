@@ -1,10 +1,10 @@
 [workspace]
-members = ["crates/jmespath-extensions", "crates/jpx-engine", "crates/jpx", "crates/jpx-server", "xtask", "mock-mcp-server"]
-# Python bindings are excluded from workspace to avoid PyO3 build issues in cargo-dist
+members = ["crates/jmespath-extensions", "xtask"]
+# Python bindings are excluded from workspace to avoid PyO3 build issues
 # The jmespath-extensions-py crate is built/released separately via the Python workflow
 exclude = ["crates/jmespath-extensions-py"]
 resolver = "2"
-default-members = ["crates/jpx"]
+default-members = ["crates/jmespath-extensions"]
 
 [workspace.package]
 edition = "2024"
@@ -18,13 +18,6 @@ homepage = "https://github.com/joshrotenberg/jmespath-extensions"
 jmespath = "0.4"
 serde = "1.0"
 serde_json = "1.0"
-
-# CLI dependencies
-clap = { version = "4", features = ["derive"] }
-clap_complete = "4"
-anyhow = "1.0"
-colored_json = "5"
-atty = "0.2"
 
 # Optional library dependencies
 md-5 = "0.10"
@@ -59,46 +52,5 @@ stop-words = "0.9"
 unicode-normalization = "0.1"
 heck = "0.5"
 
-# MCP server dependencies
-rmcp = { version = "0.12", features = ["server", "transport-io", "macros"] }
-schemars = "1.2"
-tokio = { version = "1", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
 # Dev dependencies
 criterion = { version = "0.5", features = ["html_reports"] }
-# Note: criterion 0.7 has breaking changes, staying on 0.5 for now
-
-
-
-# Internal crates
-jmespath-extensions = { path = "crates/jmespath-extensions", version = "0.8.3", package = "jmespath_extensions" }
-jpx-engine = { path = "crates/jpx-engine", version = "0.1.2" }
-
-# Config for 'cargo dist'
-[workspace.metadata.dist]
-# The preferred cargo-dist version to use in CI
-cargo-dist-version = "0.30.2"
-# CI backends to support
-ci = "github"
-# The installers to generate for each app
-installers = ["shell", "powershell"]
-# Target platforms to build for
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
-# Which actions to run on pull requests
-pr-run-mode = "plan"
-# Whether to consider the binaries in a package for distribution
-# Only jpx (the CLI) should produce binaries
-install-path = "CARGO_HOME"
-# Don't generate an updater
-install-updater = false
-# Whether to auto-include files like READMEs, LICENSEs, and CHANGELOGs
-auto-includes = true
-# Allow CI scripts to be manually modified
-allow-dirty = ["ci"]
-
-# The profile that 'dist' will build with
-[profile.dist]
-inherits = "release"
-lto = "thin"
