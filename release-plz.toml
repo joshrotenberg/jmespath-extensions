@@ -1,4 +1,3 @@
-[workspace]
 # Changelog configuration
 changelog_update = true
 git_tag_enable = true
@@ -7,14 +6,8 @@ semver_check = true
 # PR configuration
 pr_labels = ["release"]
 
-# Main library - release-plz creates GitHub release
-[[package]]
-name = "jmespath_extensions"
-publish = true
+# GitHub release for crate
 git_release_enable = true
 git_tag_name = "v{{ version }}"
 
-# Note: jmespath-extensions-py is excluded from Cargo workspace and uses
-# a separate python-release workflow, so it's not listed here.
-#
-# CLI tools (jpx, jpx-server) have moved to: https://github.com/joshrotenberg/jpx
+# Note: python/ bindings are released separately via python-release workflow

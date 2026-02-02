@@ -7,6 +7,174 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.1...v0.8.2) - 2026-01-17
+
+### Added
+
+- add from_entries as alias for from_items ([#340](https://github.com/joshrotenberg/jmespath-extensions/pull/340))
+
+### Fixed
+
+- *(registry)* enforce disable_function at runtime ([#358](https://github.com/joshrotenberg/jmespath-extensions/pull/358)) ([#360](https://github.com/joshrotenberg/jmespath-extensions/pull/360))
+
+### Other
+
+- documentation audit and improvements ([#355](https://github.com/joshrotenberg/jmespath-extensions/pull/355))
+- use heck crate for case conversion functions ([#348](https://github.com/joshrotenberg/jmespath-extensions/pull/348)) ([#349](https://github.com/joshrotenberg/jmespath-extensions/pull/349))
+
+## [0.8.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.0...v0.8.1) - 2026-01-16
+
+### Added
+
+- *(discovery)* add search preprocessing for better BM25 indexing ([#333](https://github.com/joshrotenberg/jmespath-extensions/pull/333))
+- *(text)* add NLP toolkit functions ([#320](https://github.com/joshrotenberg/jmespath-extensions/pull/320))
+- *(cli)* improve help discoverability and set default binary ([#315](https://github.com/joshrotenberg/jmespath-extensions/pull/315))
+
+### Fixed
+
+- correct JMESPath literal syntax in function examples ([#334](https://github.com/joshrotenberg/jmespath-extensions/pull/334))
+
+## [0.8.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.7.0...v0.8.0) - 2026-01-14
+
+### Added
+
+- *(discovery)* add fuzzy_search, fuzzy_match, and fuzzy_score functions ([#288](https://github.com/joshrotenberg/jmespath-extensions/pull/288))
+- *(mcp)* add discovery and analysis tools for AI agents ([#283](https://github.com/joshrotenberg/jmespath-extensions/pull/283))
+- *(string)* add shell_escape function (jq parity) ([#264](https://github.com/joshrotenberg/jmespath-extensions/pull/264))
+- *(expression)* add recurse, while_expr, and until_expr functions (jq parity) ([#261](https://github.com/joshrotenberg/jmespath-extensions/pull/261))
+- add cartesian N-way product and with_entries (jq parity) ([#257](https://github.com/joshrotenberg/jmespath-extensions/pull/257))
+- add from_csv and from_tsv functions for CSV/TSV parsing ([#256](https://github.com/joshrotenberg/jmespath-extensions/pull/256))
+- add jq-parity array functions (indices_array, inside_array, bsearch) ([#255](https://github.com/joshrotenberg/jmespath-extensions/pull/255))
+- *(object)* add safe path navigation with defaults ([#209](https://github.com/joshrotenberg/jmespath-extensions/pull/209)) ([#223](https://github.com/joshrotenberg/jmespath-extensions/pull/223))
+- add batch functions for issues #200, #201, #202, #206, #211 ([#222](https://github.com/joshrotenberg/jmespath-extensions/pull/222))
+- *(object)* add recursive key search and transformation functions ([#219](https://github.com/joshrotenberg/jmespath-extensions/pull/219))
+- *(object)* add data redaction/masking functions ([#218](https://github.com/joshrotenberg/jmespath-extensions/pull/218))
+- *(object)* add data quality scoring functions ([#221](https://github.com/joshrotenberg/jmespath-extensions/pull/221))
+- *(math)* add quartiles, outliers_iqr, outliers_zscore functions ([#198](https://github.com/joshrotenberg/jmespath-extensions/pull/198)) ([#220](https://github.com/joshrotenberg/jmespath-extensions/pull/220))
+- *(type)* add type parsing/coercion functions ([#217](https://github.com/joshrotenberg/jmespath-extensions/pull/217))
+- *(object)* add null/empty cleanup functions ([#216](https://github.com/joshrotenberg/jmespath-extensions/pull/216))
+- *(array)* add index_by function for array-to-lookup-map conversion ([#215](https://github.com/joshrotenberg/jmespath-extensions/pull/215))
+- *(object)* add flatten/unflatten aliases and flatten_array function ([#214](https://github.com/joshrotenberg/jmespath-extensions/pull/214))
+- *(fuzzy)* add missing strsim functions ([#196](https://github.com/joshrotenberg/jmespath-extensions/pull/196))
+- *(language)* add language detection functions using whatlang ([#197](https://github.com/joshrotenberg/jmespath-extensions/pull/197))
+
+### Fixed
+
+- make Category match statements exhaustive for compile-time safety ([#213](https://github.com/joshrotenberg/jmespath-extensions/pull/213))
+
+### Other
+
+- acknowledge JMESPath project and add jq comparison ([#279](https://github.com/joshrotenberg/jmespath-extensions/pull/279))
+- add JMESPath compliance test suite integration ([#164](https://github.com/joshrotenberg/jmespath-extensions/pull/164)) ([#226](https://github.com/joshrotenberg/jmespath-extensions/pull/226))
+- add examples for recently added functions ([#225](https://github.com/joshrotenberg/jmespath-extensions/pull/225))
+- fix MCP documentation link ([#195](https://github.com/joshrotenberg/jmespath-extensions/pull/195))
+- highlight MCP server in main README ([#193](https://github.com/joshrotenberg/jmespath-extensions/pull/193))
+
+## [0.7.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.3...v0.7.0) - 2025-12-18
+
+### Added
+
+- add jq-inspired utility functions (pretty, html_escape, env) ([#175](https://github.com/joshrotenberg/jmespath-extensions/pull/175))
+- add CSV/TSV formatting functions ([#174](https://github.com/joshrotenberg/jmespath-extensions/pull/174))
+
+### Other
+
+- update JSON Merge Patch RFC reference from 7386 to 7396 ([#170](https://github.com/joshrotenberg/jmespath-extensions/pull/170))
+
+## [0.6.3](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.2...v0.6.3) - 2025-12-14
+
+### Fixed
+
+- wrap JSON literals in backticks for jsonpatch benchmarks ([#166](https://github.com/joshrotenberg/jmespath-extensions/pull/166))
+
+### Other
+
+- add quick reference table and multiple examples support ([#165](https://github.com/joshrotenberg/jmespath-extensions/pull/165))
+
+## [0.6.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.1...v0.6.2) - 2025-12-13
+
+### Fixed
+
+- add missing chrono and base64 deps to validation feature ([#157](https://github.com/joshrotenberg/jmespath-extensions/pull/157))
+
+## [0.6.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.6.0...v0.6.1) - 2025-12-13
+
+### Added
+
+- add ngrams, bigrams, trigrams text functions ([#154](https://github.com/joshrotenberg/jmespath-extensions/pull/154))
+- auto-generate docs and registry from functions.toml ([#153](https://github.com/joshrotenberg/jmespath-extensions/pull/153))
+- add multi-match extension functions ([#152](https://github.com/joshrotenberg/jmespath-extensions/pull/152))
+- add statistics functions for time-series and analytics ([#151](https://github.com/joshrotenberg/jmespath-extensions/pull/151))
+- add validation functions for credit cards, phone, JWT, dates, JSON, and encoding ([#150](https://github.com/joshrotenberg/jmespath-extensions/pull/150))
+- add JSON/Object path operations and schema discovery functions ([#149](https://github.com/joshrotenberg/jmespath-extensions/pull/149))
+- add epoch conversion, period boundaries, and comparison datetime functions ([#148](https://github.com/joshrotenberg/jmespath-extensions/pull/148))
+- add array functional programming functions ([#147](https://github.com/joshrotenberg/jmespath-extensions/pull/147))
+- add string utility functions (mask, redact, normalize_whitespace, is_blank, abbreviate, center, reverse_string) ([#146](https://github.com/joshrotenberg/jmespath-extensions/pull/146))
+- add crypto/security functions (HMAC, SHA-512, JWT) and flatten ([#144](https://github.com/joshrotenberg/jmespath-extensions/pull/144))
+
+### Other
+
+- add jsonpatch and multi-match to CI and benchmarks ([#155](https://github.com/joshrotenberg/jmespath-extensions/pull/155))
+
+## [0.6.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.5.0...v0.6.0) - 2025-12-12
+
+### Other
+
+- add comprehensive test coverage for array and expression functions ([#135](https://github.com/joshrotenberg/jmespath-extensions/pull/135))
+- add reduce_expr, scan_expr, order_by to registry metadata ([#134](https://github.com/joshrotenberg/jmespath-extensions/pull/134))
+- add missing jsonpatch and multi-match to documentation ([#132](https://github.com/joshrotenberg/jmespath-extensions/pull/132))
+
+## [0.5.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.4.1...v0.5.0) - 2025-12-10
+
+### Added
+
+- add aho-corasick multi-pattern matching functions ([#129](https://github.com/joshrotenberg/jmespath-extensions/pull/129))
+
+## [0.4.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.4.0...v0.4.1) - 2025-12-10
+
+### Added
+
+- *(datetime)* add is_after, is_before, is_between, time_ago functions ([#126](https://github.com/joshrotenberg/jmespath-extensions/pull/126))
+
+## [0.4.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.6...v0.4.0) - 2025-12-09
+
+### Added
+
+- [**breaking**] align functions with JEP-013 and JEP-014 specs ([#125](https://github.com/joshrotenberg/jmespath-extensions/pull/125))
+- add partial application functions (partial, apply) ([#124](https://github.com/joshrotenberg/jmespath-extensions/pull/124))
+
+## [0.3.6](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.5...v0.3.6) - 2025-12-09
+
+### Added
+
+- add lodash-inspired object path functions ([#115](https://github.com/joshrotenberg/jmespath-extensions/pull/115))
+- add count_by expression function ([#114](https://github.com/joshrotenberg/jmespath-extensions/pull/114))
+- add date/time utility functions ([#111](https://github.com/joshrotenberg/jmespath-extensions/pull/111))
+
+### Other
+
+- add attribution to jmespath crate ([#112](https://github.com/joshrotenberg/jmespath-extensions/pull/112))
+
+## [0.3.5](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.4...v0.3.5) - 2025-12-09
+
+### Added
+
+- add JSON Patch and Merge Patch functions (Issue #60) ([#108](https://github.com/joshrotenberg/jmespath-extensions/pull/108))
+- add array utility functions (Issue #62) ([#107](https://github.com/joshrotenberg/jmespath-extensions/pull/107))
+- add statistical functions (histogram, normalize, z_score, correlation) ([#104](https://github.com/joshrotenberg/jmespath-extensions/pull/104))
+
+## [0.3.4](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.3...v0.3.4) - 2025-12-09
+
+### Added
+
+- add new array and string functions ([#101](https://github.com/joshrotenberg/jmespath-extensions/pull/101))
+
+## [0.3.3](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.2...v0.3.3) - 2025-12-09
+
+### Other
+
+- move library to jmespath_extensions/ subdirectory ([#98](https://github.com/joshrotenberg/jmespath-extensions/pull/98))
+
 ## [0.3.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.3.1...v0.3.2) - 2025-12-08
 
 ### Fixed
