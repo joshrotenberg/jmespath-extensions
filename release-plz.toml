@@ -1,12 +1,8 @@
-# Changelog configuration
+[workspace]
 changelog_update = true
 git_tag_enable = true
-# Validate semantic versioning
 semver_check = true
-# PR configuration
 pr_labels = ["release"]
-
-# GitHub release for crate
 git_release_enable = true
 git_tag_name = "v{{ version }}"
 
