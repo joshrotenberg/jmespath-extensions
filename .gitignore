@@ -11,13 +11,10 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
 
-# Python bindings (excluded from workspace, has its own Cargo.lock)
-crates/jmespath-extensions-py/Cargo.lock
+# Python bindings (excluded from main crate, has its own Cargo.lock)
+python/Cargo.lock
 
 # Misc
 .tmp/
-docs/build/
-
-# Claude Code context
-CLAUDE.md
