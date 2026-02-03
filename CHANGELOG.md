@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.3...v0.9.0) - 2026-02-03
+
+### Added
+
+- add parse_datetime and parse_natural_date functions ([#423](https://github.com/joshrotenberg/jmespath-extensions/pull/423))
+- add to_json alias for json_encode ([#421](https://github.com/joshrotenberg/jmespath-extensions/pull/421))
+
+### Fixed
+
+- add [workspace] section to release-plz.toml ([#425](https://github.com/joshrotenberg/jmespath-extensions/pull/425))
+- improve template() error message for null template string ([#422](https://github.com/joshrotenberg/jmespath-extensions/pull/422))
+- correct docs.rs badge URL to use underscore ([#411](https://github.com/joshrotenberg/jmespath-extensions/pull/411))
+- *(mcp)* add proper type schema to register_discovery spec parameter ([#409](https://github.com/joshrotenberg/jmespath-extensions/pull/409))
+- Docker CLI workflow and add jpx-engine changelog ([#404](https://github.com/joshrotenberg/jmespath-extensions/pull/404))
+- add version to jpx-engine dependency in jpx ([#403](https://github.com/joshrotenberg/jmespath-extensions/pull/403))
+- add version to jpx-engine dependency in jpx-server ([#402](https://github.com/joshrotenberg/jmespath-extensions/pull/402))
+
+### Other
+
+- [**breaking**] split repo to library-only, move tooling to jpx repo ([#424](https://github.com/joshrotenberg/jmespath-extensions/pull/424))
+- skip CI for docs-only and markdown changes ([#413](https://github.com/joshrotenberg/jmespath-extensions/pull/413))
+- *(jpx)* release v0.2.1 ([#406](https://github.com/joshrotenberg/jmespath-extensions/pull/406))
+- update MCP references to use jpx-server instead of jpx mcp ([#408](https://github.com/joshrotenberg/jmespath-extensions/pull/408))
+- add standard JMESPath only guide ([#407](https://github.com/joshrotenberg/jmespath-extensions/pull/407))
+- release v0.1.1 ([#405](https://github.com/joshrotenberg/jmespath-extensions/pull/405))
+- release ([#368](https://github.com/joshrotenberg/jmespath-extensions/pull/368))
+- update pyo3 to 0.27 ([#401](https://github.com/joshrotenberg/jmespath-extensions/pull/401))
+
 ## [0.8.2](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.1...v0.8.2) - 2026-01-17
 
 ### Added
