@@ -41,6 +41,7 @@ dev = [
 ]
 
 [tool.maturin]
+manifest-path = "Cargo.toml"
 python-source = "python"
 module-name = "jmespath_extensions._core"
 features = ["pyo3/extension-module"]
