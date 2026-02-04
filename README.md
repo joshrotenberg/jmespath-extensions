@@ -6,37 +6,65 @@
 
 Extended JMESPath with 400+ functions. Rust library and Python bindings.
 
-**[Documentation](https://joshrotenberg.github.io/jpx/)** | **[Function Reference](https://joshrotenberg.github.io/jpx/functions/overview.html)**
+## Installation
 
-## Quick Start
+### Rust
 
-```bash
-# Install the CLI
-brew install joshrotenberg/brew/jpx
-# or: cargo install jpx
-
-# Use it
-echo '{"name": "world"}' | jpx 'upper(name)'
-# "WORLD"
-
-curl -s https://api.github.com/users/octocat | jpx '{
-  login: login,
-  created: format_date(parse_date(created_at), `%B %Y`)
-}'
-# {"login": "octocat", "created": "January 2011"}
+```toml
+[dependencies]
+jmespath_extensions = "0.9"
 ```
 
-## Packages
+### Python
 
-| Package | Description | Install |
-|---------|-------------|---------|
-| **[jmespath_extensions](https://crates.io/crates/jmespath_extensions)** | Rust library | `cargo add jmespath_extensions` |
-| **[jmespath-extensions](https://pypi.org/project/jmespath-extensions/)** | Python bindings | `pip install jmespath-extensions` |
+```bash
+pip install jmespath-extensions
+```
 
-For CLI tools and MCP server, see the **[jpx repository](https://github.com/joshrotenberg/jpx)**:
-- **jpx** - CLI with REPL, multiple output formats
-- **jpx-mcp** - MCP server for AI assistants
-- **jpx-engine** - Query engine with discovery features
+## Usage
+
+### Rust
+
+```rust
+use jmespath_extensions::search;
+use serde_json::json;
+
+let data = json!({"items": [1, 2, 3, 4, 5]});
+let result = search("sum(items)", &data)?;
+assert_eq!(result, json!(15));
+
+// String functions
+let data = json!({"name": "alice"});
+let result = search("upper(name)", &data)?;
+assert_eq!(result, json!("ALICE"));
+
+// Date functions
+let result = search("format_date(now(), '%Y-%m-%d')", &json!({}))?;
+
+// Array functions
+let data = json!({"values": [1, 2, 2, 3, 3, 3]});
+let result = search("unique(values)", &data)?;
+assert_eq!(result, json!([1, 2, 3]));
+```
+
+### Python
+
+```python
+import jmespath_extensions as jmx
+
+# Basic usage
+data = {"items": [1, 2, 3, 4, 5]}
+result = jmx.search("sum(items)", data)
+assert result == 15
+
+# String functions
+result = jmx.search("upper(name)", {"name": "alice"})
+assert result == "ALICE"
+
+# Array functions
+result = jmx.search("unique(values)", {"values": [1, 2, 2, 3]})
+assert result == [1, 2, 3]
+```
 
 ## Function Categories
 
@@ -55,58 +83,13 @@ For CLI tools and MCP server, see the **[jpx repository](https://github.com/josh
 | **Fuzzy** | `levenshtein`, `jaro_winkler`, `soundex`, `metaphone` |
 | **Expression** | `map_expr`, `filter_expr`, `sort_by_expr`, `group_by_expr` |
 
-[Full function reference](https://joshrotenberg.github.io/jpx/functions/overview.html)
-
-## Examples
-
-```bash
-# Filter and transform
-echo '[{"name":"alice","age":30},{"name":"bob","age":25}]' \
-  | jpx '[?age > `26`].{name: upper(name), birth_year: `2024` - age}'
-# [{"name": "ALICE", "birth_year": 1994}]
-
-# Fuzzy matching
-jpx 'levenshtein(`kitten`, `sitting`)'
-# 3
-
-# Date arithmetic
-jpx 'format_date(date_add(now(), `7`, `days`), `%Y-%m-%d`)'
-# "2024-01-24"
-
-# Network validation
-echo '["10.0.0.1", "8.8.8.8", "192.168.1.1"]' \
-  | jpx '[?is_private_ip(@)]'
-# ["10.0.0.1", "192.168.1.1"]
-```
-
-## Library Usage
-
-### Rust
-
-```rust
-use jmespath_extensions::search;
-use serde_json::json;
-
-let data = json!({"items": [1, 2, 3, 4, 5]});
-let result = search("sum(items)", &data)?;
-assert_eq!(result, json!(15));
-```
-
-### Python
-
-```python
-import jmespath_extensions as jpx
-
-data = {"items": [1, 2, 3, 4, 5]}
-result = jpx.search("sum(items)", data)
-assert result == 15
-```
+See [docs.rs](https://docs.rs/jmespath_extensions) for the full function reference.
 
 ## Related Projects
 
-- **[jpx](https://github.com/joshrotenberg/jpx)** - CLI, MCP server, and query engine
+- **[jpx](https://github.com/joshrotenberg/jpx)** - CLI, MCP server, and query engine built on this library
 - **[JMESPath](https://jmespath.org/)** - The query language specification
-- **[jmespath.rs](https://crates.io/crates/jmespath)** - Rust implementation
+- **[jmespath.rs](https://crates.io/crates/jmespath)** - Rust JMESPath implementation
 
 ## License
 
