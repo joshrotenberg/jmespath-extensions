@@ -4,14 +4,14 @@
 [![Documentation](https://docs.rs/jmespath_extensions/badge.svg)](https://docs.rs/jmespath_extensions)
 [![CI](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml)
 
-Extended JMESPath with 400+ functions. Available as a CLI, MCP server, Rust library, and Python bindings.
+Extended JMESPath with 400+ functions. Rust library and Python bindings.
 
-**[Documentation](https://joshrotenberg.github.io/jmespath-extensions/)** | **[Function Reference](https://joshrotenberg.github.io/jmespath-extensions/functions/overview.html)**
+**[Documentation](https://joshrotenberg.github.io/jpx/)** | **[Function Reference](https://joshrotenberg.github.io/jpx/functions/overview.html)**
 
 ## Quick Start
 
 ```bash
-# Install
+# Install the CLI
 brew install joshrotenberg/brew/jpx
 # or: cargo install jpx
 
@@ -26,30 +26,17 @@ curl -s https://api.github.com/users/octocat | jpx '{
 # {"login": "octocat", "created": "January 2011"}
 ```
 
-## What's Included
+## Packages
 
-| Package | Description |
-|---------|-------------|
-| **[jpx](crates/jpx/)** | CLI tool with REPL, multiple output formats |
-| **[jpx-server](crates/jpx-server/)** | MCP server for AI assistants |
-| **[jmespath-extensions](crates/jmespath-extensions/)** | Rust library |
-| **[jmespath-extensions-py](https://pypi.org/project/jmespath-extensions/)** | Python bindings |
+| Package | Description | Install |
+|---------|-------------|---------|
+| **[jmespath_extensions](https://crates.io/crates/jmespath_extensions)** | Rust library | `cargo add jmespath_extensions` |
+| **[jmespath-extensions](https://pypi.org/project/jmespath-extensions/)** | Python bindings | `pip install jmespath-extensions` |
 
-## MCP Server
-
-Give Claude (or any MCP client) the ability to query and transform JSON:
-
-```json
-{
-  "mcpServers": {
-    "jpx": {
-      "command": "jpx-server"
-    }
-  }
-}
-```
-
-**Tools:** `evaluate`, `batch_evaluate`, `validate`, `functions`, `describe`, `search`, `similar`, `format`, `diff`, `patch`, `merge`, `stats`, `paths`, `keys`
+For CLI tools and MCP server, see the **[jpx repository](https://github.com/joshrotenberg/jpx)**:
+- **jpx** - CLI with REPL, multiple output formats
+- **jpx-mcp** - MCP server for AI assistants
+- **jpx-engine** - Query engine with discovery features
 
 ## Function Categories
 
@@ -68,9 +55,9 @@ Give Claude (or any MCP client) the ability to query and transform JSON:
 | **Fuzzy** | `levenshtein`, `jaro_winkler`, `soundex`, `metaphone` |
 | **Expression** | `map_expr`, `filter_expr`, `sort_by_expr`, `group_by_expr` |
 
-[Full function reference](https://joshrotenberg.github.io/jmespath-extensions/functions/overview.html)
+[Full function reference](https://joshrotenberg.github.io/jpx/functions/overview.html)
 
-## A Taste
+## Examples
 
 ```bash
 # Filter and transform
@@ -82,7 +69,7 @@ echo '[{"name":"alice","age":30},{"name":"bob","age":25}]' \
 jpx 'levenshtein(`kitten`, `sitting`)'
 # 3
 
-# Date arithmetic  
+# Date arithmetic
 jpx 'format_date(date_add(now(), `7`, `days`), `%Y-%m-%d`)'
 # "2024-01-24"
 
@@ -115,11 +102,11 @@ result = jpx.search("sum(items)", data)
 assert result == 15
 ```
 
-## Acknowledgments
+## Related Projects
 
+- **[jpx](https://github.com/joshrotenberg/jpx)** - CLI, MCP server, and query engine
 - **[JMESPath](https://jmespath.org/)** - The query language specification
-- **[jmespath.rs](https://crates.io/crates/jmespath)** - Rust implementation by [@mtdowling](https://github.com/mtdowling)
-- **[jp](https://github.com/jmespath/jp)** - The official JMESPath CLI
+- **[jmespath.rs](https://crates.io/crates/jmespath)** - Rust implementation
 
 ## License
 
