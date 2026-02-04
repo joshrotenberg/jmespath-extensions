@@ -45,6 +45,8 @@ manifest-path = "Cargo.toml"
 python-source = "python"
 module-name = "jmespath_extensions._core"
 features = ["pyo3/extension-module"]
+# Exclude root README to avoid conflict with python/README.md
+exclude = ["../README.md"]
 
 [tool.ruff]
 line-length = 100

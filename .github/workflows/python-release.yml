@@ -65,13 +65,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Set up QEMU
+        if: matrix.target == 'aarch64' && runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: python
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
-          args: --release --out dist
+          args: --release --out dist -i python3.12
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
