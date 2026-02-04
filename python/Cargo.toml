@@ -1,13 +1,12 @@
 [package]
 name = "jmespath-extensions-py"
-version = "0.1.0"
+version = "0.9.0"
 edition = "2024"
 authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/joshrotenberg/jmespath-extensions"
 homepage = "https://github.com/joshrotenberg/jmespath-extensions"
 description = "Python bindings for jmespath-extensions - 400+ functions for JMESPath queries"
-readme = "README.md"
 keywords = ["jmespath", "json", "query", "python", "pyo3"]
 categories = ["api-bindings"]
 # This crate is not published to crates.io - it's a Python package published to PyPI

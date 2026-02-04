@@ -48,8 +48,8 @@ jobs:
           - os: ubuntu-latest
             target: aarch64
             manylinux: auto
-          # macOS x86_64
-          - os: macos-13
+          # macOS x86_64 (Intel)
+          - os: macos-15
             target: x86_64
             manylinux: auto
           # macOS arm64
