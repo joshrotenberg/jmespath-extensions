@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "jmespath-extensions"
 version = "0.9.0"
 description = "JMESPath with 400+ extension functions for strings, arrays, dates, hashing, encoding, and more"
-readme = "README.md"
+readme = "PYPI_README.md"
 license = { text = "MIT OR Apache-2.0" }
 authors = [{ name = "Josh Rotenberg", email = "joshrotenberg@gmail.com" }]
 requires-python = ">=3.9"
@@ -45,8 +45,6 @@ manifest-path = "Cargo.toml"
 python-source = "python"
 module-name = "jmespath_extensions._core"
 features = ["pyo3/extension-module"]
-# Exclude root README to avoid conflict with python/README.md
-exclude = ["../README.md"]
 
 [tool.ruff]
 line-length = 100
