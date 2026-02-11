@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.9.0...v0.9.1) - 2026-02-11
+
+### Fixed
+
+- exclude root README and fix aarch64 cross-compilation ([#433](https://github.com/joshrotenberg/jmespath-extensions/pull/433))
+- Python release workflow issues ([#431](https://github.com/joshrotenberg/jmespath-extensions/pull/431))
+
+### Other
+
+- Update README with migration notice and repository status ([#435](https://github.com/joshrotenberg/jmespath-extensions/pull/435))
+- focus README on library usage only ([#429](https://github.com/joshrotenberg/jmespath-extensions/pull/429))
+- update README for jpx repo split ([#427](https://github.com/joshrotenberg/jmespath-extensions/pull/427))
+
 ## [0.9.0](https://github.com/joshrotenberg/jmespath-extensions/compare/v0.8.3...v0.9.0) - 2026-02-03
 
 ### Added
