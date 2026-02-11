@@ -1,5 +1,13 @@
 # jmespath-extensions
 
+## NOTE
+
+This work has moved to https://github.com/joshrotenberg/jpx which includes a full [JMESPath Specification](https://jmespath.org/specification.html) 
+implementation with some performance improvements over the official crate, the full extensions (plus more) implemented here, a higher level "engine" 
+library that includes meta for both evaluation and function discovery, and the `jpx` CLI tool and the `jpx-mcp` MCP server.
+
+No further development will be done on this repository.
+
 [![Crates.io](https://img.shields.io/crates/v/jmespath_extensions.svg)](https://crates.io/crates/jmespath_extensions)
 [![Documentation](https://docs.rs/jmespath_extensions/badge.svg)](https://docs.rs/jmespath_extensions)
 [![CI](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/joshrotenberg/jmespath-extensions/actions/workflows/ci.yml)
